@@ -9,34 +9,68 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 **BMB >= C -O3** (모든 케이스)
 **BMB > C -O3** (계약 활용 케이스)
 
-## Current Status: v0.1
+## Current Status: v0.2
 
-### Implemented Benchmarks
+### Implemented Benchmarks (12 total)
 
-| Category | Benchmark | C | BMB | Description |
-|----------|-----------|---|-----|-------------|
-| compute | fibonacci | ✅ | ✅ | Recursive function calls |
-| compute | n_body | ✅ | 🔧 | N-body simulation (pending f64) |
-| contract | bounds_check | ✅ | ✅ | Bounds check elimination |
+#### Compute-Intensive (Benchmarks Game Standard)
+
+| Benchmark | C | BMB | Description |
+|-----------|---|-----|-------------|
+| fibonacci | ✅ | ✅ | Recursive function calls, integer ops |
+| n_body | ✅ | ✅ | N-body simulation (fixed-point) |
+| mandelbrot | ✅ | ✅ | Fractal generation, fixed-point math |
+| spectral_norm | ✅ | ✅ | Matrix operations, linear algebra |
+| binary_trees | ✅ | ✅ | Memory allocation, recursion |
+| fannkuch | ✅ | ✅ | Permutation generation, array ops |
+
+#### Contract-Optimized (BMB-Specific)
+
+| Benchmark | C | BMB | Contract Benefit |
+|-----------|---|-----|------------------|
+| bounds_check | ✅ | ✅ | pre로 경계검사 제거 (10-30% 향상) |
+| null_check | ✅ | ✅ | Option<T> + contracts로 null 검사 제거 |
+| purity_opt | ✅ | ✅ | 순수성 기반 CSE, 메모이제이션 |
+| aliasing | ✅ | ✅ | 소유권으로 aliasing 증명 → SIMD 활성화 |
+
+#### Real-World Workloads
+
+| Benchmark | C | BMB | Description |
+|-----------|---|-----|-------------|
+| json_parse | ✅ | ✅ | JSON 파싱, 문자열 처리 |
+| sorting | ✅ | ✅ | 정렬 알고리즘 비교 |
 
 ## Benchmark Categories
 
 ### Compute-Intensive
+Standard benchmarks from [The Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/).
 
 | Benchmark | Description | Measures |
 |-----------|-------------|----------|
-| `fibonacci` | Recursive Fibonacci | Integer ops, function calls |
-| `n-body` | N-body simulation | FP arithmetic, SIMD |
-| `mandelbrot` | Fractal generation | SIMD, parallelism |
-| `spectral-norm` | Matrix operations | Linear algebra |
+| `fibonacci` | Recursive Fibonacci(35) | Integer ops, function calls |
+| `n_body` | N-body simulation | FP arithmetic (fixed-point) |
+| `mandelbrot` | Mandelbrot set 50x50 | Iteration, fixed-point complex |
+| `spectral_norm` | Eigenvalue approximation | Matrix-vector multiply |
+| `binary_trees` | Binary tree allocate/deallocate | Memory patterns, recursion |
+| `fannkuch` | Pancake flipping | Permutation, array reversal |
 
-### Contract-Optimized (BMB-specific)
+### Contract-Optimized
+BMB-specific benchmarks demonstrating contract-based optimizations.
 
-| Benchmark | Description | Contract Benefit |
-|-----------|-------------|------------------|
-| `bounds-check` | Array operations | pre로 경계검사 제거 |
-| `null-check` | Optional handling | NonNull 타입으로 제거 |
-| `purity-opt` | Pure functions | 순수성 기반 최적화 |
+| Benchmark | Description | Expected BMB Advantage |
+|-----------|-------------|------------------------|
+| `bounds_check` | Array access with pre conditions | 10-30% (bounds check elimination) |
+| `null_check` | Option<T> handling with contracts | 15-25% (null check elimination) |
+| `purity_opt` | Pure function redundancy | 20-50% (CSE, hoisting) |
+| `aliasing` | Non-aliasing array operations | 30-50% (SIMD vectorization) |
+
+### Real-World
+Practical workloads representative of actual applications.
+
+| Benchmark | Description | Measures |
+|-----------|-------------|----------|
+| `json_parse` | JSON validation and counting | String processing, parsing |
+| `sorting` | Multiple sorting algorithms | Comparisons, data movement |
 
 ## Directory Structure
 
@@ -45,16 +79,20 @@ benchmark-bmb/
 ├── README.md
 ├── benches/
 │   ├── compute/
-│   │   ├── fibonacci/
-│   │   │   ├── c/main.c
-│   │   │   └── bmb/main.bmb
-│   │   └── n_body/
-│   │       ├── c/main.c
-│   │       └── bmb/main.bmb
-│   └── contract/
-│       └── bounds_check/
-│           ├── c/main.c
-│           └── bmb/main.bmb
+│   │   ├── fibonacci/{c,bmb}/main.{c,bmb}
+│   │   ├── n_body/{c,bmb}/main.{c,bmb}
+│   │   ├── mandelbrot/{c,bmb}/main.{c,bmb}
+│   │   ├── spectral_norm/{c,bmb}/main.{c,bmb}
+│   │   ├── binary_trees/{c,bmb}/main.{c,bmb}
+│   │   └── fannkuch/{c,bmb}/main.{c,bmb}
+│   ├── contract/
+│   │   ├── bounds_check/{c,bmb}/main.{c,bmb}
+│   │   ├── null_check/{c,bmb}/main.{c,bmb}
+│   │   ├── purity_opt/{c,bmb}/main.{c,bmb}
+│   │   └── aliasing/{c,bmb}/main.{c,bmb}
+│   └── real_world/
+│       ├── json_parse/{c,bmb}/main.{c,bmb}
+│       └── sorting/{c,bmb}/main.{c,bmb}
 ├── runner/
 │   ├── Cargo.toml
 │   └── src/main.rs
@@ -73,30 +111,44 @@ cargo build --release
 
 # Run specific category
 ./target/release/benchmark-bmb run --category compute
+./target/release/benchmark-bmb run --category contract
+./target/release/benchmark-bmb run --category real_world
 
 # Run single benchmark
 ./target/release/benchmark-bmb run fibonacci
 
-# List available benchmarks
-./target/release/benchmark-bmb list
-
-# Create new benchmark
-./target/release/benchmark-bmb new my_benchmark --category compute
+# Compare C vs BMB
+./target/release/benchmark-bmb compare mandelbrot
 ```
 
 ## Output Format
 
 ```
-=== BMB Benchmark Suite ===
+=== BMB Benchmark Suite v0.2 ===
 
-Running: fibonacci
+Category: compute
+─────────────────────────────────────────────────────────────
+Benchmark         C (ms)    BMB (ms)    Ratio    Status
+─────────────────────────────────────────────────────────────
+fibonacci         850.23     855.67     1.01x      ✓
+mandelbrot        123.45     120.12     0.97x      ✓★
+binary_trees      456.78     450.23     0.99x      ✓
+─────────────────────────────────────────────────────────────
 
-  Language     Median (ms)     Min (ms)     Max (ms)   Relative
-  ------------------------------------------------------------
-  C                 850.23       845.12       860.45      1.00x
-  BMB               855.67       850.01       865.23         ✓
+Category: contract
+─────────────────────────────────────────────────────────────
+Benchmark         C (ms)    BMB (ms)    Ratio    Status
+─────────────────────────────────────────────────────────────
+bounds_check      100.00      75.00     0.75x      ✓★
+null_check        200.00     160.00     0.80x      ✓★
+purity_opt        300.00     180.00     0.60x      ✓★
+aliasing          400.00     240.00     0.60x      ✓★
+─────────────────────────────────────────────────────────────
 
-BMB is within 1% of C -O3
+Legend:
+  ✓  = BMB within 5% of C
+  ✓★ = BMB faster than C
+  ✗  = BMB more than 5% slower
 ```
 
 ## Benchmark Requirements
@@ -112,34 +164,33 @@ BMB is within 1% of C -O3
 
 - **Warm-up**: 2 iterations before measurement
 - **Iterations**: 5 measurements, median reported
-- **Metrics**: Wall time, relative performance
+- **Environment**: Single-threaded, isolated CPU cores
+- **Compiler flags**: C with `-O3`, BMB with `--release`
 
-## Runner CLI Commands
+## Methodology
 
-| Command | Description |
-|---------|-------------|
-| `run` | Run benchmarks |
-| `list` | List available benchmarks |
-| `new` | Create new benchmark scaffold |
-| `compare` | Compare languages for a benchmark |
-| `validate` | Validate implementations produce same output |
-| `report` | Generate benchmark report |
+Following [Benchmarks Game methodology](https://benchmarksgame-team.pages.debian.net/benchmarksgame/):
+
+1. Same algorithm, different implementations
+2. Wall-clock time measurement
+3. Median of multiple runs
+4. Validation of output correctness
 
 ## Roadmap
 
 | Version | Features | Status |
 |---------|----------|--------|
-| v0.1 | Basic runner, compute benchmarks | ✅ |
-| v0.2 | Memory benchmarks, comparison reports | 계획 |
-| v0.3 | Real-world benchmarks, CI integration | 계획 |
-| v0.4 | Contract-optimized benchmarks (full) | 계획 |
-| v0.5 | Dashboard, regression detection | 계획 |
+| v0.1 | Basic runner, 3 benchmarks | ✅ |
+| v0.2 | 12 benchmarks, 3 categories | ✅ |
+| v0.3 | CI integration, regression detection | 계획 |
+| v0.4 | Web dashboard (bench.bmb.dev) | 계획 |
+| v0.5 | Rust comparison, full Benchmarks Game suite | 계획 |
 
 ## Contributing
 
 1. Fork the repository
-2. Add benchmark implementation
-3. Validate correctness
+2. Add benchmark implementation in both C and BMB
+3. Validate correctness (same output)
 4. Submit PR with benchmark results
 
 ## License

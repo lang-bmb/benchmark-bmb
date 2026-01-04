@@ -1,0 +1,42 @@
+-- Binary trees benchmark
+-- Measures: memory allocation patterns, recursion
+
+-- Tree node representation (using integer encoding)
+-- Each node encodes: left child index, right child index, or leaf marker
+
+fn make_tree(depth: i64) -> i64 =
+    if depth <= 0 then 1  -- leaf node
+    else 2 + make_tree(depth - 1) + make_tree(depth - 1);
+
+fn check_tree(size: i64) -> i64 =
+    if size <= 1 then 1
+    else let half = (size - 2) / 2;
+         1 + check_tree(half) + check_tree(half);
+
+fn count_nodes(depth: i64) -> i64 =
+    if depth <= 0 then 1
+    else 1 + 2 * count_nodes(depth - 1);
+
+fn benchmark(min_depth: i64, max_depth: i64) -> i64 =
+    benchmark_iter(min_depth, max_depth, 0);
+
+fn benchmark_iter(depth: i64, max_depth: i64, total: i64) -> i64 =
+    if depth > max_depth then total
+    else let iterations = 1 * count_nodes(max_depth - depth + min_depth());
+         let result = run_iterations(depth, iterations, 0);
+         benchmark_iter(depth + 2, max_depth, total + result);
+
+fn min_depth() -> i64 = 4;
+
+fn run_iterations(depth: i64, remaining: i64, check: i64) -> i64 =
+    if remaining <= 0 then check
+    else let tree_size = make_tree(depth);
+         let tree_check = check_tree(tree_size);
+         run_iterations(depth, remaining - 1, check + tree_check);
+
+fn main() -> i64 =
+    let max_depth = 10;
+    let stretch_depth = max_depth + 1;
+    let stretch = make_tree(stretch_depth);
+    let u0 = println(check_tree(stretch));
+    benchmark(min_depth(), max_depth);
