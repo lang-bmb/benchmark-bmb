@@ -1,5 +1,5 @@
-// Fibonacci - compute intensive benchmark
-// Measures: recursive function calls, integer arithmetic
+-- Fibonacci - compute intensive benchmark
+-- Measures: recursive function calls, integer arithmetic
 
 fn fibonacci(n: i64) -> i64
   pre  n >= 0

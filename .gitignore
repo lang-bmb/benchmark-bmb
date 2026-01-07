@@ -1,0 +1,18 @@
+# Build artifacts
+*.exe
+*.pdb
+*.o
+*.obj
+*.a
+*.lib
+
+# Generated scripts
+run.sh
+
+# Rust build artifacts
+runner/target/
+runner/Cargo.lock
+
+# BMB build artifacts
+*.ll
+*.bc

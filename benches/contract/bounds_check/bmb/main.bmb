@@ -1,6 +1,6 @@
-// Bounds Check Elimination - contract optimization benchmark
-// In BMB: Contracts prove bounds at compile-time, no runtime check needed
-// Measures: Array access with compile-time verified bounds
+-- Bounds Check Elimination - contract optimization benchmark
+-- In BMB: Contracts prove bounds at compile-time, no runtime check needed
+-- Measures: Array access with compile-time verified bounds
 
 fn safe_access(arr: &[i64; 10000], index: i64) -> i64
   pre  index >= 0 and index < 10000
