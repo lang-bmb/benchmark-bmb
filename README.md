@@ -11,15 +11,20 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 
 ## Current Status: v0.3
 
-### Latest Results (2026-01-08, v0.31.18)
+### Latest Results (2026-01-08, Phase 33.5)
 
-| Benchmark | Rust | BMB | Ratio | Notes |
-|-----------|------|-----|-------|-------|
-| fibonacci(35) | 57ms | 54ms | 0.95x | ✅ BMB ~5% faster |
+| Benchmark | Rust | BMB | Ratio | Status |
+|-----------|------|-----|-------|--------|
+| fibonacci(35) | 60ms | 58ms | 0.97x | ✅ BMB 3% faster |
+| mandelbrot | 15ms | 14ms | 0.93x | ✅ BMB 7% faster |
+| spectral_norm | 9ms | 8ms | 0.89x | ✅ BMB 11% faster |
+| purity_opt | 9ms | 8ms | 0.89x | ✅ Contract advantage |
+| json_parse | 8ms | 10ms | 1.25x | ⚠️ BMB 25% slower |
 
-**Benchmark Gate #1 PASSED**: BMB >= Rust verified
+**Benchmark Gate #1 PASSED**: BMB >= Rust in compute-intensive benchmarks
+**Benchmark Gate #2 PARTIAL**: Contract advantages demonstrated
 
-See `results/2026-01-08_rust_vs_bmb.md` for full details.
+See `results/2026-01-08_phase33.5_comprehensive.md` for full details.
 
 ### Implemented Benchmarks (12 total, 3 languages)
 
