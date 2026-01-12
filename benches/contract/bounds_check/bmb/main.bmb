@@ -1,25 +1,46 @@
--- Bounds Check Elimination - contract optimization benchmark
--- In BMB: Contracts prove bounds at compile-time, no runtime check needed
--- Measures: Array access with compile-time verified bounds
+// Bounds Check Elimination - contract optimization benchmark
+// In BMB: Contracts prove bounds at compile-time, no runtime check needed
+// Measures: Array access with compile-time verified bounds
 
-fn safe_access(arr: &[i64; 10000], index: i64) -> i64
-  pre  index >= 0 and index < 10000
-  post ret == arr[index]
-=
-  // Bounds check eliminated: pre-condition proves validity
-  arr[index];
+// Simplified version using Vec<i64> builtins
+// Real benchmark would use native arrays with contract verification
 
-fn sum_range(arr: &[i64; 10000], start: i64, end: i64) -> i64
-  pre  start >= 0 and end <= 10000 and start <= end
-=
-  if start >= end then 0
-  else safe_access(arr, start) + sum_range(arr, start + 1, end);
+fn get_n() -> i64 = 1000;
 
-fn sum_array(arr: &[i64; 10000]) -> i64 =
-  sum_range(arr, 0, 10000);
+// Safe access with bounds checking (simulated contract)
+fn safe_access(v: i64, index: i64, len: i64) -> i64 =
+    if index >= 0 and index < len { vec_get(v, index) } else { 0 };
+
+// Sum a range of vector elements
+fn sum_range(v: i64, start: i64, end_idx: i64) -> i64 =
+    sum_range_loop(v, start, end_idx, 0);
+
+fn sum_range_loop(v: i64, i: i64, end_idx: i64, acc: i64) -> i64 =
+    if i >= end_idx { acc } else { sum_range_loop(v, i + 1, end_idx, acc + vec_get(v, i)) };
+
+// Initialize vector with values
+fn init_vec(v: i64, n: i64) -> () =
+    init_vec_loop(v, 0, n);
+
+fn init_vec_loop(v: i64, i: i64, n: i64) -> () =
+    if i >= n { () } else { {
+        vec_push(v, i * 2);
+        init_vec_loop(v, i + 1, n)
+    } };
 
 fn main() -> i64 = {
-  // Note: Full implementation would initialize and sum array
-  // This is a simplified version for benchmark structure
-  0
+    let n = get_n();
+    let v = vec_new();
+
+    // Initialize vector
+    init_vec(v, n);
+
+    // Sum all elements
+    let sum = sum_range(v, 0, n);
+
+    // Cleanup
+    vec_free(v);
+
+    println(sum);
+    sum
 };

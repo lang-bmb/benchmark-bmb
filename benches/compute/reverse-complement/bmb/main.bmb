@@ -1,0 +1,104 @@
+// reverse-complement - DNA strand complement benchmark
+// Benchmarks Game algorithm adapted for BMB
+// Tests reverse complement on embedded sequence data
+// (BMB interpreter doesn't support stdin line reading)
+
+// Helper: print string with newline
+fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+
+// Line width for FASTA output
+fn line_width() -> i64 = 60;
+
+// Complement mapping for IUPAC nucleotide codes
+fn complement(c: i64) -> i64 =
+    -- Standard bases
+    if c == 65 { 84 }       -- A -> T
+    else if c == 84 { 65 }  -- T -> A
+    else if c == 71 { 67 }  -- G -> C
+    else if c == 67 { 71 }  -- C -> G
+    else if c == 97 { 116 } -- a -> t
+    else if c == 116 { 97 } -- t -> a
+    else if c == 103 { 99 } -- g -> c
+    else if c == 99 { 103 } -- c -> g
+    -- RNA
+    else if c == 85 { 65 }  -- U -> A
+    else if c == 117 { 97 } -- u -> a
+    -- IUPAC ambiguity codes
+    else if c == 77 { 75 }  -- M -> K
+    else if c == 75 { 77 }  -- K -> M
+    else if c == 109 { 107 } -- m -> k
+    else if c == 107 { 109 } -- k -> m
+    else if c == 82 { 89 }  -- R -> Y
+    else if c == 89 { 82 }  -- Y -> R
+    else if c == 114 { 121 } -- r -> y
+    else if c == 121 { 114 } -- y -> r
+    else if c == 86 { 66 }  -- V -> B
+    else if c == 66 { 86 }  -- B -> V
+    else if c == 118 { 98 } -- v -> b
+    else if c == 98 { 118 } -- b -> v
+    else if c == 72 { 68 }  -- H -> D
+    else if c == 68 { 72 }  -- D -> H
+    else if c == 104 { 100 } -- h -> d
+    else if c == 100 { 104 } -- d -> h
+    -- Self-complementary: S, W, N
+    else { c };
+
+// Build reversed string by extracting characters from end to start
+fn reverse_build(s: String, idx: i64, acc: String) -> String =
+    if idx < 0 { acc }
+    else {
+        let c = ord(char_at(s, idx));
+        let comp = char_to_string(chr(complement(c)));
+        reverse_build(s, idx - 1, acc + comp)
+    };
+
+// Reverse complement a sequence string
+fn reverse_complement(s: String) -> String =
+    reverse_build(s, s.len() - 1, "");
+
+// Output sequence in FASTA format (line_width per line)
+fn output_lines(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { 0 }
+    else {
+        let remaining = s.len() - pos;
+        let len = if remaining > line_width() { line_width() } else { remaining };
+        let line = s.slice(pos, pos + len);
+        let u = printline(line);
+        output_lines(s, pos + len)
+    };
+
+// Process one sequence: output header and reverse complement
+fn process_sequence(header: String, seq: String) -> i64 = {
+    let u1 = printline(header);
+    let revcomp = reverse_complement(seq);
+    output_lines(revcomp, 0)
+};
+
+// Test sequences (from Benchmarks Game format)
+fn test_seq1() -> String = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG";
+fn test_seq2() -> String = "CGGGTGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGT";
+fn test_seq3() -> String = "GAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCG";
+
+// Longer test sequence for benchmarking
+fn test_long() -> String =
+    "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA" +
+    "TCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT" +
+    "AAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG" +
+    "GCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG" +
+    "CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+
+// Main benchmark: process multiple sequences
+fn main() -> i64 = {
+    -- Process test sequences
+    let u1 = process_sequence(">ONE test sequence 1", test_seq1());
+    let u2 = process_sequence(">TWO test sequence 2", test_seq2());
+    let u3 = process_sequence(">THREE test sequence 3", test_seq3());
+    let u4 = process_sequence(">LONG benchmark sequence", test_long());
+
+    -- Run multiple iterations for benchmarking
+    let u5 = process_sequence(">ITER1", test_long());
+    let u6 = process_sequence(">ITER2", test_long());
+    let u7 = process_sequence(">ITER3", test_long());
+
+    0
+};

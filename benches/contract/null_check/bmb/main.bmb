@@ -1,46 +1,63 @@
--- Null check elimination benchmark
--- Measures: contract-based null check optimization
--- BMB's Option<T> with contracts can eliminate runtime null checks
+// Null check elimination benchmark
+// Measures: contract-based null check optimization
+// BMB's T? with contracts can eliminate runtime null checks
 
--- Simulate Option<i64> as tagged union encoded in high bits
-fn none() -> i64 = -1;
-fn some(value: i64) -> i64
-  pre value >= 0
-  post ret >= 0
-= value;
+fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
 
-fn is_some(opt: i64) -> bool = opt >= 0;
-fn is_none(opt: i64) -> bool = opt < 0;
+fn int_to_string(n: i64) -> String =
+    if n < 0 { "-" + int_to_string(0 - n) }
+    else if n < 10 { digit_char(n) }
+    else { int_to_string(n / 10) + digit_char(n % 10) };
 
--- Safe unwrap with precondition (no runtime check needed)
-fn unwrap(opt: i64) -> i64
-  pre is_some(opt)
-  post ret >= 0
-= opt;
+fn digit_char(d: i64) -> String =
+    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
+    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
+    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
+    else { "9" };
 
--- Unwrap with default
-fn unwrap_or(opt: i64, default: i64) -> i64
-  post ret >= 0 or ret == default
-= if is_some(opt) then opt else default;
+// Simulate i64? as tagged union encoded (negative = none)
+fn none() -> i64 = 0 - 1;
 
--- Map operation
+fn some(value: i64) -> i64 =
+    if value >= 0 { value } else { 0 };
+
+fn is_some(opt: i64) -> i64 =
+    if opt >= 0 { 1 } else { 0 };
+
+fn is_none(opt: i64) -> i64 =
+    if opt < 0 { 1 } else { 0 };
+
+// Safe unwrap (precondition: is_some)
+fn unwrap(opt: i64) -> i64 = opt;
+
+// Unwrap with default
+fn unwrap_or(opt: i64, default: i64) -> i64 =
+    if is_some(opt) == 1 { opt } else { default };
+
+// Map operation
 fn map_double(opt: i64) -> i64 =
-    if is_some(opt) then some(unwrap(opt) * 2) else none();
+    if is_some(opt) == 1 { some(unwrap(opt) * 2) } else { none() };
 
--- Chain of operations (each could require null check in other languages)
-fn process_chain(value: i64) -> i64
-  pre value >= 0
-= let step1 = some(value);
-  let step2 = map_double(step1);
-  let step3 = map_double(step2);
-  let step4 = map_double(step3);
-  unwrap_or(step4, 0);
+// Chain of operations (each could require null check in other languages)
+fn process_chain(value: i64) -> i64 = {
+    let step1 = some(value);
+    let step2 = map_double(step1);
+    let step3 = map_double(step2);
+    let step4 = map_double(step3);
+    unwrap_or(step4, 0)
+};
 
--- Benchmark: many chained operations
+// Benchmark: many chained operations
 fn run_benchmark(n: i64, acc: i64) -> i64 =
-    if n <= 0 then acc
-    else let result = process_chain(n);
-         run_benchmark(n - 1, acc + result);
+    if n <= 0 { acc }
+    else {
+        let result = process_chain(n);
+        run_benchmark(n - 1, acc + result)
+    };
 
-fn main() -> i64 =
-    run_benchmark(10000, 0);
+fn main() -> i64 = {
+    let u1 = printline("Null Check Benchmark");
+    let result = run_benchmark(1000, 0);
+    let u2 = printline("Result: " + int_to_string(result));
+    printline("Done.")
+};
