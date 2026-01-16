@@ -1,62 +1,39 @@
--- JSON parsing benchmark
--- Measures: string processing, recursive descent parsing
+// JSON parsing benchmark
+// Measures: string processing, recursive descent parsing
 
--- Character classes
+// Character classes
 fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
 fn is_digit(c: i64) -> bool = c >= 48 and c <= 57;
 
--- Skip whitespace
+// Skip whitespace
 fn skip_ws(s: String, pos: i64) -> i64 =
-    if pos >= s.len() then pos
-    else if is_ws(s.char_at(pos)) then skip_ws(s, pos + 1)
-    else pos;
+    if pos >= s.len() { pos } else if is_ws(s.char_at(pos)) { skip_ws(s, pos + 1) } else { pos };
 
--- Parse number
+// Parse number
 fn parse_number(s: String, pos: i64, acc: i64) -> i64 =
-    if pos >= s.len() then pos * 1000000 + acc
-    else let c = s.char_at(pos);
-    if is_digit(c) then parse_number(s, pos + 1, acc * 10 + c - 48)
-    else pos * 1000000 + acc;
+    if pos >= s.len() { pos * 1000000 + acc } else { let c = s.char_at(pos) };
+    if is_digit(c) { parse_number(s, pos + 1, acc * 10 + c - 48) } else { pos * 1000000 + acc };
 
--- Find closing bracket/brace
+// Find closing bracket/brace
 fn find_close(s: String, pos: i64, depth: i64, open: i64, close: i64) -> i64 =
-    if pos >= s.len() then pos
-    else let c = s.char_at(pos);
-    if c == close and depth == 0 then pos
-    else if c == open then find_close(s, pos + 1, depth + 1, open, close)
-    else if c == close then find_close(s, pos + 1, depth - 1, open, close)
-    else find_close(s, pos + 1, depth, open, close);
+    if pos >= s.len() { pos } else { let c = s.char_at(pos) };
+    if c == close and depth == 0 { pos } else if c == open { find_close(s, pos + 1, depth + 1, open, close) } else if c == close { find_close(s, pos + 1, depth - 1, open, close) } else { find_close(s, pos + 1, depth, open, close) };
 
--- Count elements in array
+// Count elements in array
 fn count_array(s: String, pos: i64) -> i64 =
     let p = skip_ws(s, pos);
-    if p >= s.len() then 0
-    else if s.char_at(p) == 91 then  -- [
-         let p2 = skip_ws(s, p + 1);
-         if p2 >= s.len() or s.char_at(p2) == 93 then 0  -- ]
-         else count_elements(s, p2, 0, 1)
-    else 0;
+    if p >= s.len() { 0 } else if s.char_at(p) == 91 { let p2 = skip_ws(s, p + 1) };
+         if p2 >= s.len() or s.char_at(p2) == 93 { 0  // ] } else { count_elements(s, p2, 0, 1) }else 0;
 
 fn count_elements(s: String, pos: i64, depth: i64, count: i64) -> i64 =
-    if pos >= s.len() then count
-    else let c = s.char_at(pos);
-    if c == 93 and depth == 0 then count  -- ]
-    else if c == 91 or c == 123 then count_elements(s, pos + 1, depth + 1, count)
-    else if c == 93 or c == 125 then count_elements(s, pos + 1, depth - 1, count)
-    else if c == 44 and depth == 0 then count_elements(s, pos + 1, depth, count + 1)
-    else count_elements(s, pos + 1, depth, count);
+    if pos >= s.len() { count } else { let c = s.char_at(pos) };
+    if c == 93 and depth == 0 { count  // ] } else if c == 91 or c == 123 { count_elements(s, pos + 1, depth + 1, count) } else if c == 93 or c == 125 { count_elements(s, pos + 1, depth - 1, count) } else if c == 44 and depth == 0 { count_elements(s, pos + 1, depth, count + 1) } else { count_elements(s, pos + 1, depth, count) };
 
--- Simple JSON structure validation
+// Simple JSON structure validation
 fn validate_json(s: String, pos: i64) -> bool =
     let p = skip_ws(s, pos);
-    if p >= s.len() then false
-    else let c = s.char_at(p);
-    if c == 123 then validate_object(s, p)  -- {
-    else if c == 91 then validate_array(s, p)   -- [
-    else if c == 34 then validate_string(s, p)  -- "
-    else if is_digit(c) or c == 45 then true    -- number
-    else if c == 116 or c == 102 or c == 110 then true  -- true/false/null
-    else false;
+    if p >= s.len() { false } else { let c = s.char_at(p) };
+    if c == 123 { validate_object(s, p)  // { } else if c == 91 { validate_array(s, p)   // [ } else if c == 34 { validate_string(s, p)  // " } else if is_digit(c) or c == 45 { true    // number } else if c == 116 or c == 102 or c == 110 { true  // true/false/null } else { false };
 
 fn validate_object(s: String, pos: i64) -> bool =
     let close = find_close(s, pos + 1, 0, 123, 125);
@@ -70,17 +47,13 @@ fn validate_string(s: String, pos: i64) -> bool =
     find_string_end(s, pos + 1) < s.len();
 
 fn find_string_end(s: String, pos: i64) -> i64 =
-    if pos >= s.len() then pos
-    else let c = s.char_at(pos);
-    if c == 34 then pos  -- "
-    else if c == 92 then find_string_end(s, pos + 2)  -- escape
-    else find_string_end(s, pos + 1);
+    if pos >= s.len() { pos } else { let c = s.char_at(pos) };
+    if c == 34 { pos  // " } else if c == 92 { find_string_end(s, pos + 2)  // escape } else { find_string_end(s, pos + 1) };
 
--- Benchmark: parse many JSON structures
+// Benchmark: parse many JSON structures
 fn run_benchmark(iterations: i64, valid_count: i64) -> i64 =
-    if iterations <= 0 then valid_count
-    else let json = "[1,2,3,4,5,6,7,8,9,10]";
-         let is_valid = if validate_json(json, 0) then 1 else 0;
+    if iterations <= 0 { valid_count } else { let json = "[1,2,3,4,5,6,7,8,9,10]" };
+         let is_valid = if validate_json(json, 0) { 1 } else { 0 };
          let element_count = count_array(json, 0);
          run_benchmark(iterations - 1, valid_count + is_valid + element_count);
 

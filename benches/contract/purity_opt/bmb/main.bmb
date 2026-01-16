@@ -1,39 +1,36 @@
--- Purity optimization benchmark
--- Measures: pure function memoization and common subexpression elimination
--- BMB's purity contracts enable aggressive optimization
+// Purity optimization benchmark
+// Measures: pure function memoization and common subexpression elimination
+// BMB's purity contracts enable aggressive optimization
 
--- Pure function (can be memoized/CSE'd)
+// Pure function (can be memoized/CSE'd)
 fn expensive_pure(x: i64) -> i64
   pre x >= 0
   post ret >= 0
 = expensive_iter(x, 0, 1);
 
 fn expensive_iter(n: i64, i: i64, acc: i64) -> i64 =
-    if i >= n then acc
-    else expensive_iter(n, i + 1, acc + (i * i) / (i + 1));
+    if i >= n { acc } else { expensive_iter(n, i + 1, acc + (i * i) / (i + 1)) };
 
--- Multiple calls to same pure function (CSE opportunity)
+// Multiple calls to same pure function (CSE opportunity)
 fn compute_with_redundancy(x: i64) -> i64
   pre x >= 0
-= let a = expensive_pure(x);    -- First call
-  let b = expensive_pure(x);    -- Identical call (can be eliminated)
-  let c = expensive_pure(x);    -- Identical call (can be eliminated)
+= let a = expensive_pure(x);    // First call
+  let b = expensive_pure(x);    // Identical call (can be eliminated)
+  let c = expensive_pure(x);    // Identical call (can be eliminated)
   a + b + c;
 
--- Loop with invariant pure computation
+// Loop with invariant pure computation
 fn loop_with_invariant(n: i64, constant: i64) -> i64
   pre n >= 0 and constant >= 0
 = loop_iter(n, constant, 0);
 
 fn loop_iter(remaining: i64, constant: i64, acc: i64) -> i64 =
-    if remaining <= 0 then acc
-    else let pure_result = expensive_pure(constant);  -- Loop invariant
+    if remaining <= 0 { acc } else { let pure_result = expensive_pure(constant) };  // Loop invariant
          loop_iter(remaining - 1, constant, acc + pure_result);
 
--- Benchmark: many redundant pure calls
+// Benchmark: many redundant pure calls
 fn run_benchmark(n: i64, acc: i64) -> i64 =
-    if n <= 0 then acc
-    else let result = compute_with_redundancy(n / 10);
+    if n <= 0 { acc } else { let result = compute_with_redundancy(n / 10) };
          run_benchmark(n - 1, acc + result);
 
 fn main() -> i64 =

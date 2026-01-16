@@ -1,8 +1,8 @@
--- Aliasing optimization benchmark
--- Measures: non-aliasing guarantees enabling better code generation
--- BMB's ownership model proves non-aliasing statically
+// Aliasing optimization benchmark
+// Measures: non-aliasing guarantees enabling better code generation
+// BMB's ownership model proves non-aliasing statically
 
--- Simulate array as base + offset encoding
+// Simulate array as base + offset encoding
 fn array_get(base: i64, index: i64, size: i64) -> i64
   pre index >= 0 and index < size
 = base + index * 1000;
@@ -11,36 +11,33 @@ fn array_set(base: i64, index: i64, value: i64, size: i64) -> i64
   pre index >= 0 and index < size
 = base + index * value;
 
--- With aliasing proof: can reorder loads and stores
+// With aliasing proof: can reorder loads and stores
 fn process_independent_arrays(a_base: i64, b_base: i64, size: i64) -> i64
   pre size > 0
 = process_iter(a_base, b_base, size, 0, 0);
 
 fn process_iter(a_base: i64, b_base: i64, size: i64, i: i64, acc: i64) -> i64 =
-    if i >= size then acc
-    else let a_val = array_get(a_base, i, size);
+    if i >= size { acc } else { let a_val = array_get(a_base, i, size) };
          let b_val = array_get(b_base, i, size);
-         -- Store to b doesn't affect a reads (proven by ownership)
+         // Store to b doesn't affect a reads (proven by ownership)
          let new_b = array_set(b_base, i, a_val + 1, size);
-         let a_val2 = array_get(a_base, i, size);  -- Can reuse cached a_val
+         let a_val2 = array_get(a_base, i, size);  // Can reuse cached a_val
          process_iter(a_base, new_b, size, i + 1, acc + a_val + a_val2);
 
--- SIMD-friendly vectorization with proven non-aliasing
+// SIMD-friendly vectorization with proven non-aliasing
 fn vector_add(a_base: i64, b_base: i64, c_base: i64, size: i64) -> i64
   pre size > 0
 = vector_add_iter(a_base, b_base, c_base, size, 0);
 
 fn vector_add_iter(a_base: i64, b_base: i64, c_base: i64, size: i64, i: i64) -> i64 =
-    if i >= size then c_base
-    else let a_val = array_get(a_base, i, size);
+    if i >= size { c_base } else { let a_val = array_get(a_base, i, size) };
          let b_val = array_get(b_base, i, size);
          let c_val = a_val + b_val;
          let new_c = array_set(c_base, i, c_val, size);
          vector_add_iter(a_base, b_base, new_c, size, i + 1);
 
 fn run_benchmark(iterations: i64, acc: i64) -> i64 =
-    if iterations <= 0 then acc
-    else let result = process_independent_arrays(1000, 2000, 100);
+    if iterations <= 0 { acc } else { let result = process_independent_arrays(1000, 2000, 100) };
          run_benchmark(iterations - 1, acc + result);
 
 fn main() -> i64 =
