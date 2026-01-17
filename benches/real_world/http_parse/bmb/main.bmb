@@ -1,0 +1,278 @@
+// http-parse - HTTP request parsing benchmark
+// Tests protocol parsing, header extraction, string matching
+// Self-contained with embedded test requests
+
+fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+
+fn int_to_string(n: i64) -> String =
+    if n < 0 { "-" + int_to_string(0 - n) }
+    else if n < 10 { digit_char(n) }
+    else { int_to_string(n / 10) + digit_char(n % 10) };
+
+fn digit_char(d: i64) -> String =
+    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
+    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
+    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
+    else { "9" };
+
+// HTTP method codes
+fn method_get() -> i64 = 0;
+fn method_post() -> i64 = 1;
+fn method_put() -> i64 = 2;
+fn method_delete() -> i64 = 3;
+fn method_head() -> i64 = 4;
+fn method_unknown() -> i64 = 9;
+
+// Character codes
+fn cr() -> i64 = 13;  -- carriage return
+fn lf() -> i64 = 10;  -- line feed
+fn space() -> i64 = 32;
+fn tab() -> i64 = 9;
+fn colon() -> i64 = 58;
+
+// Character classification
+fn is_ws(c: i64) -> i64 =
+    if c == space() or c == tab() { 1 } else { 0 };
+
+fn is_digit(c: i64) -> i64 =
+    if c >= 48 and c <= 57 { 1 } else { 0 };
+
+// Skip whitespace
+fn skip_ws(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else if is_ws(ord(char_at(s, pos))) == 1 { skip_ws(s, pos + 1) }
+    else { pos };
+
+// Find character
+fn find_char(s: String, pos: i64, c: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else if ord(char_at(s, pos)) == c { pos }
+    else { find_char(s, pos + 1, c) };
+
+// Find end of line (CR or LF)
+fn find_eol(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else if ord(char_at(s, pos)) == lf() { pos }
+    else if ord(char_at(s, pos)) == cr() { pos }
+    else { find_eol(s, pos + 1) };
+
+// Skip past EOL
+fn skip_eol(s: String, pos: i64) -> i64 =
+    let p1 = if pos < s.len() and ord(char_at(s, pos)) == cr() { pos + 1 } else { pos };
+    if p1 < s.len() and ord(char_at(s, p1)) == lf() { p1 + 1 } else { p1 };
+
+// Case-insensitive character comparison (lowercase if A-Z)
+fn to_lower(c: i64) -> i64 =
+    if c >= 65 and c <= 90 { c + 32 } else { c };
+
+// Compare substring case-insensitive
+fn str_eq_at(s: String, pos: i64, m: String, idx: i64) -> i64 =
+    if idx >= m.len() { 1 }
+    else if pos >= s.len() { 0 }
+    else if to_lower(ord(char_at(s, pos))) != to_lower(ord(char_at(m, idx))) { 0 }
+    else { str_eq_at(s, pos + 1, m, idx + 1) };
+
+fn str_eq(s: String, pos: i64, m: String) -> i64 =
+    str_eq_at(s, pos, m, 0);
+
+// Parse HTTP method
+fn parse_method(s: String, pos: i64) -> i64 =
+    if str_eq(s, pos, "GET") == 1 { method_get() }
+    else if str_eq(s, pos, "POST") == 1 { method_post() }
+    else if str_eq(s, pos, "PUT") == 1 { method_put() }
+    else if str_eq(s, pos, "DELETE") == 1 { method_delete() }
+    else if str_eq(s, pos, "HEAD") == 1 { method_head() }
+    else { method_unknown() };
+
+// Parse integer
+fn parse_int_loop(s: String, pos: i64, end: i64, acc: i64) -> i64 =
+    if pos >= end { acc }
+    else if is_digit(ord(char_at(s, pos))) == 1 {
+        parse_int_loop(s, pos + 1, end, acc * 10 + ord(char_at(s, pos)) - 48)
+    }
+    else { acc };
+
+fn parse_int(s: String, pos: i64, end: i64) -> i64 =
+    parse_int_loop(s, pos, end, 0);
+
+// Parse headers and accumulate stats
+// Returns: header_count * 1000000 + content_length
+fn parse_headers(s: String, pos: i64, header_count: i64, content_length: i64) -> i64 =
+    if pos >= s.len() {
+        header_count * 1000000 + content_length
+    }
+    else {
+        let line_start = pos;
+        let eol = find_eol(s, pos);
+        -- Empty line = end of headers
+        if eol == line_start {
+            header_count * 1000000 + content_length
+        }
+        else {
+            let colon_pos = find_char(s, pos, colon());
+            if colon_pos < eol {
+                let name_len = colon_pos - pos;
+                let val_start = skip_ws(s, colon_pos + 1);
+                -- Check for content-length header
+                let new_content_length =
+                    if name_len == 14 and str_eq(s, pos, "content-length") == 1 {
+                        parse_int(s, val_start, eol)
+                    } else { content_length };
+                let next_pos = skip_eol(s, eol);
+                parse_headers(s, next_pos, header_count + 1, new_content_length)
+            }
+            else {
+                let next_pos = skip_eol(s, eol);
+                parse_headers(s, next_pos, header_count + 1, content_length)
+            }
+        }
+    };
+
+// Parse request line and return position after it
+// Returns: method * 10000000 + path_len * 10000 + version_minor * 100 + new_pos_offset
+// (simplified encoding)
+fn parse_request_line(s: String, pos: i64) -> i64 = {
+    let method = parse_method(s, pos);
+    -- Skip to first space
+    let p1 = find_char(s, pos, space());
+    let p2 = skip_ws(s, p1);
+    -- Parse path
+    let path_start = p2;
+    let p3 = find_char(s, p2, space());
+    let path_len = p3 - path_start;
+    -- Skip to HTTP version
+    let p4 = skip_ws(s, p3);
+    -- Parse version (assume HTTP/1.x format)
+    let version_minor = if p4 + 7 < s.len() and ord(char_at(s, p4 + 6)) == 46 {
+        ord(char_at(s, p4 + 7)) - 48
+    } else { 1 };
+    -- Skip to end of line
+    let eol = find_eol(s, p4);
+    let next_pos = skip_eol(s, eol);
+    -- Encode result
+    method * 10000000 + path_len * 10000 + version_minor * 100 + (next_pos - pos)
+};
+
+// Parse full request, return header_count * 1000000 + content_length
+fn parse_request(s: String) -> i64 = {
+    let req_line = parse_request_line(s, 0);
+    let pos_offset = req_line % 100;
+    parse_headers(s, pos_offset, 0, 0)
+};
+
+// Get header count from result
+fn get_header_count(result: i64) -> i64 = result / 1000000;
+
+// Get content length from result
+fn get_content_length(result: i64) -> i64 = result % 1000000;
+
+// Method name
+fn method_name(m: i64) -> String =
+    if m == method_get() { "GET" }
+    else if m == method_post() { "POST" }
+    else if m == method_put() { "PUT" }
+    else if m == method_delete() { "DELETE" }
+    else if m == method_head() { "HEAD" }
+    else { "UNKNOWN" };
+
+// Test requests (using chr for CR/LF)
+fn crlf() -> String = char_to_string(chr(13)) + char_to_string(chr(10));
+
+fn request1() -> String =
+    "GET /index.html HTTP/1.1" + crlf() +
+    "Host: example.com" + crlf() +
+    "User-Agent: Mozilla/5.0" + crlf() +
+    "Accept: text/html" + crlf() +
+    "Connection: keep-alive" + crlf() +
+    crlf();
+
+fn request2() -> String =
+    "POST /api/users HTTP/1.1" + crlf() +
+    "Host: api.example.com" + crlf() +
+    "Content-Type: application/json" + crlf() +
+    "Content-Length: 42" + crlf() +
+    "Authorization: Bearer token123" + crlf() +
+    crlf();
+
+fn request3() -> String =
+    "PUT /api/resource/123 HTTP/1.1" + crlf() +
+    "Host: api.example.com" + crlf() +
+    "Content-Type: application/json" + crlf() +
+    "Content-Length: 256" + crlf() +
+    crlf();
+
+fn request4() -> String =
+    "DELETE /api/users/456 HTTP/1.1" + crlf() +
+    "Host: api.example.com" + crlf() +
+    "Authorization: Bearer token456" + crlf() +
+    crlf();
+
+fn request5() -> String =
+    "GET /static/style.css HTTP/1.1" + crlf() +
+    "Host: cdn.example.com" + crlf() +
+    "Accept: text/css" + crlf() +
+    "Cache-Control: max-age=3600" + crlf() +
+    crlf();
+
+// Parse all requests and accumulate totals
+fn parse_all_requests(total_headers: i64, total_content_len: i64) -> i64 = {
+    let r1 = parse_request(request1());
+    let r2 = parse_request(request2());
+    let r3 = parse_request(request3());
+    let r4 = parse_request(request4());
+    let r5 = parse_request(request5());
+    let h = get_header_count(r1) + get_header_count(r2) + get_header_count(r3) +
+            get_header_count(r4) + get_header_count(r5);
+    let c = get_content_length(r1) + get_content_length(r2) + get_content_length(r3) +
+            get_content_length(r4) + get_content_length(r5);
+    (total_headers + h) * 1000000 + (total_content_len + c)
+};
+
+// Benchmark loop
+fn run_benchmark_loop(iterations: i64, total_headers: i64, total_content_len: i64) -> i64 =
+    if iterations <= 0 {
+        total_headers * 1000000 + total_content_len
+    }
+    else {
+        let result = parse_all_requests(0, 0);
+        let h = result / 1000000;
+        let c = result % 1000000;
+        run_benchmark_loop(iterations - 1, total_headers + h, total_content_len + c)
+    };
+
+fn run_benchmark(iterations: i64) -> i64 =
+    run_benchmark_loop(iterations, 0, 0);
+
+fn main() -> i64 = {
+    let u1 = printline("HTTP Parse Benchmark");
+    let u2 = printline("");
+
+    -- Parse sample request
+    let req1 = request1();
+    let req_line = parse_request_line(req1, 0);
+    let method = req_line / 10000000;
+    let path_len = (req_line / 10000) % 1000;
+    let version_minor = (req_line / 100) % 100;
+
+    let result = parse_request(req1);
+    let header_count = get_header_count(result);
+
+    let u3 = printline("Sample request:");
+    let u4 = printline("  Method: " + method_name(method));
+    let u5 = printline("  Path length: " + int_to_string(path_len));
+    let u6 = printline("  Version: HTTP/1." + int_to_string(version_minor));
+    let u7 = printline("  Headers: " + int_to_string(header_count));
+    let u8 = printline("");
+
+    -- Benchmark (1000 iterations for interpreter speed)
+    let bench = run_benchmark(1000);
+    let total_headers = bench / 1000000;
+    let total_content_len = bench % 1000000;
+
+    let u9 = printline("Benchmark (1000 iterations x 5 requests):");
+    let u10 = printline("  Total headers parsed: " + int_to_string(total_headers));
+    let u11 = printline("  Total content-length: " + int_to_string(total_content_len));
+
+    let u12 = printline("");
+    printline("Done.")
+};

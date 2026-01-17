@@ -1,0 +1,223 @@
+// typecheck-bootstrap - BMB type checker benchmark
+// Measures: Type inference and checking for BMB expressions
+// Note: Interpreter mode has stack depth limits, uses simplified samples
+
+fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+
+fn int_to_string(n: i64) -> String =
+    if n < 0 { "-" + int_to_string(0 - n) }
+    else if n < 10 { digit_char(n) }
+    else { int_to_string(n / 10) + digit_char(n % 10) };
+
+fn digit_char(d: i64) -> String =
+    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
+    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
+    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
+    else { "9" };
+
+// ============================================================================
+// Type Encoding
+// ============================================================================
+// Types are encoded as: kind * 1000 + extra
+// Kinds: 1=i32, 2=i64, 3=f64, 4=bool, 5=string, 6=unit, 10=error
+
+fn ty_i32() -> i64 = 1000;
+fn ty_i64() -> i64 = 2000;
+fn ty_f64() -> i64 = 3000;
+fn ty_bool() -> i64 = 4000;
+fn ty_string() -> i64 = 5000;
+fn ty_unit() -> i64 = 6000;
+fn ty_error() -> i64 = 10000;
+
+fn type_kind(ty: i64) -> i64 = ty / 1000;
+
+fn type_name(ty: i64) -> String =
+    if type_kind(ty) == 1 { "i32" }
+    else if type_kind(ty) == 2 { "i64" }
+    else if type_kind(ty) == 3 { "f64" }
+    else if type_kind(ty) == 4 { "bool" }
+    else if type_kind(ty) == 5 { "String" }
+    else if type_kind(ty) == 6 { "()" }
+    else if type_kind(ty) == 10 { "error" }
+    else { "unknown" };
+
+// ============================================================================
+// Expression Encoding
+// ============================================================================
+// Expressions encoded as: kind * 10000000 + data
+// Kinds: 1=int_lit, 2=bool_lit, 3=var, 4=binop, 5=if, 6=unary
+
+fn expr_int_lit() -> i64 = 1;
+fn expr_bool_lit() -> i64 = 2;
+fn expr_var() -> i64 = 3;
+fn expr_binop() -> i64 = 4;
+fn expr_if() -> i64 = 5;
+fn expr_unary() -> i64 = 6;
+
+fn expr_kind(e: i64) -> i64 = e / 10000000;
+fn expr_data(e: i64) -> i64 = e % 10000000;
+
+fn make_int_lit(val: i64) -> i64 = expr_int_lit() * 10000000 + val;
+fn make_bool_lit(val: i64) -> i64 = expr_bool_lit() * 10000000 + val;
+fn make_var(idx: i64) -> i64 = expr_var() * 10000000 + idx;
+
+// Binary operators
+fn op_add() -> i64 = 1;
+fn op_sub() -> i64 = 2;
+fn op_mul() -> i64 = 3;
+fn op_lt() -> i64 = 10;
+fn op_gt() -> i64 = 11;
+fn op_and() -> i64 = 20;
+fn op_or() -> i64 = 21;
+
+fn is_arith_op(op: i64) -> i64 =
+    if op >= 1 and op <= 5 { 1 } else { 0 };
+
+fn is_cmp_op(op: i64) -> i64 =
+    if op >= 10 and op <= 15 { 1 } else { 0 };
+
+fn is_logic_op(op: i64) -> i64 =
+    if op >= 20 and op <= 21 { 1 } else { 0 };
+
+// ============================================================================
+// Type Environment (simplified)
+// ============================================================================
+// Environment encoded in a string: "name1:type1;name2:type2;..."
+// Variable indices are used for lookup
+
+fn env_empty() -> String = "";
+
+fn env_lookup(env: String, idx: i64) -> i64 =
+    // For simplicity, just return based on index
+    // In real impl, parse the env string
+    if idx == 0 { ty_i64() }
+    else if idx == 1 { ty_i64() }
+    else if idx == 2 { ty_bool() }
+    else { ty_error() };
+
+// ============================================================================
+// Type Unification
+// ============================================================================
+
+fn unify(t1: i64, t2: i64) -> i64 =
+    if t1 == t2 { t1 }
+    else if type_kind(t1) == 10 { t2 }
+    else if type_kind(t2) == 10 { t1 }
+    else { ty_error() };
+
+// ============================================================================
+// Type Checking (Expression Tree)
+// ============================================================================
+// Using encoded expressions for simplified checking
+
+fn check_literal(e: i64) -> i64 =
+    if expr_kind(e) == expr_int_lit() { ty_i64() }
+    else if expr_kind(e) == expr_bool_lit() { ty_bool() }
+    else { ty_error() };
+
+fn check_var(e: i64, env: String) -> i64 =
+    env_lookup(env, expr_data(e));
+
+// Check binary operation types
+fn check_binop_type(t1: i64, op: i64, t2: i64) -> i64 =
+    if is_arith_op(op) == 1 {
+        if type_kind(t1) == 2 and type_kind(t2) == 2 { ty_i64() }
+        else if type_kind(t1) == 3 and type_kind(t2) == 3 { ty_f64() }
+        else { ty_error() }
+    }
+    else if is_cmp_op(op) == 1 {
+        if type_kind(t1) == type_kind(t2) { ty_bool() }
+        else { ty_error() }
+    }
+    else if is_logic_op(op) == 1 {
+        if type_kind(t1) == 4 and type_kind(t2) == 4 { ty_bool() }
+        else { ty_error() }
+    }
+    else { ty_error() };
+
+// ============================================================================
+// Test Cases
+// ============================================================================
+
+fn test_int_literal() -> i64 = {
+    let e = make_int_lit(42);
+    let ty = check_literal(e);
+    if type_kind(ty) == 2 { 1 } else { 0 }
+};
+
+fn test_bool_literal() -> i64 = {
+    let e = make_bool_lit(1);
+    let ty = check_literal(e);
+    if type_kind(ty) == 4 { 1 } else { 0 }
+};
+
+fn test_arith_binop() -> i64 = {
+    let ty = check_binop_type(ty_i64(), op_add(), ty_i64());
+    if type_kind(ty) == 2 { 1 } else { 0 }
+};
+
+fn test_cmp_binop() -> i64 = {
+    let ty = check_binop_type(ty_i64(), op_lt(), ty_i64());
+    if type_kind(ty) == 4 { 1 } else { 0 }
+};
+
+fn test_logic_binop() -> i64 = {
+    let ty = check_binop_type(ty_bool(), op_and(), ty_bool());
+    if type_kind(ty) == 4 { 1 } else { 0 }
+};
+
+fn test_unify_same() -> i64 = {
+    let ty = unify(ty_i64(), ty_i64());
+    if type_kind(ty) == 2 { 1 } else { 0 }
+};
+
+fn test_unify_error() -> i64 = {
+    let ty = unify(ty_i64(), ty_bool());
+    if type_kind(ty) == 10 { 1 } else { 0 }
+};
+
+fn test_type_mismatch() -> i64 = {
+    let ty = check_binop_type(ty_i64(), op_add(), ty_bool());
+    if type_kind(ty) == 10 { 1 } else { 0 }
+};
+
+fn run_tests() -> i64 = {
+    let t1 = test_int_literal();
+    let t2 = test_bool_literal();
+    let t3 = test_arith_binop();
+    let t4 = test_cmp_binop();
+    let t5 = test_logic_binop();
+    let t6 = test_unify_same();
+    let t7 = test_unify_error();
+    let t8 = test_type_mismatch();
+    t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8
+};
+
+fn main() -> i64 = {
+    let u1 = printline("TypeCheck Bootstrap Benchmark");
+    let u2 = printline("Type checker for BMB expressions");
+    let u3 = printline("");
+
+    // Run type checking tests
+    let passed = run_tests();
+    let total = 8;
+
+    let u4 = printline("Type checking tests:");
+    let u5 = printline("  Passed: " + int_to_string(passed) + "/" + int_to_string(total));
+    let u6 = printline("");
+
+    // Type inference examples
+    let u7 = printline("Type inference examples:");
+    let u8 = printline("  42 : " + type_name(ty_i64()));
+    let u9 = printline("  true : " + type_name(ty_bool()));
+    let u10 = printline("  1 + 2 : " + type_name(check_binop_type(ty_i64(), op_add(), ty_i64())));
+    let u11 = printline("  x < 10 : " + type_name(check_binop_type(ty_i64(), op_lt(), ty_i64())));
+    let u12 = printline("  a and b : " + type_name(check_binop_type(ty_bool(), op_and(), ty_bool())));
+    let u13 = printline("");
+
+    // Note about interpreter limitations
+    let u14 = printline("Note: Full throughput benchmark requires native compilation");
+    let u15 = printline("      (interpreter has stack depth limits)");
+
+    printline("Done.")
+};

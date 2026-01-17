@@ -1,0 +1,194 @@
+// k-nucleotide - DNA sequence pattern counting benchmark
+// Benchmarks Game algorithm adapted for BMB
+// Counts k-mer frequencies using hashmap
+// Self-contained with embedded test sequence
+
+// Helper: print string with newline
+fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+
+// Convert nucleotide char code to 0-3 index
+// A=65, C=67, G=71, T=84 (uppercase)
+fn nuc_to_idx(c: i64) -> i64 =
+    if c == 65 or c == 97 { 0 }      -- A/a
+    else if c == 67 or c == 99 { 1 } -- C/c
+    else if c == 71 or c == 103 { 2 } -- G/g
+    else if c == 84 or c == 116 { 3 } -- T/t
+    else { 0 };
+
+// Convert 0-3 index back to nucleotide char
+fn idx_to_nuc(i: i64) -> String =
+    if i == 0 { "A" }
+    else if i == 1 { "C" }
+    else if i == 2 { "G" }
+    else { "T" };
+
+// Encode a k-mer as integer (2 bits per nucleotide)
+// Max k=31 for i64
+fn encode_kmer(s: String, pos: i64, k: i64) -> i64 =
+    encode_kmer_acc(s, pos, k, 0, 0);
+
+fn encode_kmer_acc(s: String, pos: i64, k: i64, idx: i64, acc: i64) -> i64 =
+    if idx >= k { acc }
+    else {
+        let c = ord(char_at(s, pos + idx));
+        let nuc = nuc_to_idx(c);
+        encode_kmer_acc(s, pos, k, idx + 1, acc * 4 + nuc)
+    };
+
+// Decode k-mer from integer
+fn decode_kmer(code: i64, k: i64) -> String =
+    decode_kmer_acc(code, k, "");
+
+fn decode_kmer_acc(code: i64, k: i64, acc: String) -> String =
+    if k <= 0 { acc }
+    else {
+        let nuc = idx_to_nuc(code % 4);
+        decode_kmer_acc(code / 4, k - 1, nuc + acc)
+    };
+
+// Count all k-mers in sequence, return hashmap
+fn count_kmers(seq: String, k: i64) -> i64 = {
+    let map = hashmap_new();
+    count_kmers_iter(seq, k, map, 0)
+};
+
+fn count_kmers_iter(seq: String, k: i64, map: i64, pos: i64) -> i64 =
+    if pos + k > seq.len() { map }
+    else {
+        let kmer = encode_kmer(seq, pos, k);
+        let old = hashmap_get(map, kmer);
+        let count = if old == i64_min() { 0 } else { old };
+        let u = hashmap_insert(map, kmer, count + 1);
+        count_kmers_iter(seq, k, map, pos + 1)
+    };
+
+// Get count for a specific pattern from map
+fn get_pattern_count(map: i64, pattern: String) -> i64 = {
+    let k = pattern.len();
+    let code = encode_kmer(pattern, 0, k);
+    let count = hashmap_get(map, code);
+    if count == i64_min() { 0 } else { count }
+};
+
+// Print frequency for k=1 (enumerate all 4 nucleotides)
+fn print_freq_1(seq: String) -> i64 = {
+    let map = count_kmers(seq, 1);
+    let total = seq.len();
+
+    -- Collect counts for A, C, G, T
+    let count_a = get_pattern_count(map, "A");
+    let count_c = get_pattern_count(map, "C");
+    let count_g = get_pattern_count(map, "G");
+    let count_t = get_pattern_count(map, "T");
+
+    -- Sort by count (bubble sort for 4 items)
+    -- Using vec to store (code, count) pairs
+    let v = vec_new();
+    let u1 = vec_push(v, count_a * 16 + 0);  -- encode as count*16 + nuc_idx
+    let u2 = vec_push(v, count_c * 16 + 1);
+    let u3 = vec_push(v, count_g * 16 + 2);
+    let u4 = vec_push(v, count_t * 16 + 3);
+
+    -- Sort descending by count
+    let us = sort_vec_desc(v, 0);
+
+    -- Print results
+    let up1 = print_freq_item(v, 0, total);
+    let up2 = print_freq_item(v, 1, total);
+    let up3 = print_freq_item(v, 2, total);
+    let up4 = print_freq_item(v, 3, total);
+
+    let uf = vec_free(v);
+    let um = hashmap_free(map);
+    printline("")
+};
+
+fn print_freq_item(v: i64, idx: i64, total: i64) -> i64 = {
+    let packed = vec_get(v, idx);
+    let count = packed / 16;
+    let nuc_idx = packed % 16;
+    let nuc = idx_to_nuc(nuc_idx);
+    let pct = (count * 1000) / total;  -- Fixed-point percentage * 10
+    let pct_int = pct / 10;
+    let pct_frac = pct % 10;
+    printline(nuc + " " + int_to_string(pct_int) + "." + int_to_string(pct_frac) + "00")
+};
+
+-- Simple bubble sort for descending order
+fn sort_vec_desc(v: i64, pass: i64) -> i64 =
+    if pass >= vec_len(v) { 0 }
+    else {
+        let u = sort_pass(v, 0);
+        sort_vec_desc(v, pass + 1)
+    };
+
+fn sort_pass(v: i64, idx: i64) -> i64 =
+    if idx + 1 >= vec_len(v) { 0 }
+    else {
+        let a = vec_get(v, idx);
+        let b = vec_get(v, idx + 1);
+        let count_a = a / 16;
+        let count_b = b / 16;
+        let u = swap_if_greater(v, idx, a, b, count_a, count_b);
+        sort_pass(v, idx + 1)
+    };
+
+fn swap_if_greater(v: i64, idx: i64, a: i64, b: i64, count_a: i64, count_b: i64) -> i64 =
+    if count_b > count_a { do_swap(v, idx, a, b) } else { 0 };
+
+fn do_swap(v: i64, idx: i64, a: i64, b: i64) -> i64 = {
+    let t1 = vec_set(v, idx, b);
+    let t2 = vec_set(v, idx + 1, a);
+    0
+};
+
+-- Integer to string conversion
+fn int_to_string(n: i64) -> String =
+    if n < 0 { "-" + int_to_string(0 - n) }
+    else if n < 10 { digit_char(n) }
+    else { int_to_string(n / 10) + digit_char(n % 10) };
+
+fn digit_char(d: i64) -> String =
+    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
+    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
+    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
+    else { "9" };
+
+-- i64::MIN sentinel for hashmap "not found"
+-- Can't use literal i64_min() (lexer overflow)
+fn i64_min() -> i64 = 0 - 9223372036854775807 - 1;
+
+-- Print count for specific pattern
+fn print_pattern_count(seq: String, pattern: String) -> i64 = {
+    let k = pattern.len();
+    let map = count_kmers(seq, k);
+    let count = get_pattern_count(map, pattern);
+    let u = hashmap_free(map);
+    printline(int_to_string(count) + char_to_string(chr(9)) + pattern)  -- chr(9) = tab
+};
+
+-- Test sequence (subset of sequence THREE from Benchmarks Game)
+fn test_seq() -> String =
+    "GGTATTTTAATTTATAGT" +  -- Contains the target patterns
+    "GGTATTTTAATTTATAGTGGTATTTTAATTTATAGT" +
+    "ACGTACGTACGTACGTACGTACGTACGTACGTACGT" +
+    "GGTACGTGGTACGTGGTACGTGGTACGTGGTACGT" +
+    "AAAAAAAACCCCCCCCGGGGGGGGTTTTTTTT" +
+    "GGTATTGGTATTGGTATTGGTATTGGTATTGGTA";
+
+fn main() -> i64 = {
+    let seq = test_seq();
+
+    -- Print frequency for k=1
+    let u1 = printline("Frequency k=1:");
+    let u2 = print_freq_1(seq);
+
+    -- Print specific pattern counts
+    let u3 = print_pattern_count(seq, "GGT");
+    let u4 = print_pattern_count(seq, "GGTA");
+    let u5 = print_pattern_count(seq, "GGTATT");
+    let u6 = print_pattern_count(seq, "GGTATTTTAATT");
+    let u7 = print_pattern_count(seq, "GGTATTTTAATTTATAGT");
+
+    0
+};
