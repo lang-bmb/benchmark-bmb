@@ -1,0 +1,47 @@
+// Zero-Overhead Proof: Aliasing Analysis
+// Goal: Prove BMB can enable SIMD optimizations through aliasing guarantees
+//
+// BMB approach: No mutable aliasing possible (functional semantics)
+// Expected: Compiler can apply aggressive SIMD optimizations
+//
+// Key insight: BMB's pure functions guarantee no aliasing,
+// enabling auto-vectorization that C's restrict keyword attempts
+
+// Pure vector addition - no aliasing possible
+fn vec_add_element(a: i64, b: i64) -> i64 = a + b;
+
+// Sum two arrays element-wise (functional approach)
+fn sum_arrays(a: [i64; 10], b: [i64; 10], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 10 {
+    acc
+  } else {
+    let sum = vec_add_element(a[idx], b[idx]);
+    sum_arrays(a, b, idx + 1, acc + sum)
+  };
+
+// Dot product - classic SIMD-friendly operation
+fn dot_product(a: [i64; 10], b: [i64; 10], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 10 {
+    acc
+  } else {
+    dot_product(a, b, idx + 1, acc + a[idx] * b[idx])
+  };
+
+// Run iterations
+fn run_iterations(a: [i64; 10], b: [i64; 10], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let sum_result = sum_arrays(a, b, 0, 0);
+    let dot_result = dot_product(a, b, 0, 0);
+    run_iterations(a, b, remaining - 1, acc + sum_result + dot_result)
+  };
+
+// Main entry point
+fn main() -> i64 = {
+    let a: [i64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let b: [i64; 10] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+    run_iterations(a, b, 10000, 0)
+};

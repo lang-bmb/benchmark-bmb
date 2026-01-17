@@ -1,0 +1,53 @@
+// Zero-Overhead Proof: Overflow Check
+// Goal: Prove BMB checked arithmetic == C unchecked (identical assembly)
+//
+// BMB approach: Contract proves no overflow at compile-time
+// Expected: No runtime overflow check in generated code
+//
+// Key insight: When contract proves operands are bounded,
+// the overflow check has zero runtime cost
+
+// Addition with proven bounds (no overflow possible)
+fn safe_add(a: i64, b: i64) -> i64
+  pre a >= 0 and a < 1000000 and b >= 0 and b < 1000000
+= a + b;
+
+// Multiplication with proven bounds (no overflow possible)
+// Max value: 10000000 * 10 = 100000000 (fits in i64)
+fn safe_mul(a: i64, b: i64) -> i64
+  pre a >= 0 and a < 10000000 and b >= 0 and b <= 10
+= a * b;
+
+// Recursive computation with bounded values
+fn compute_sum(n: i64, acc: i64) -> i64
+  pre n >= 0 and n <= 1000 and acc >= 0 and acc < 1000000
+= if n <= 0 {
+    acc
+  } else {
+    // n <= 1000 and acc < 1000000, so acc + n < 1001000
+    compute_sum(n - 1, safe_add(acc, n))
+  };
+
+// Factorial-like computation with bounded input
+// 10! = 3628800, so we need acc < 10000000
+fn bounded_factorial(n: i64, acc: i64) -> i64
+  pre n >= 0 and n <= 10 and acc >= 1 and acc < 10000000
+= if n <= 1 {
+    acc
+  } else {
+    // n <= 10 and acc < 1000000, product bounded
+    bounded_factorial(n - 1, safe_mul(acc, n))
+  };
+
+// Run iterations
+fn run_iterations(remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let sum_result = compute_sum(100, 0);  // Sum of 1..100 = 5050
+    let fact_result = bounded_factorial(10, 1);  // 10! = 3628800
+    run_iterations(remaining - 1, acc + sum_result + fact_result)
+  };
+
+// Main entry point
+fn main() -> i64 = run_iterations(1000, 0);

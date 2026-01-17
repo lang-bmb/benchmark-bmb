@@ -1,0 +1,55 @@
+// Zero-Overhead Proof: Purity Optimization
+// Goal: Prove BMB pure functions enable CSE and hoisting optimizations
+//
+// BMB approach: Pure functions marked with @pure annotation
+// Expected: Compiler applies aggressive CSE and loop-invariant hoisting
+//
+// Key insight: Pure functions guarantee no side effects,
+// enabling optimizations that C cannot safely apply
+
+// Pure computation - can be memoized/CSE'd
+@pure
+fn compute_value(x: i64) -> i64
+  pre x >= 0 and x < 100
+= x * x + x * 2 + 1;
+
+// Expensive pure computation - should be hoisted out of loops
+@pure
+fn expensive_pure(n: i64) -> i64
+  pre n >= 0 and n < 50
+= compute_value(n) + compute_value(n) + compute_value(n);
+
+// Sum with repeated pure calls - CSE should eliminate redundant calls
+fn sum_with_pure(n: i64, acc: i64) -> i64
+  pre n >= 0 and n <= 20
+= if n <= 0 {
+    acc
+  } else {
+    // Same pure call appears twice - CSE should merge
+    let v1 = compute_value(n);
+    let v2 = compute_value(n);
+    sum_with_pure(n - 1, acc + v1 + v2)
+  };
+
+// Loop with invariant pure call - should be hoisted
+fn loop_with_invariant(iterations: i64, constant: i64, acc: i64) -> i64
+  pre constant >= 0 and constant < 50
+= if iterations <= 0 {
+    acc
+  } else {
+    // expensive_pure(constant) is loop-invariant - should be hoisted
+    loop_with_invariant(iterations - 1, constant, acc + expensive_pure(constant))
+  };
+
+// Run iterations
+fn run_iterations(remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let sum_result = sum_with_pure(20, 0);
+    let loop_result = loop_with_invariant(100, 25, 0);
+    run_iterations(remaining - 1, acc + sum_result + loop_result)
+  };
+
+// Main entry point
+fn main() -> i64 = run_iterations(1000, 0);
