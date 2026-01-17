@@ -1,69 +1,61 @@
--- Sorting benchmark
--- Measures: comparison operations, data movement
+// Sorting benchmark
+// Measures: comparison operations, data movement
 
--- Encode array as sum (simplified representation)
--- Real implementation would use actual arrays
+// Encode array as sum (simplified representation)
+// Real implementation would use actual arrays
 
--- Bubble sort step count (measures comparisons)
+// Bubble sort step count (measures comparisons)
 fn bubble_sort_comparisons(n: i64) -> i64
   pre n >= 0
   post ret >= 0
 = (n * (n - 1)) / 2;
 
--- Check if array segment is sorted
+// Check if array segment is sorted
 fn is_sorted(encoded: i64, size: i64) -> bool
   pre size >= 0
 = size <= 1 or check_sorted_iter(encoded, size, 0);
 
 fn check_sorted_iter(encoded: i64, size: i64, i: i64) -> bool =
-    if i + 1 >= size then true
-    else let curr = get_element(encoded, i, size);
+    if i + 1 >= size { true } else { let curr = get_element(encoded, i, size) };
          let next = get_element(encoded, i + 1, size);
-         if curr > next then false
-         else check_sorted_iter(encoded, size, i + 1);
+         if curr > next { false } else { check_sorted_iter(encoded, size, i + 1) };
 
--- Get element from encoded array
+// Get element from encoded array
 fn get_element(encoded: i64, index: i64, size: i64) -> i64
   pre index >= 0 and index < size
 = (encoded / pow_iter(100, size - index - 1, 1)) -
   (encoded / pow_iter(100, size - index, 1)) * 100;
 
 fn pow_iter(base: i64, exp: i64, acc: i64) -> i64 =
-    if exp <= 0 then acc
-    else pow_iter(base, exp - 1, acc * base);
+    if exp <= 0 { acc } else { pow_iter(base, exp - 1, acc * base) };
 
--- Insertion sort simulation
+// Insertion sort simulation
 fn insertion_sort_cost(n: i64) -> i64
   pre n >= 0
   post ret >= 0
 = insertion_iter(n, 1, 0);
 
 fn insertion_iter(n: i64, i: i64, cost: i64) -> i64 =
-    if i >= n then cost
-    else let insert_cost = i;  -- worst case: insert at beginning
+    if i >= n { cost } else { let insert_cost = i };  // worst case: insert at beginning
          insertion_iter(n, i + 1, cost + insert_cost);
 
--- Merge sort cost (O(n log n))
+// Merge sort cost (O(n log n))
 fn merge_sort_cost(n: i64) -> i64
   pre n > 0
   post ret >= 0
-= if n <= 1 then 0
-  else let half = n / 2;
+= if n <= 1 { 0 } else { let half = n / 2 };
        merge_sort_cost(half) + merge_sort_cost(n - half) + n;
 
--- Quick sort cost simulation
+// Quick sort cost simulation
 fn quick_sort_cost(n: i64, depth: i64) -> i64
   pre n >= 0
-= if n <= 1 then 0
-  else if depth > 20 then n  -- prevent deep recursion
-  else let pivot_cost = n - 1;  -- partition cost
+= if n <= 1 { 0 } else if depth > 20 { n  // prevent deep recursion } else { let pivot_cost = n - 1 };  // partition cost
        let half = n / 2;
        pivot_cost + quick_sort_cost(half, depth + 1) + quick_sort_cost(n - half - 1, depth + 1);
 
--- Benchmark: compare sorting algorithm costs
+// Benchmark: compare sorting algorithm costs
 fn run_benchmark(sizes: i64, acc: i64) -> i64 =
-    if sizes <= 0 then acc
-    else let size = sizes * 10;
+    if sizes <= 0 { acc } else { let size = sizes * 10 };
          let bubble = bubble_sort_comparisons(size);
          let insertion = insertion_sort_cost(size);
          let merge = merge_sort_cost(size);

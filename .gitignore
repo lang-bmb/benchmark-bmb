@@ -16,3 +16,16 @@ runner/Cargo.lock
 # BMB build artifacts
 *.ll
 *.bc
+
+# Compiled benchmark binaries (Linux/Mac executables without extension)
+benches/**/bmb/main
+benches/**/c/main
+benches/**/rust/main
+benches/**/c/binary_trees
+benches/**/c/fibonacci
+benches/**/c/mandelbrot
+benches/**/c/n_body
+benches/**/c/spectral_norm
+
+# Build output directory
+build/

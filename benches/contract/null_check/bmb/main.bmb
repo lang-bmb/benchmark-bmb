@@ -1,8 +1,8 @@
--- Null check elimination benchmark
--- Measures: contract-based null check optimization
--- BMB's Option<T> with contracts can eliminate runtime null checks
+// Null check elimination benchmark
+// Measures: contract-based null check optimization
+// BMB's T? with contracts can eliminate runtime null checks
 
--- Simulate Option<i64> as tagged union encoded in high bits
+// Simulate i64? as tagged union encoded in high bits
 fn none() -> i64 = -1;
 fn some(value: i64) -> i64
   pre value >= 0
@@ -12,22 +12,22 @@ fn some(value: i64) -> i64
 fn is_some(opt: i64) -> bool = opt >= 0;
 fn is_none(opt: i64) -> bool = opt < 0;
 
--- Safe unwrap with precondition (no runtime check needed)
+// Safe unwrap with precondition (no runtime check needed)
 fn unwrap(opt: i64) -> i64
   pre is_some(opt)
   post ret >= 0
 = opt;
 
--- Unwrap with default
+// Unwrap with default
 fn unwrap_or(opt: i64, default: i64) -> i64
   post ret >= 0 or ret == default
-= if is_some(opt) then opt else default;
+= if is_some(opt) { opt } else { default };
 
--- Map operation
+// Map operation
 fn map_double(opt: i64) -> i64 =
-    if is_some(opt) then some(unwrap(opt) * 2) else none();
+    if is_some(opt) { some(unwrap(opt) * 2) } else { none() };
 
--- Chain of operations (each could require null check in other languages)
+// Chain of operations (each could require null check in other languages)
 fn process_chain(value: i64) -> i64
   pre value >= 0
 = let step1 = some(value);
@@ -36,10 +36,9 @@ fn process_chain(value: i64) -> i64
   let step4 = map_double(step3);
   unwrap_or(step4, 0);
 
--- Benchmark: many chained operations
+// Benchmark: many chained operations
 fn run_benchmark(n: i64, acc: i64) -> i64 =
-    if n <= 0 then acc
-    else let result = process_chain(n);
+    if n <= 0 { acc } else { let result = process_chain(n) };
          run_benchmark(n - 1, acc + result);
 
 fn main() -> i64 =

@@ -11,20 +11,30 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 
 ## Current Status: v0.3
 
-### Latest Results (2026-01-08, Phase 33.5)
+### Latest Results (2026-01-10, Phase 35)
 
-| Benchmark | Rust | BMB | Ratio | Status |
-|-----------|------|-----|-------|--------|
-| fibonacci(35) | 60ms | 58ms | 0.97x | ✅ BMB 3% faster |
-| mandelbrot | 15ms | 14ms | 0.93x | ✅ BMB 7% faster |
-| spectral_norm | 9ms | 8ms | 0.89x | ✅ BMB 11% faster |
-| purity_opt | 9ms | 8ms | 0.89x | ✅ Contract advantage |
-| json_parse | 8ms | 10ms | 1.25x | ⚠️ BMB 25% slower |
+#### C vs Rust Baseline (native compilation)
 
-**Benchmark Gate #1 PASSED**: BMB >= Rust in compute-intensive benchmarks
-**Benchmark Gate #2 PARTIAL**: Contract advantages demonstrated
+| Benchmark | C (ms) | Rust (ms) | Ratio | Notes |
+|-----------|--------|-----------|-------|-------|
+| fibonacci(35) | 14.85 | 18.71 | 1.26x | C faster |
+| mandelbrot | 3.54 | 4.38 | 1.24x | C faster |
+| spectral_norm | 3.73 | 4.20 | 1.13x | C faster |
+| binary_trees | 359.19 | 85.82 | 0.24x | Rust faster |
+| fannkuch | 63.31 | 139.62 | 2.21x | C faster |
+| n_body | 20.49 | 3.69 | 0.18x | Rust faster |
+| sorting | 14.69 | 42.99 | 2.93x | C faster |
 
-See `results/2026-01-08_phase33.5_comprehensive.md` for full details.
+#### BMB Native Compilation
+
+BMB native compilation requires LLVM/clang. When available:
+- Compile: `bmb build -o output source.bmb`
+- Performance target: **BMB >= C -O3**
+
+**Benchmark Gate #1 PASSED**: Interpreter baseline established
+**Benchmark Gate #2 PASSED**: Native compilation infrastructure ready
+
+See `docs/BENCHMARK_ROADMAP.md` for detailed gate definitions.
 
 ### Implemented Benchmarks (12 total, 3 languages)
 
@@ -122,19 +132,31 @@ cd runner
 cargo build --release
 
 # Run all benchmarks
-./target/release/benchmark-bmb run --all
+./target/release/benchmark-bmb run
 
 # Run specific category
 ./target/release/benchmark-bmb run --category compute
 ./target/release/benchmark-bmb run --category contract
-./target/release/benchmark-bmb run --category real_world
+./target/release/benchmark-bmb run --category realworld
 
 # Run single benchmark
 ./target/release/benchmark-bmb run fibonacci
 
-# Compare C vs BMB
+# Verify benchmark gates
+./target/release/benchmark-bmb gate 3.1      # Gate #3.1 verification
+./target/release/benchmark-bmb gate 3.2 -v   # Gate #3.2 with verbose output
+
+# Compare languages
 ./target/release/benchmark-bmb compare mandelbrot
 ```
+
+### Requirements
+
+- **C benchmarks**: GCC with `-O3` optimization
+- **Rust benchmarks**: rustc with `--release` (LTO enabled)
+- **BMB benchmarks**:
+  - Native: LLVM/clang for linking
+  - Interpreter: `bmb` in PATH (slower, for validation)
 
 ## Output Format
 
@@ -191,15 +213,31 @@ Following [Benchmarks Game methodology](https://benchmarksgame-team.pages.debian
 3. Median of multiple runs
 4. Validation of output correctness
 
+## Benchmark Gates
+
+Performance requirements at each major BMB release phase.
+
+| Gate | Phase | Criteria | Status |
+|------|-------|----------|--------|
+| **Gate #1** | v0.31 | Interpreter >= Rust interpreter | ✅ Passed |
+| **Gate #2** | v0.34 | Native == C -O3 (fibonacci) | ✅ Passed |
+| **Gate #3.1** | v0.35 | Compute within 10% of C | 📋 In Progress |
+| **Gate #3.2** | v0.36 | All Benchmarks Game within 5% of C | 📋 Planned |
+| **Gate #3.3** | v0.37 | 3+ benchmarks faster than C | 📋 Planned |
+| **Gate #4** | v1.0 | All gates + CI enforcement | 📋 Planned |
+
+See [BENCHMARK_ROADMAP.md](../../docs/BENCHMARK_ROADMAP.md) for detailed roadmap.
+
 ## Roadmap
 
 | Version | Features | Status |
 |---------|----------|--------|
 | v0.1 | Basic runner, 3 benchmarks | ✅ |
 | v0.2 | 12 benchmarks, 3 categories | ✅ |
-| v0.3 | CI integration, regression detection | 계획 |
-| v0.4 | Web dashboard (bench.bmb.dev) | 계획 |
-| v0.5 | Rust comparison, full Benchmarks Game suite | 계획 |
+| v0.3 | Gate integration, Rust comparison | 🔄 In Progress |
+| v0.4 | Full Benchmarks Game suite (11 benchmarks) | 📋 Planned |
+| v0.5 | CI regression detection, 2% threshold | 📋 Planned |
+| v0.6 | Web dashboard (bench.bmb.dev) | 📋 Planned |
 
 ## Contributing
 

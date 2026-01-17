@@ -1,0 +1,5 @@
+benchmark,c_time_s,bmb_time_s,ratio_percent
+fibonacci,.023,.018,78.00
+mandelbrot,.002,.002,100.00
+spectral_norm,.033,.006,18.00
+n_body,.020,.002,10.00

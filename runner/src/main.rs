@@ -74,6 +74,20 @@ enum Commands {
         #[arg(short, long, default_value = "results")]
         output: String,
     },
+    /// Verify benchmark gate requirements
+    Gate {
+        /// Gate number (1, 2, 3.1, 3.2, 3.3, 4)
+        #[arg(default_value = "3.1")]
+        gate: String,
+
+        /// Number of iterations
+        #[arg(short, long, default_value = "5")]
+        iterations: u32,
+
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -111,6 +125,7 @@ fn main() {
         Commands::New { name, category } => create_benchmark(&name, &category),
         Commands::Validate { name } => validate_benchmark(&name),
         Commands::Report { format, output } => generate_report(&format, &output),
+        Commands::Gate { gate, iterations, verbose } => verify_gate(&gate, iterations, verbose),
     }
 }
 
@@ -303,6 +318,9 @@ fn compile_bmb(dir: &Path) -> Option<PathBuf> {
         return None;
     }
 
+    // Get absolute path for wrapper scripts
+    let abs_source = fs::canonicalize(&source).ok()?;
+
     let output = dir.join("main");
 
     // Try native compilation first, fall back to interpreter
@@ -315,20 +333,26 @@ fn compile_bmb(dir: &Path) -> Option<PathBuf> {
     match status {
         Ok(s) if s.success() => Some(output),
         _ => {
-            // Create wrapper script for interpreter
-            let wrapper = dir.join("run.sh");
-            let script = format!("#!/bin/sh\nbmb run {}\n", source.display());
-            fs::write(&wrapper, script).ok()?;
-
-            #[cfg(unix)]
+            // Create wrapper script for interpreter (platform-specific)
+            #[cfg(windows)]
             {
+                let wrapper = dir.join("run.cmd");
+                // Use absolute path for reliability
+                let script = format!("@echo off\nbmb run \"{}\"\n", abs_source.display());
+                fs::write(&wrapper, script).ok()?;
+                Some(wrapper)
+            }
+            #[cfg(not(windows))]
+            {
+                let wrapper = dir.join("run.sh");
+                let script = format!("#!/bin/sh\nbmb run \"{}\"\n", abs_source.display());
+                fs::write(&wrapper, script).ok()?;
                 use std::os::unix::fs::PermissionsExt;
                 let mut perms = fs::metadata(&wrapper).ok()?.permissions();
                 perms.set_mode(0o755);
                 fs::set_permissions(&wrapper, perms).ok()?;
+                Some(wrapper)
             }
-
-            Some(wrapper)
         }
     }
 }
@@ -437,6 +461,164 @@ fn validate_benchmark(name: &str) {
 fn generate_report(format: &str, output: &str) {
     println!("Generating {} report to {}", format, output);
     // Implementation would generate formatted report
+}
+
+/// Gate criteria definitions
+struct GateCriteria {
+    name: &'static str,
+    description: &'static str,
+    benchmarks: &'static [&'static str],
+    threshold: f64,  // BMB/C ratio threshold (e.g., 1.10 = within 10%)
+    contract_threshold: f64,  // For contract benchmarks (e.g., 0.90 = 10% faster)
+}
+
+const GATE_3_1: GateCriteria = GateCriteria {
+    name: "Gate #3.1",
+    description: "Compute within 10% of C, Contract >= 10% faster",
+    benchmarks: &["fibonacci", "mandelbrot", "spectral_norm", "n_body", "fannkuch", "binary_trees"],
+    threshold: 1.10,
+    contract_threshold: 0.90,
+};
+
+const GATE_3_2: GateCriteria = GateCriteria {
+    name: "Gate #3.2",
+    description: "All Benchmarks Game within 5% of C",
+    benchmarks: &["fibonacci", "mandelbrot", "spectral_norm", "n_body", "fannkuch", "binary_trees", "fasta", "reverse_complement"],
+    threshold: 1.05,
+    contract_threshold: 0.85,
+};
+
+const GATE_3_3: GateCriteria = GateCriteria {
+    name: "Gate #3.3",
+    description: "3+ benchmarks faster than C, all contract faster",
+    benchmarks: &["fibonacci", "mandelbrot", "spectral_norm", "n_body", "fannkuch", "binary_trees"],
+    threshold: 1.00,  // At least 3 must be <= 1.0
+    contract_threshold: 0.95,
+};
+
+fn verify_gate(gate: &str, iterations: u32, verbose: bool) {
+    println!("{}", "=== BMB Benchmark Gate Verification ===".cyan().bold());
+    println!();
+
+    let criteria = match gate {
+        "3.1" => &GATE_3_1,
+        "3.2" => &GATE_3_2,
+        "3.3" => &GATE_3_3,
+        _ => {
+            println!("{} Unknown gate: {}. Valid: 3.1, 3.2, 3.3", "Error:".red(), gate);
+            return;
+        }
+    };
+
+    println!("{}: {}", criteria.name.green().bold(), criteria.description);
+    println!("Threshold: BMB/C <= {:.2}x for compute", criteria.threshold);
+    println!("Contract threshold: BMB/C <= {:.2}x (faster)", criteria.contract_threshold);
+    println!();
+
+    let benches_dir = find_benches_dir();
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut faster_count = 0;
+    let mut results = Vec::new();
+
+    // Run compute benchmarks
+    println!("{}", "Compute Benchmarks:".cyan());
+    println!("{}", "-".repeat(70));
+    println!("{:<20} {:>12} {:>12} {:>10} {:>10}", "Benchmark", "C (ms)", "BMB (ms)", "Ratio", "Status");
+    println!("{}", "-".repeat(70));
+
+    for bench_name in criteria.benchmarks {
+        let bench_path = benches_dir.join("compute").join(bench_name);
+        if !bench_path.exists() {
+            if verbose {
+                println!("{:<20} {}", bench_name, "Not found".yellow());
+            }
+            continue;
+        }
+
+        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2);
+        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2);
+
+        if let (Some(c_t), Some(bmb_t)) = (c_times, bmb_times) {
+            let c_median = median(&c_t);
+            let bmb_median = median(&bmb_t);
+            let ratio = bmb_median / c_median;
+
+            let (status, symbol) = if ratio <= criteria.threshold {
+                passed += 1;
+                if ratio < 1.0 {
+                    faster_count += 1;
+                    ("PASS".green().to_string(), "✓★".green().to_string())
+                } else {
+                    ("PASS".green().to_string(), "✓".green().to_string())
+                }
+            } else {
+                failed += 1;
+                ("FAIL".red().to_string(), "✗".red().to_string())
+            };
+
+            println!("{:<20} {:>12.2} {:>12.2} {:>10.2}x {:>10}",
+                bench_name, c_median, bmb_median, ratio, symbol);
+
+            results.push((bench_name.to_string(), ratio, status));
+        }
+    }
+
+    // Run contract benchmarks
+    println!();
+    println!("{}", "Contract Benchmarks:".cyan());
+    println!("{}", "-".repeat(70));
+
+    for bench_name in &["bounds_check", "null_check", "purity_opt", "aliasing"] {
+        let bench_path = benches_dir.join("contract").join(bench_name);
+        if !bench_path.exists() {
+            continue;
+        }
+
+        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2);
+        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2);
+
+        if let (Some(c_t), Some(bmb_t)) = (c_times, bmb_times) {
+            let c_median = median(&c_t);
+            let bmb_median = median(&bmb_t);
+            let ratio = bmb_median / c_median;
+
+            let (status, symbol) = if ratio <= criteria.contract_threshold {
+                passed += 1;
+                faster_count += 1;
+                ("PASS".green().to_string(), "✓★".green().to_string())
+            } else if ratio <= 1.0 {
+                passed += 1;
+                ("PASS".green().to_string(), "✓".green().to_string())
+            } else {
+                failed += 1;
+                ("FAIL".red().to_string(), "✗".red().to_string())
+            };
+
+            println!("{:<20} {:>12.2} {:>12.2} {:>10.2}x {:>10}",
+                bench_name, c_median, bmb_median, ratio, symbol);
+        }
+    }
+
+    // Summary
+    println!();
+    println!("{}", "=".repeat(70));
+    println!("{}: {} passed, {} failed, {} faster than C",
+        "Summary".cyan().bold(),
+        passed.to_string().green(),
+        if failed > 0 { failed.to_string().red() } else { failed.to_string().green() },
+        faster_count.to_string().cyan()
+    );
+
+    let gate_passed = failed == 0;
+    if gate_passed {
+        println!();
+        println!("{} {} {}", "✓".green().bold(), criteria.name.green().bold(), "PASSED".green().bold());
+    } else {
+        println!();
+        println!("{} {} {}", "✗".red().bold(), criteria.name.red().bold(), "FAILED".red().bold());
+        std::process::exit(1);
+    }
 }
 
 fn find_benches_dir() -> PathBuf {

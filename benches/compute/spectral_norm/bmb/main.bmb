@@ -1,44 +1,40 @@
--- Spectral norm benchmark (simplified)
--- Measures: matrix operations, fixed-point arithmetic
+// Spectral norm benchmark (simplified)
+// Measures: matrix operations, fixed-point arithmetic
 
 fn scale() -> i64 = 1000000;
 
--- A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
--- Using fixed-point: result * scale
+// A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
+// Using fixed-point: result * scale
 fn matrix_a(i: i64, j: i64) -> i64 =
     let sum = i + j;
     let denom = (sum * (sum + 1)) / 2 + i + 1;
     scale() / denom;
 
--- Dot product of vectors (accumulated sum)
+// Dot product of vectors (accumulated sum)
 fn dot_iter(v1_base: i64, v2_base: i64, n: i64, i: i64, acc: i64) -> i64 =
-    if i >= n then acc
-    else let val = (v1_base + i) * (v2_base + i);
+    if i >= n { acc } else { let val = (v1_base + i) * (v2_base + i) };
          dot_iter(v1_base, v2_base, n, i + 1, acc + val / scale());
 
--- Simplified matrix-vector multiply step
+// Simplified matrix-vector multiply step
 fn mult_av_element(u_sum: i64, n: i64, i: i64) -> i64 =
     mult_av_iter(u_sum, n, i, 0, 0);
 
 fn mult_av_iter(u_sum: i64, n: i64, i: i64, j: i64, acc: i64) -> i64 =
-    if j >= n then acc
-    else let a_ij = matrix_a(i, j);
-         let u_j = u_sum / n;  -- simplified: uniform distribution
+    if j >= n { acc } else { let a_ij = matrix_a(i, j) };
+         let u_j = u_sum / n;  // simplified: uniform distribution
          mult_av_iter(u_sum, n, i, j + 1, acc + (a_ij * u_j) / scale());
 
--- Compute sum of result vector
+// Compute sum of result vector
 fn compute_sum(n: i64, u_sum: i64, iter: i64) -> i64 =
     compute_sum_iter(n, u_sum, iter, 0, 0);
 
 fn compute_sum_iter(n: i64, u_sum: i64, iter: i64, i: i64, acc: i64) -> i64 =
-    if i >= n then acc
-    else let val = mult_av_element(u_sum, n, i);
+    if i >= n { acc } else { let val = mult_av_element(u_sum, n, i) };
          compute_sum_iter(n, u_sum, iter, i + 1, acc + val);
 
--- Run iterations
+// Run iterations
 fn run_iter(n: i64, sum: i64, remaining: i64) -> i64 =
-    if remaining <= 0 then sum
-    else let new_sum = compute_sum(n, sum, remaining);
+    if remaining <= 0 { sum } else { let new_sum = compute_sum(n, sum, remaining) };
          run_iter(n, new_sum, remaining - 1);
 
 fn main() -> i64 =
