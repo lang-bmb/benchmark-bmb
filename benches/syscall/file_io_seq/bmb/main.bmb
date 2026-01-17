@@ -1,0 +1,37 @@
+// System Call Benchmark: Sequential File I/O
+// Goal: Measure sequential file read/write performance
+//
+// Tests write followed by read of data
+// BMB should match C for file I/O operations
+
+// Generate test content
+fn make_content(size: i64) -> String =
+  if size <= 0 {
+    ""
+  } else {
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  };
+
+// Write and read file
+fn write_and_read(path: String, content: String) -> i64 = {
+    let write_result = write_file(path, content);
+    let read_content = read_file(path);
+    // Return length of read content as verification
+    str_len(read_content)
+};
+
+// Run iterations
+fn run_io(path: String, content: String, remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let result = write_and_read(path, content);
+    run_io(path, content, remaining - 1, acc + result)
+  };
+
+// Main entry point
+fn main() -> i64 = {
+    let path = "benchmark_test_file.tmp";
+    let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    run_io(path, content, 1000, 0)
+};

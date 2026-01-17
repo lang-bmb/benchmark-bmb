@@ -1,0 +1,21 @@
+// System Call Benchmark: Process Spawn
+// Goal: Measure process creation and execution overhead
+//
+// Uses exec builtin to spawn child processes
+// BMB should match C for process creation
+
+// Spawn a minimal process (echo command)
+fn spawn_process() -> i64 = system("echo test");
+
+// Run process spawning iterations
+fn run_spawns(remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let result = spawn_process();
+    run_spawns(remaining - 1, acc + result)
+  };
+
+// Main entry point
+// Note: Reduced iterations due to process spawn being expensive
+fn main() -> i64 = run_spawns(100, 0);
