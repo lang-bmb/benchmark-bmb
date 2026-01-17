@@ -1,0 +1,66 @@
+// Surpass Benchmark: String Search
+// Goal: BMB > C through compile-time pattern optimization
+//
+// Strategy: Contract-verified pattern properties enable
+// jump table optimization that C cannot statically prove
+//
+// BMB advantage: Pattern properties verified at compile-time
+
+// Simplified string search using integer arrays
+// Pattern: [1, 2, 3] (search for this sequence)
+// Text: Array of i64 values
+
+// Check if pattern matches at position
+@pure
+fn matches_at(text: [i64; 64], pattern: [i64; 8], text_pos: i64, pat_pos: i64) -> i64
+  pre text_pos >= 0 and pat_pos >= 0
+= if pat_pos >= 3 { 1 }  // Pattern length is 3, all matched
+  else if text_pos >= 64 { 0 }  // Text exhausted
+  else if text[text_pos] != pattern[pat_pos] { 0 }  // Mismatch
+  else { matches_at(text, pattern, text_pos + 1, pat_pos + 1) };
+
+// Count pattern occurrences with verified pattern
+@pure
+fn count_with_contract(text: [i64; 64], pattern: [i64; 8], pos: i64, count: i64) -> i64
+  pre pos >= 0 and pattern[0] > 0  // Pattern starts with positive value
+= if pos > 61 { count }  // Can't fit 3-element pattern
+  else {
+    let found = matches_at(text, pattern, pos, 0);
+    count_with_contract(text, pattern, pos + 1, count + found)
+  };
+
+// Count pattern occurrences without verified pattern
+fn count_without_contract(text: [i64; 64], pattern: [i64; 8], pos: i64, count: i64) -> i64 =
+  if pos < 0 { count }
+  else if pos > 61 { count }
+  else {
+    let found = matches_at(text, pattern, pos, 0);
+    count_without_contract(text, pattern, pos + 1, count + found)
+  };
+
+// Run iterations with contract
+fn run_with_contract(text: [i64; 64], pattern: [i64; 8], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_with_contract(text, pattern, remaining - 1, acc + count_with_contract(text, pattern, 0, 0)) };
+
+// Run iterations without contract
+fn run_without_contract(text: [i64; 64], pattern: [i64; 8], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_without_contract(text, pattern, remaining - 1, acc + count_without_contract(text, pattern, 0, 0)) };
+
+// Main
+fn main() -> i64 = {
+    // Text with multiple occurrences of pattern [1, 2, 3]
+    let text: [i64; 64] = [
+        1, 2, 3, 4, 5, 1, 2, 3, 9, 10, 11, 12, 1, 2, 3, 16,
+        17, 18, 1, 2, 3, 22, 23, 24, 25, 26, 1, 2, 3, 30, 31, 32,
+        33, 34, 35, 36, 1, 2, 3, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        1, 2, 3, 52, 53, 54, 55, 56, 57, 58, 59, 60, 1, 2, 3, 64
+    ];
+    // Pattern to search for
+    let pattern: [i64; 8] = [1, 2, 3, 0, 0, 0, 0, 0];  // Only first 3 used
+
+    let with_contract = run_with_contract(text, pattern, 10000, 0);
+    let without_contract = run_without_contract(text, pattern, 10000, 0);
+    with_contract + without_contract
+};

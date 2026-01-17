@@ -1,0 +1,101 @@
+// Surpass Benchmark: Tree Balance Check
+// Goal: BMB > C through invariant-based rebalancing skip
+//
+// Strategy: Contract maintains tree balance invariant,
+// allowing skip of balance checks during operations
+//
+// BMB advantage: Invariant verification at compile-time
+
+// Tree represented as array (heap-style):
+// - Index 0: root
+// - Index 2i+1: left child of i
+// - Index 2i+2: right child of i
+// - Value -1: empty node
+
+// Get tree height from node (recursive)
+@pure
+fn tree_height(tree: [i64; 31], idx: i64) -> i64
+  pre idx >= 0
+= if idx >= 31 { 0 }
+  else if tree[idx] < 0 { 0 }  // Empty node
+  else {
+    let left_h = tree_height(tree, idx * 2 + 1);
+    let right_h = tree_height(tree, idx * 2 + 2);
+    1 + (if left_h > right_h { left_h } else { right_h })
+  };
+
+// Check if subtree is balanced (height diff <= 1)
+@pure
+fn is_balanced(tree: [i64; 31], idx: i64) -> i64
+  pre idx >= 0
+= if idx >= 31 { 1 }
+  else if tree[idx] < 0 { 1 }  // Empty is balanced
+  else {
+    let left_h = tree_height(tree, idx * 2 + 1);
+    let right_h = tree_height(tree, idx * 2 + 2);
+    let diff = if left_h > right_h { left_h - right_h } else { right_h - left_h };
+    if diff > 1 { 0 }
+    else {
+        let left_bal = is_balanced(tree, idx * 2 + 1);
+        let right_bal = is_balanced(tree, idx * 2 + 2);
+        if left_bal == 1 { right_bal } else { 0 }
+    }
+  };
+
+// Sum tree values with balance invariant (skip balance check)
+@pure
+fn sum_balanced_tree(tree: [i64; 31], idx: i64, acc: i64) -> i64
+  pre idx >= 0 and is_balanced(tree, 0) == 1
+= if idx >= 31 { acc }
+  else if tree[idx] < 0 { acc }
+  else {
+    let with_current = acc + tree[idx];
+    let with_left = sum_balanced_tree(tree, idx * 2 + 1, with_current);
+    sum_balanced_tree(tree, idx * 2 + 2, with_left)
+  };
+
+// Sum tree values without invariant (must check balance)
+fn sum_unverified_tree(tree: [i64; 31], idx: i64, acc: i64) -> i64 =
+  if idx < 0 { acc }
+  else if idx >= 31 { acc }
+  else if tree[idx] < 0 { acc }
+  else {
+    // Must check balance at runtime
+    let bal = is_balanced(tree, idx);
+    if bal == 0 { acc }  // Unbalanced, skip
+    else {
+        let with_current = acc + tree[idx];
+        let with_left = sum_unverified_tree(tree, idx * 2 + 1, with_current);
+        sum_unverified_tree(tree, idx * 2 + 2, with_left)
+    }
+  };
+
+// Run iterations with balance invariant
+fn run_with_invariant(tree: [i64; 31], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_with_invariant(tree, remaining - 1, acc + sum_balanced_tree(tree, 0, 0)) };
+
+// Run iterations without invariant
+fn run_without_invariant(tree: [i64; 31], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_without_invariant(tree, remaining - 1, acc + sum_unverified_tree(tree, 0, 0)) };
+
+// Main
+fn main() -> i64 = {
+    // Balanced binary tree (heap array representation)
+    // Level 0: 15
+    // Level 1: 7, 23
+    // Level 2: 3, 11, 19, 27
+    // Level 3: 1, 5, 9, 13, 17, 21, 25, 29
+    // Level 4: remaining slots empty (-1)
+    let tree: [i64; 31] = [
+        15,          // Level 0 (1 element)
+        7, 23,       // Level 1 (2 elements)
+        3, 11, 19, 27,   // Level 2 (4 elements)
+        1, 5, 9, 13, 17, 21, 25, 29,  // Level 3 (8 elements)
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  // Level 4 (16 elements)
+    ];
+    let with_invariant = run_with_invariant(tree, 5000, 0);
+    let without_invariant = run_without_invariant(tree, 5000, 0);
+    with_invariant + without_invariant
+};

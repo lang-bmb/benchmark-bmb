@@ -1,0 +1,64 @@
+// Surpass Benchmark: Sort Presorted Array
+// Goal: BMB > C through precondition-based branch elimination
+//
+// Strategy: Contract proves array is already sorted,
+// allowing skip of sorting logic entirely
+//
+// BMB advantage: Precondition verification = compile-time proof
+
+// Check if array is sorted (helper for precondition)
+@pure
+fn is_sorted_helper(arr: [i64; 32], idx: i64) -> i64
+  pre idx >= 0
+= if idx >= 31 { 1 }  // All pairs checked, sorted
+  else if arr[idx] > arr[idx + 1] { 0 }  // Not sorted
+  else { is_sorted_helper(arr, idx + 1) };
+
+// With precondition: Array is already sorted
+// Contract allows skipping sort entirely
+@pure
+fn process_sorted(arr: [i64; 32]) -> i64
+  pre is_sorted_helper(arr, 0) == 1
+= sum_array(arr, 0, 0);
+
+// Sum array elements
+@pure
+fn sum_array(arr: [i64; 32], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 32 { acc }
+  else { sum_array(arr, idx + 1, acc + arr[idx]) };
+
+// Without precondition: Must verify/sort at runtime
+fn process_unsorted(arr: [i64; 32]) -> i64 = {
+    // Must check if sorted, potentially sort
+    let sorted = is_sorted_helper(arr, 0);
+    if sorted == 1 {
+        sum_array(arr, 0, 0)
+    } else {
+        // Would need to sort - but for fair comparison,
+        // we use already sorted data so this branch skips
+        sum_array(arr, 0, 0)
+    }
+};
+
+// Run iterations with presorted guarantee
+fn run_with_presorted(arr: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_with_presorted(arr, remaining - 1, acc + process_sorted(arr)) };
+
+// Run iterations without guarantee (must check)
+fn run_without_presorted(arr: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc }
+  else { run_without_presorted(arr, remaining - 1, acc + process_unsorted(arr)) };
+
+// Main
+fn main() -> i64 = {
+    // Already sorted array
+    let arr: [i64; 32] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    ];
+    let with_presorted = run_with_presorted(arr, 10000, 0);
+    let without_presorted = run_without_presorted(arr, 10000, 0);
+    with_presorted + without_presorted
+};
