@@ -1,0 +1,31 @@
+// Memory Benchmark: Memory Copy
+// Goal: Measure array copy performance
+//
+// BMB arrays are copied by value, this measures that overhead
+// NOTE: This benchmark highlights the array-by-value limitation
+
+// Copy array by passing through function (forces copy)
+fn copy_array(src: [i64; 32]) -> [i64; 32] = src;
+
+// Sum array elements
+fn sum_array(arr: [i64; 32], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 32 { acc } else { sum_array(arr, idx + 1, acc + arr[idx]) };
+
+// Copy and sum multiple times
+fn copy_and_sum(arr: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 {
+    acc
+  } else {
+    let copied = copy_array(arr);
+    copy_and_sum(arr, remaining - 1, acc + sum_array(copied, 0, 0))
+  };
+
+// Main entry point
+fn main() -> i64 = {
+    let arr: [i64; 32] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    ];
+    copy_and_sum(arr, 10000, 0)
+};

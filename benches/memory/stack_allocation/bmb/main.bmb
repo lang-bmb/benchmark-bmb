@@ -1,0 +1,37 @@
+// Memory Benchmark: Stack Allocation
+// Goal: Measure stack variable allocation and access performance
+//
+// Tests creating and accessing many local variables
+// BMB should match C for stack-based operations
+
+// Create multiple local variables and compute with them
+fn compute_locals(x: i64) -> i64 = {
+    let a = x + 1;
+    let b = a * 2;
+    let c = b - 3;
+    let d = c + a;
+    let e = d * b;
+    let f = e - c;
+    let g = f + d;
+    let h = g * 2;
+    a + b + c + d + e + f + g + h
+};
+
+// Nested function calls creating deep stack
+fn deep_stack(depth: i64, acc: i64) -> i64
+  pre depth >= 0
+= if depth <= 0 {
+    acc
+  } else {
+    let local1 = acc + depth;
+    let local2 = local1 * 2;
+    let local3 = compute_locals(local2);
+    deep_stack(depth - 1, local3)
+  };
+
+// Run iterations
+fn run_iterations(remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_iterations(remaining - 1, acc + deep_stack(50, 0)) };
+
+// Main entry point
+fn main() -> i64 = run_iterations(1000, 0);

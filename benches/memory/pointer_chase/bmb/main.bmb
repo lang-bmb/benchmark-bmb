@@ -1,0 +1,43 @@
+// Memory Benchmark: Pointer Chase (Index-based simulation)
+// Goal: Measure linked data structure traversal performance
+//
+// BMB doesn't have pointers, so we simulate with array indices
+// Each element points to next index (simulating linked list)
+
+// Chase through "linked list" using indices
+// next_indices[i] contains the next index to visit (-1 = end)
+fn chase_indices(values: [i64; 64], next_indices: [i64; 64], current: i64, acc: i64) -> i64
+  pre current >= -1
+= if current < 0 {
+    acc
+  } else if current >= 64 {
+    acc
+  } else {
+    chase_indices(values, next_indices, next_indices[current], acc + values[current])
+  };
+
+// Run iterations
+fn run_iterations(values: [i64; 64], next_indices: [i64; 64], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else {
+    run_iterations(values, next_indices, remaining - 1, acc + chase_indices(values, next_indices, 0, 0))
+  };
+
+// Main entry point
+fn main() -> i64 = {
+    // Values at each "node"
+    let values: [i64; 64] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
+    ];
+    // Next indices - sequential for predictable traversal
+    // -1 marks end of list
+    let next_indices: [i64; 64] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, -1
+    ];
+    run_iterations(values, next_indices, 10000, 0)
+};

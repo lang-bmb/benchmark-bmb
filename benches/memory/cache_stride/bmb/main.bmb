@@ -1,0 +1,36 @@
+// Memory Benchmark: Cache Stride
+// Goal: Measure cache line access pattern performance
+//
+// Tests sequential vs strided access to measure cache efficiency
+// BMB should match C performance for cache-friendly access patterns
+
+// Sequential sum - cache-friendly (stride 1)
+fn sum_sequential(arr: [i64; 64], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 64 { acc } else { sum_sequential(arr, idx + 1, acc + arr[idx]) };
+
+// Strided sum - cache-unfriendly (stride 8, skipping cache lines)
+fn sum_strided(arr: [i64; 64], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 64 { acc } else { sum_strided(arr, idx + 8, acc + arr[idx]) };
+
+// Run sequential iterations
+fn run_sequential(arr: [i64; 64], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_sequential(arr, remaining - 1, acc + sum_sequential(arr, 0, 0)) };
+
+// Run strided iterations
+fn run_strided(arr: [i64; 64], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_strided(arr, remaining - 1, acc + sum_strided(arr, 0, 0)) };
+
+// Main entry point
+fn main() -> i64 = {
+    let arr: [i64; 64] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
+    ];
+    let seq_result = run_sequential(arr, 10000, 0);
+    let strided_result = run_strided(arr, 10000, 0);
+    seq_result + strided_result
+};
