@@ -1,0 +1,67 @@
+// Contract Optimization Proof: Branch Elimination
+// Goal: Measure if contracts enable dead branch elimination
+//
+// Two versions: with_contract (pre-condition makes branches unreachable)
+//              without_contract (all branches must be checked)
+//
+// Expected: with_contract should be 20-50% faster
+// Actual: Analyze LLVM IR to understand optimization
+
+// WITH CONTRACT: Pre-condition guarantees positive, negative branch is dead
+fn abs_with_contract(x: i64) -> i64
+  pre x >= 0
+= if x >= 0 { x } else { 0 - x };  // else branch is dead code
+
+// WITHOUT CONTRACT: Both branches are reachable
+fn abs_without_contract(x: i64) -> i64 =
+  if x >= 0 { x } else { 0 - x };
+
+// WITH CONTRACT: Range guarantee eliminates error paths
+fn safe_divide_with_contract(a: i64, b: i64) -> i64
+  pre b > 0 and a >= 0
+= a / b;
+
+// WITHOUT CONTRACT: Must check for division by zero
+fn safe_divide_without_contract(a: i64, b: i64) -> i64 =
+  if b == 0 { 0 }
+  else if a < 0 { 0 }
+  else { a / b };
+
+// Compute with contract (dead branches should be eliminated)
+fn compute_with_contract(values: [i64; 32], idx: i64, acc: i64) -> i64
+  pre idx >= 0
+= if idx >= 32 { acc } else {
+    let value = values[idx];
+    let abs_val = abs_with_contract(value);  // value is positive by construction
+    let divided = safe_divide_with_contract(abs_val, 2);
+    compute_with_contract(values, idx + 1, acc + divided)
+  };
+
+// Compute without contract (all branches must be evaluated)
+fn compute_without_contract(values: [i64; 32], idx: i64, acc: i64) -> i64 =
+  if idx < 0 { acc }
+  else if idx >= 32 { acc }
+  else {
+    let value = values[idx];
+    let abs_val = abs_without_contract(value);
+    let divided = safe_divide_without_contract(abs_val, 2);
+    compute_without_contract(values, idx + 1, acc + divided)
+  };
+
+// Run iterations
+fn run_with_contract(values: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_with_contract(values, remaining - 1, acc + compute_with_contract(values, 0, 0)) };
+
+fn run_without_contract(values: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_without_contract(values, remaining - 1, acc + compute_without_contract(values, 0, 0)) };
+
+// Main
+fn main() -> i64 = {
+    let values: [i64; 32] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    ];
+    let with_contract = run_with_contract(values, 1000, 0);
+    let without_contract = run_without_contract(values, 1000, 0);
+    with_contract + without_contract
+};

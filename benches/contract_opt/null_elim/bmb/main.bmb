@@ -1,0 +1,56 @@
+// Contract Optimization Proof: Null Elimination
+// Goal: Measure if contracts enable null check elimination
+//
+// Two versions: with_contract (pre-condition proves non-null)
+//              without_contract (runtime null check needed)
+//
+// Expected: with_contract should be 15-25% faster
+// Actual: Analyze LLVM IR to understand optimization
+
+// WITH CONTRACT: Pre-condition proves value is valid
+fn process_with_contract(value: i64, multiplier: i64) -> i64
+  pre value != -1 and multiplier > 0
+= value * multiplier;
+
+// WITHOUT CONTRACT: Must check for null (-1) at runtime
+fn process_without_contract(value: i64, multiplier: i64) -> i64 =
+  if value == -1 { 0 }
+  else if multiplier <= 0 { 0 }
+  else { value * multiplier };
+
+// Sum with contract-proven values
+fn sum_with_contract(arr: [i64; 50], idx: i64, multiplier: i64, acc: i64) -> i64
+  pre idx >= 0 and multiplier > 0
+= if idx >= 50 { acc } else {
+    let value = arr[idx];
+    // We know value is valid by array construction
+    sum_with_contract(arr, idx + 1, multiplier, acc + process_with_contract(value, multiplier))
+  };
+
+// Sum with runtime null checks
+fn sum_without_contract(arr: [i64; 50], idx: i64, multiplier: i64, acc: i64) -> i64 =
+  if idx < 0 { acc }
+  else if idx >= 50 { acc }
+  else {
+    let value = arr[idx];
+    sum_without_contract(arr, idx + 1, multiplier, acc + process_without_contract(value, multiplier))
+  };
+
+// Run iterations
+fn run_with_contract(arr: [i64; 50], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_with_contract(arr, remaining - 1, acc + sum_with_contract(arr, 0, 2, 0)) };
+
+fn run_without_contract(arr: [i64; 50], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_without_contract(arr, remaining - 1, acc + sum_without_contract(arr, 0, 2, 0)) };
+
+// Main
+fn main() -> i64 = {
+    let arr: [i64; 50] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+        41, 42, 43, 44, 45, 46, 47, 48, 49, 50
+    ];
+    let with_contract = run_with_contract(arr, 1000, 0);
+    let without_contract = run_without_contract(arr, 1000, 0);
+    with_contract + without_contract
+};
