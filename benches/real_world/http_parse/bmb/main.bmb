@@ -2,7 +2,7 @@
 // Tests protocol parsing, header extraction, string matching
 // Self-contained with embedded test requests
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -175,8 +175,8 @@ fn method_name(m: i64) -> String =
     else if m == method_head() { "HEAD" }
     else { "UNKNOWN" };
 
-// Test requests (using chr for CR/LF)
-fn crlf() -> String = char_to_string(chr(13)) + char_to_string(chr(10));
+// Test requests (using chr for CR/LF: chr returns String)
+fn crlf() -> String = chr(13) + chr(10);
 
 fn request1() -> String =
     "GET /index.html HTTP/1.1" + crlf() +

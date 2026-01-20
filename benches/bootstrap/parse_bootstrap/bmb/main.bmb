@@ -2,7 +2,7 @@
 // Measures: AST construction from BMB source code
 // Note: Interpreter mode has stack depth limits, uses small samples
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -95,16 +95,7 @@ fn count_let(s: String, pos: i64, count: i64) -> i64 =
 
 // Sample BMB source
 fn sample_source() -> String =
-    "fn fib(n: i64) -> i64" + char_to_string(chr(10)) +
-    "  pre n >= 0" + char_to_string(chr(10)) +
-    "= if n <= 1 { n }" + char_to_string(chr(10)) +
-    "  else { fib(n-1) + fib(n-2) };" + char_to_string(chr(10)) +
-    char_to_string(chr(10)) +
-    "fn compute(a: i64, b: i64) -> i64 = {" + char_to_string(chr(10)) +
-    "    let x = a + b;" + char_to_string(chr(10)) +
-    "    let y = a - b;" + char_to_string(chr(10)) +
-    "    x * y" + char_to_string(chr(10)) +
-    "};";
+    "fn fib(n: i64) -> i64 pre n >= 0 = if n <= 1 { n } else { fib(n-1) + fib(n-2) }; fn compute(a: i64, b: i64) -> i64 = { let x = a + b; let y = a - b; x * y };";
 
 fn main() -> i64 = {
     let u1 = printline("Parse Bootstrap Benchmark");

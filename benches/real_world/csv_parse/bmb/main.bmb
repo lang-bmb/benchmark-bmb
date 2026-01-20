@@ -2,7 +2,7 @@
 // Tests string processing, field extraction
 // Self-contained with embedded test data
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -67,21 +67,17 @@ fn print_stats(stats: i64) -> i64 = {
     printline("  Quoted fields: " + int_to_string(get_stat_quoted(stats)))
 };
 
-// Quote character
-fn quote() -> String = char_to_string(chr(34));
+// Quote character (chr returns String)
+fn quote() -> String = chr(34);
 
 // Test data
 fn test_data() -> String =
-    "name,age,city,salary" + char_to_string(chr(10)) +
-    "John Doe,30,New York,50000" + char_to_string(chr(10)) +
-    "Jane Smith,25,Los Angeles,60000" + char_to_string(chr(10)) +
-    quote() + "Bob Jones" + quote() + ",45,Chicago,75000" + char_to_string(chr(10)) +
-    "Alice,28," + quote() + "San Francisco" + quote() + ",80000" + char_to_string(chr(10)) +
-    "Charlie,35,Boston,55000" + char_to_string(chr(10));
+    "name,age,city,salary|John Doe,30,New York,50000|Jane Smith,25,Los Angeles,60000|" +
+    quote() + "Bob Jones" + quote() + ",45,Chicago,75000|Alice,28," + quote() + "San Francisco" + quote() + ",80000|Charlie,35,Boston,55000";
 
 // Generate repeated rows for larger test
 fn generate_row() -> String =
-    "field1,field2,field3," + quote() + "quoted" + quote() + ",field5" + char_to_string(chr(10));
+    "field1,field2,field3," + quote() + "quoted" + quote() + ",field5|";
 
 fn generate_large(n: i64, acc: String) -> String =
     if n <= 0 { acc }

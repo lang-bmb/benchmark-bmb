@@ -2,7 +2,7 @@
 // Tests character processing, state machine, keyword matching
 // Self-contained with embedded source code
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -167,18 +167,8 @@ fn count_tokens(src: String) -> i64 =
 
 // Test source code
 fn test_source() -> String =
-    "fn fibonacci(n: i64) -> i64 =" + char_to_string(chr(10)) +
-    "    if n <= 1 { n }" + char_to_string(chr(10)) +
-    "    else { fibonacci(n - 1) + fibonacci(n - 2) };" + char_to_string(chr(10)) +
-    char_to_string(chr(10)) +
-    "fn main() -> i64 = {" + char_to_string(chr(10)) +
-    "    let result = fibonacci(35);" + char_to_string(chr(10)) +
-    "    let x = 42;" + char_to_string(chr(10)) +
-    "    let y = 3.14159;" + char_to_string(chr(10)) +
-    "    if x > 10 {" + char_to_string(chr(10)) +
-    "        return result;" + char_to_string(chr(10)) +
-    "    }" + char_to_string(chr(10)) +
-    "};";
+    "fn fibonacci(n: i64) -> i64 = if n <= 1 { n } else { fibonacci(n - 1) + fibonacci(n - 2) }; " +
+    "fn main() -> i64 = { let result = fibonacci(35); let x = 42; let y = 3.14159; if x > 10 { return result; } };";
 
 // Generate larger source
 fn gen_large(n: i64, acc: String) -> String =

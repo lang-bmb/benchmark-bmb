@@ -2,7 +2,7 @@
 // Tests string building, escaping, formatting
 // Self-contained with embedded test structures
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -15,10 +15,10 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// Special characters
-fn quote() -> String = char_to_string(chr(34));     -- "
-fn backslash() -> String = char_to_string(chr(92)); -- \
-fn newline_char() -> String = char_to_string(chr(10));
+// Special characters (chr returns String)
+fn quote() -> String = chr(34);     -- "
+fn backslash() -> String = chr(92); -- \
+fn newline_char() -> String = chr(10);
 
 // Escape a string for JSON
 fn escape_char(c: i64) -> String =
@@ -27,7 +27,7 @@ fn escape_char(c: i64) -> String =
     else if c == 10 { backslash() + "n" }       -- newline
     else if c == 13 { backslash() + "r" }       -- carriage return
     else if c == 9 { backslash() + "t" }        -- tab
-    else if c >= 32 and c < 127 { char_to_string(chr(c)) }      -- printable ASCII
+    else if c >= 32 and c < 127 { chr(c) }      -- printable ASCII
     else { backslash() + "u00" + hex_byte(c) }; -- Unicode escape
 
 fn hex_byte(n: i64) -> String = {
@@ -85,7 +85,7 @@ fn serialize_int_array_loop(arr: String, pos: i64, acc: String) -> String =
         let c = ord(char_at(arr, pos));
         let sep = if acc.len() > 1 { "," } else { "" };
         if c >= 48 and c <= 57 {  -- digit
-            serialize_int_array_loop(arr, pos + 1, acc + sep + char_to_string(chr(c)))
+            serialize_int_array_loop(arr, pos + 1, acc + sep + chr(c))
         }
         else {
             serialize_int_array_loop(arr, pos + 1, acc)

@@ -4,7 +4,7 @@
 
 // Note: BMB interpreter doesn't support stdin, so ',' is a no-op
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 // Tape size
 fn tape_size() -> i64 = 30000;
@@ -87,7 +87,7 @@ fn execute_instruction(prog: String, tape: i64, ptr: i64, pc: i64, c: i64) -> i6
     }
     else if c == 46 {       -- '.' = 46
         let val = vec_get(tape, ptr);
-        let u = print_str(char_to_string(chr(val)));
+        let u = print_str(chr(val));
         ptr * 1000000000 + pc
     }
     else if c == 44 {       -- ',' = 44 (input - no-op in BMB)
