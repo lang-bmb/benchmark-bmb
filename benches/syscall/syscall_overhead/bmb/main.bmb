@@ -4,21 +4,18 @@
 // Uses file_exists as a minimal syscall (stat-like operation)
 // Measures overhead of crossing user/kernel boundary
 //
-// Note: Uses recursion with TCO for best performance
+// Note: Uses while loop for optimal performance (v0.51+)
 
 extern fn file_exists(path: String) -> i64;
 
-// Check if path exists - wrapper for file_exists
-fn check_exists(path: String) -> i64 = file_exists(path);
-
-// Recursive syscall loop with tail call optimization
-fn run_syscalls(path: String, remaining: i64, acc: i64) -> i64 =
-    if remaining <= 0 { acc }
-    else { run_syscalls(path, remaining - 1, acc + check_exists(path)) };
-
-// Main entry point
+// Main entry point with while loop
 fn main() -> i64 = {
     let path = ".";
-    let result = run_syscalls(path, 10000, 0);
-    result
+    let mut acc: i64 = 0;
+    let mut remaining: i64 = 10000;
+    while remaining > 0 {
+        acc = acc + file_exists(path);
+        remaining = remaining - 1;
+    };
+    acc
 };
