@@ -1,0 +1,92 @@
+// Fannkuch-redux benchmark - Native array version (n=7 test)
+// v0.50.72: All while bodies use double-block syntax
+
+fn max_val(a: i64, b: i64) -> i64 = if a > b { a } else { b };
+
+fn fannkuch() -> i64 = {
+    let n: i64 = 7;
+
+    let mut perm: [i64; 7] = [0, 0, 0, 0, 0, 0, 0];
+    let mut perm1: [i64; 7] = [0, 0, 0, 0, 0, 0, 0];
+    let mut count: [i64; 7] = [0, 0, 0, 0, 0, 0, 0];
+
+    let mut maxFlips: i64 = 0;
+    let mut checksum: i64 = 0;
+    let mut permCount: i64 = 0;
+    let mut i: i64 = 0;
+    let mut j: i64 = 0;
+    let mut flips: i64 = 0;
+    let mut first: i64 = 0;
+    let mut lo: i64 = 0;
+    let mut hi: i64 = 0;
+    let mut tmp: i64 = 0;
+    let mut c: i64 = 0;
+    let mut running: i64 = 1;
+    let mut delta: i64 = 0;
+
+    { i = 0 };
+    while i < n { {
+        { perm1[i] = i };
+        { count[i] = i + 1 };
+        i = i + 1
+    } };
+
+    while running != 0 { {
+        { i = 0 };
+        while i < n { {
+            { perm[i] = perm1[i] };
+            i = i + 1
+        } };
+
+        { flips = 0 };
+        { first = perm[0] };
+        while first != 0 { {
+            { lo = 0 };
+            { hi = first };
+            while lo < hi { {
+                { tmp = perm[lo] };
+                { perm[lo] = perm[hi] };
+                { perm[hi] = tmp };
+                { lo = lo + 1 };
+                hi = hi - 1
+            } };
+            { flips = flips + 1 };
+            first = perm[0]
+        } };
+
+        { maxFlips = max_val(maxFlips, flips) };
+        { delta = if (permCount - (permCount / 2) * 2) == 0 { flips } else { 0 - flips } };
+        { checksum = checksum + delta };
+
+        { i = 1 };
+        while i < n { {
+            { tmp = perm1[0] };
+            { j = 0 };
+            while j < i { {
+                { perm1[j] = perm1[j + 1] };
+                j = j + 1
+            } };
+            { perm1[i] = tmp };
+
+            { c = count[i] - 1 };
+            { count[i] = c };
+            if c != 0 {
+                { i = n + 1 }
+            } else { {
+                { count[i] = i + 1 };
+                i = i + 1
+            } }
+        } };
+
+        if i == n {
+            { running = 0 }
+        } else {
+            { permCount = permCount + 1 }
+        }
+    } };
+
+    let _p = println(checksum);
+    maxFlips
+};
+
+fn main() -> i64 = fannkuch();
