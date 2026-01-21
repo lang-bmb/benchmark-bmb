@@ -48,3 +48,5 @@ results/BENCHMARK_REPORT_2026-01-21_10[0-4]*.md
 run_all_benchmarks.ps1
 run_available_benchmarks.ps1
 run_final_benchmarks.ps1
+# Auto-generated benchmark runner scripts
+**/run.cmd
