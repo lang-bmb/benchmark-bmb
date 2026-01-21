@@ -312,40 +312,70 @@ fn compile_rust(dir: &Path) -> Option<PathBuf> {
     }
 }
 
+fn find_bmb_compiler() -> Option<PathBuf> {
+    // Try PATH first
+    if which::which("bmb").is_ok() {
+        return Some(PathBuf::from("bmb"));
+    }
+
+    // Try relative paths from benchmark runner
+    let candidates = [
+        PathBuf::from("../../../target/release/bmb"),
+        PathBuf::from("../../../target/release/bmb.exe"),
+        PathBuf::from("../../../../target/release/bmb"),
+        PathBuf::from("../../../../target/release/bmb.exe"),
+    ];
+
+    for path in candidates {
+        if path.exists() {
+            return fs::canonicalize(&path).ok();
+        }
+    }
+
+    None
+}
+
 fn compile_bmb(dir: &Path) -> Option<PathBuf> {
     let source = dir.join("main.bmb");
     if !source.exists() {
         return None;
     }
 
+    let bmb_compiler = find_bmb_compiler()?;
+
     // Get absolute path for wrapper scripts
     let abs_source = fs::canonicalize(&source).ok()?;
 
-    let output = dir.join("main");
+    let output = if cfg!(windows) {
+        dir.join("main.exe")
+    } else {
+        dir.join("main")
+    };
 
-    // Try native compilation first, fall back to interpreter
-    let status = Command::new("bmb")
-        .args(["build", "-o"])
+    // v0.50.72: Use --release (O2) instead of --aggressive (O3)
+    // O3 causes issues with inttoptr/ptrtoint pointer arithmetic in LLVM
+    let status = Command::new(&bmb_compiler)
+        .args(["build", "--release", "-o"])
         .arg(&output)
         .arg(&source)
         .status();
 
     match status {
-        Ok(s) if s.success() => Some(output),
+        Ok(s) if s.success() && output.exists() => Some(output),
         _ => {
             // Create wrapper script for interpreter (platform-specific)
             #[cfg(windows)]
             {
                 let wrapper = dir.join("run.cmd");
                 // Use absolute path for reliability
-                let script = format!("@echo off\nbmb run \"{}\"\n", abs_source.display());
+                let script = format!("@echo off\n\"{}\" run \"{}\"\n", bmb_compiler.display(), abs_source.display());
                 fs::write(&wrapper, script).ok()?;
                 Some(wrapper)
             }
             #[cfg(not(windows))]
             {
                 let wrapper = dir.join("run.sh");
-                let script = format!("#!/bin/sh\nbmb run \"{}\"\n", abs_source.display());
+                let script = format!("#!/bin/sh\n\"{}\" run \"{}\"\n", bmb_compiler.display(), abs_source.display());
                 fs::write(&wrapper, script).ok()?;
                 use std::os::unix::fs::PermissionsExt;
                 let mut perms = fs::metadata(&wrapper).ok()?.permissions();

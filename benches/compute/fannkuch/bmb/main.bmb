@@ -2,6 +2,8 @@
 // Measures: array manipulation, permutation generation
 // Algorithm: Standard Heap's algorithm permutation with pancake flipping
 // Aligned with C version (n=10) for fair comparison
+// v0.51: Rewritten with while loops for optimal performance
+// Note: Uses malloc-based arrays due to lack of array element assignment syntax
 
 // Array operations using malloc/load_i64/store_i64
 fn array_new(n: i64) -> i64 = malloc(n * 8);
@@ -15,100 +17,11 @@ fn array_free(arr: i64) -> i64 = { free(arr); 0 };
 // Max helper
 fn max_val(a: i64, b: i64) -> i64 = if a > b { a } else { b };
 
-// Initialize arrays
-fn init_perm1(perm1: i64, count: i64, n: i64, i: i64) -> i64 =
-    if i >= n { 0 } else {
-        let _a = array_set(perm1, i, i);
-        let _b = array_set(count, i, i + 1);
-        init_perm1(perm1, count, n, i + 1)
-    };
-
-// Copy perm1 to perm
-fn copy_perm(perm: i64, perm1: i64, n: i64, i: i64) -> i64 =
-    if i >= n { 0 } else {
-        let _a = array_set(perm, i, array_get(perm1, i));
-        copy_perm(perm, perm1, n, i + 1)
-    };
-
 // Swap elements in array
 fn swap_in_array(arr: i64, i: i64, j: i64) -> i64 = {
     let tmp = array_get(arr, i);
     let _a = array_set(arr, i, array_get(arr, j));
-    let _b = array_set(arr, j, tmp);
-    0
-};
-
-// Reverse first k elements
-fn reverse_prefix_iter(perm: i64, lo: i64, hi: i64) -> i64 =
-    if lo >= hi { 0 } else {
-        let _a = swap_in_array(perm, lo, hi);
-        reverse_prefix_iter(perm, lo + 1, hi - 1)
-    };
-
-fn reverse_prefix(perm: i64, first: i64) -> i64 =
-    reverse_prefix_iter(perm, 0, first);
-
-// Count flips for current permutation
-fn count_flips_iter(perm: i64, flips: i64) -> i64 = {
-    let first = array_get(perm, 0);
-    if first == 0 { flips }
-    else {
-        let _r = reverse_prefix(perm, first);
-        count_flips_iter(perm, flips + 1)
-    }
-};
-
-fn count_flips(perm: i64, perm1: i64, n: i64) -> i64 = {
-    let _c = copy_perm(perm, perm1, n, 0);
-    count_flips_iter(perm, 0)
-};
-
-// Generate next permutation (Heap's algorithm variant)
-fn next_perm_iter(perm1: i64, count: i64, n: i64, i: i64) -> i64 =
-    if i >= n { 0 }  // No more permutations
-    else {
-        let tmp = array_get(perm1, i);
-        // Shift elements: perm1[i] = perm1[i-1], ..., perm1[1] = perm1[0], perm1[0] = tmp
-        let _s = shift_down(perm1, i);
-        let _a = array_set(perm1, 0, tmp);
-
-        let c = array_get(count, i) - 1;
-        let _b = array_set(count, i, c);
-
-        if c != 0 { 1 }  // Continue with this permutation
-        else {
-            let _c = array_set(count, i, i + 1);
-            next_perm_iter(perm1, count, n, i + 1)
-        }
-    };
-
-// Shift elements: perm1[k] = perm1[k-1], ..., perm1[1] = perm1[0]
-fn shift_down(perm1: i64, k: i64) -> i64 =
-    shift_down_iter(perm1, k, k);
-
-fn shift_down_iter(perm1: i64, k: i64, j: i64) -> i64 =
-    if j <= 0 { 0 }
-    else {
-        let _a = array_set(perm1, j, array_get(perm1, j - 1));
-        shift_down_iter(perm1, k, j - 1)
-    };
-
-fn next_perm(perm1: i64, count: i64, n: i64) -> i64 =
-    next_perm_iter(perm1, count, n, 1);
-
-// Main benchmark loop
-fn fannkuch_iter(perm: i64, perm1: i64, count: i64, n: i64, maxFlips: i64, checksum: i64, permCount: i64) -> i64 = {
-    let flips = count_flips(perm, perm1, n);
-    let newMax = max_val(maxFlips, flips);
-    let delta = if (permCount - (permCount / 2) * 2) == 0 { flips } else { 0 - flips };
-    let newChecksum = checksum + delta;
-
-    let hasNext = next_perm(perm1, count, n);
-    if hasNext == 0 {
-        let _p = println(newChecksum);
-        newMax
-    }
-    else { fannkuch_iter(perm, perm1, count, n, newMax, newChecksum, permCount + 1) }
+    array_set(arr, j, tmp)
 };
 
 fn fannkuch(n: i64) -> i64 = {
@@ -116,15 +29,95 @@ fn fannkuch(n: i64) -> i64 = {
     let perm1 = array_new(n);
     let count = array_new(n);
 
-    let _i = init_perm1(perm1, count, n, 0);
+    // All mutable state declared upfront
+    let mut maxFlips: i64 = 0;
+    let mut checksum: i64 = 0;
+    let mut permCount: i64 = 0;
+    let mut i: i64 = 0;
+    let mut j: i64 = 0;
+    let mut flips: i64 = 0;
+    let mut first: i64 = 0;
+    let mut lo: i64 = 0;
+    let mut hi: i64 = 0;
+    let mut tmp: i64 = 0;
+    let mut c: i64 = 0;
+    let mut running: i64 = 1;
+    let mut delta: i64 = 0;
 
-    let result = fannkuch_iter(perm, perm1, count, n, 0, 0, 0);
+    // Initialize arrays
+    { i = 0 };
+    while i < n {
+        array_set(perm1, i, i);
+        array_set(count, i, i + 1);
+        i = i + 1;
+    };
+
+    // Main permutation loop
+    while running != 0 {
+        // Copy perm1 to perm
+        { i = 0 };
+        while i < n {
+            array_set(perm, i, array_get(perm1, i));
+            i = i + 1;
+        };
+
+        // Count flips
+        { flips = 0 };
+        { first = array_get(perm, 0) };
+        while first != 0 {
+            // Reverse prefix: swap perm[lo] and perm[hi] while lo < hi
+            { lo = 0 };
+            { hi = first };
+            while lo < hi {
+                swap_in_array(perm, lo, hi);
+                lo = lo + 1;
+                hi = hi - 1;
+            };
+            { flips = flips + 1 };
+            { first = array_get(perm, 0) };
+        };
+
+        // Update results
+        { maxFlips = max_val(maxFlips, flips) };
+        { delta = if (permCount - (permCount / 2) * 2) == 0 { flips } else { 0 - flips } };
+        { checksum = checksum + delta };
+
+        // Generate next permutation (Heap's algorithm variant)
+        { i = 1 };
+        while i < n {
+            // Rotate: perm1[0] goes to position i, others shift left
+            { tmp = array_get(perm1, 0) };
+            { j = 0 };
+            while j < i {
+                array_set(perm1, j, array_get(perm1, j + 1));
+                j = j + 1;
+            };
+            array_set(perm1, i, tmp);
+
+            { c = array_get(count, i) - 1 };
+            array_set(count, i, c);
+            if c != 0 {
+                { i = n + 1 }
+            } else {
+                { array_set(count, i, i + 1); i = i + 1 }
+            };
+        };
+
+        // Check if exhausted all permutations
+        if i == n {
+            { running = 0 }
+        } else {
+            { permCount = permCount + 1 }
+        };
+    };
+
+    let _p = println(checksum);
 
     let _f1 = array_free(perm);
     let _f2 = array_free(perm1);
     let _f3 = array_free(count);
 
-    result
+    maxFlips
 };
 
 fn main() -> i64 = {
