@@ -6,7 +6,6 @@
 //
 // Expected: with_contract should be 10-20% faster
 // Actual: Analyze LLVM IR to understand optimization
-// v0.50.73: Converted to while loops for fair comparison
 
 // Pure function - can be hoisted out of loops
 @pure
@@ -23,54 +22,31 @@ fn compute_factor_impure(base: i64, power: i64, check: i64) -> i64 =
   else if power == 1 { base }
   else { base * compute_factor_impure(base, power - 1, check) };
 
-// Loop with hoistable invariant - WHILE LOOP VERSION
-fn loop_with_hoistable(arr: [i64; 32], factor_base: i64, factor_power: i64) -> i64 = {
-    let mut idx: i64 = 0;
-    let mut acc: i64 = 0;
-    while idx < 32 { {
-        // compute_factor(factor_base, factor_power) is loop-invariant
-        acc = acc + arr[idx] * compute_factor(factor_base, factor_power);
-        idx = idx + 1;
-        ()
-    } };
-    acc
-};
+// Loop with hoistable invariant
+fn loop_with_hoistable(arr: [i64; 32], factor_base: i64, factor_power: i64, idx: i64, acc: i64) -> i64
+  pre idx >= 0 and factor_power >= 0 and factor_power <= 10
+= if idx >= 32 { acc } else {
+    // compute_factor(factor_base, factor_power) is loop-invariant
+    let factor = compute_factor(factor_base, factor_power);
+    loop_with_hoistable(arr, factor_base, factor_power, idx + 1, acc + arr[idx] * factor)
+  };
 
-// Loop with non-hoistable computation - WHILE LOOP VERSION
-fn loop_without_hoistable(arr: [i64; 32], factor_base: i64, factor_power: i64) -> i64 = {
-    let mut idx: i64 = 0;
-    let mut acc: i64 = 0;
-    while idx < 32 { {
-        // compute_factor_impure cannot be hoisted due to dependency
-        acc = acc + arr[idx] * compute_factor_impure(factor_base, factor_power, idx);
-        idx = idx + 1;
-        ()
-    } };
-    acc
-};
+// Loop with non-hoistable computation
+fn loop_without_hoistable(arr: [i64; 32], factor_base: i64, factor_power: i64, idx: i64, acc: i64) -> i64 =
+  if idx < 0 { acc }
+  else if idx >= 32 { acc }
+  else {
+    // compute_factor_impure cannot be hoisted due to dependency
+    let factor = compute_factor_impure(factor_base, factor_power, idx);
+    loop_without_hoistable(arr, factor_base, factor_power, idx + 1, acc + arr[idx] * factor)
+  };
 
-// Run iterations - WHILE LOOP VERSION
-fn run_with_hoistable(arr: [i64; 32], iterations: i64) -> i64 = {
-    let mut remaining: i64 = iterations;
-    let mut acc: i64 = 0;
-    while remaining > 0 { {
-        acc = acc + loop_with_hoistable(arr, 2, 3);
-        remaining = remaining - 1;
-        ()
-    } };
-    acc
-};
+// Run iterations
+fn run_with_hoistable(arr: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_with_hoistable(arr, remaining - 1, acc + loop_with_hoistable(arr, 2, 3, 0, 0)) };
 
-fn run_without_hoistable(arr: [i64; 32], iterations: i64) -> i64 = {
-    let mut remaining: i64 = iterations;
-    let mut acc: i64 = 0;
-    while remaining > 0 { {
-        acc = acc + loop_without_hoistable(arr, 2, 3);
-        remaining = remaining - 1;
-        ()
-    } };
-    acc
-};
+fn run_without_hoistable(arr: [i64; 32], remaining: i64, acc: i64) -> i64 =
+  if remaining <= 0 { acc } else { run_without_hoistable(arr, remaining - 1, acc + loop_without_hoistable(arr, 2, 3, 0, 0)) };
 
 // Main
 fn main() -> i64 = {
@@ -78,7 +54,7 @@ fn main() -> i64 = {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
     ];
-    let with_hoistable = run_with_hoistable(arr, 1000);
-    let without_hoistable = run_without_hoistable(arr, 1000);
+    let with_hoistable = run_with_hoistable(arr, 1000, 0);
+    let without_hoistable = run_without_hoistable(arr, 1000, 0);
     with_hoistable + without_hoistable
 };

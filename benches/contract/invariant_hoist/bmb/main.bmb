@@ -1,83 +1,88 @@
 // Invariant hoisting benchmark
 // Measures: loop invariant code motion optimization
 // BMB's contracts can prove invariance, enabling guaranteed hoisting
-// v0.50.73: Converted to while loops, removed string output for fair comparison
 
-// Expensive computation that is loop-invariant - keep recursive for complex calculation
-fn expensive_compute(x: i64, y: i64) -> i64 = {
-    let mut i: i64 = 0;
-    let mut acc: i64 = 0;
-    while i < 100 { {
-        acc = acc + (x * x + y * y) / (i + 1);
-        i = i + 1;
-        ()
-    } };
-    acc
-};
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
-// Loop with invariant computation (can be hoisted) - WHILE LOOP VERSION
-fn loop_with_invariant(n: i64, constant_x: i64, constant_y: i64) -> i64 = {
-    let mut i: i64 = 0;
-    let mut sum: i64 = 0;
-    while i < n { {
+fn int_to_string(n: i64) -> String =
+    if n < 0 { "-" + int_to_string(0 - n) }
+    else if n < 10 { digit_char(n) }
+    else { int_to_string(n / 10) + digit_char(n % 10) };
+
+fn digit_char(d: i64) -> String =
+    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
+    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
+    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
+    else { "9" };
+
+// Expensive computation that is loop-invariant
+fn expensive_compute(x: i64, y: i64) -> i64 =
+    expensive_compute_loop(x, y, 0, 0);
+
+fn expensive_compute_loop(x: i64, y: i64, i: i64, acc: i64) -> i64 =
+    if i >= 100 { acc }
+    else { expensive_compute_loop(x, y, i + 1, acc + (x * x + y * y) / (i + 1)) };
+
+// Loop with invariant computation (can be hoisted)
+fn loop_with_invariant(n: i64, constant_x: i64, constant_y: i64) -> i64 =
+    loop_with_invariant_iter(n, constant_x, constant_y, 0, 0);
+
+fn loop_with_invariant_iter(n: i64, constant_x: i64, constant_y: i64, i: i64, sum: i64) -> i64 =
+    if i >= n { sum }
+    else {
         // This computation is loop-invariant (depends only on constants)
-        sum = sum + expensive_compute(constant_x, constant_y) + i;
-        i = i + 1;
-        ()
-    } };
-    sum
-};
+        let inv_val = expensive_compute(constant_x, constant_y);
+        loop_with_invariant_iter(n, constant_x, constant_y, i + 1, sum + inv_val + i)
+    };
 
-// Inner loop helper
-fn inner_loop(inner_n: i64, outer_inv: i64, inner_inv: i64) -> i64 = {
-    let mut j: i64 = 0;
-    let mut sum: i64 = 0;
-    while j < inner_n { {
-        sum = sum + outer_inv + inner_inv + j;
-        j = j + 1;
-        ()
-    } };
-    sum
-};
+// Nested loop with outer-loop invariant
+fn nested_with_invariant(outer_n: i64, inner_n: i64, constant: i64) -> i64 =
+    nested_outer_iter(outer_n, inner_n, constant, 0, 0);
 
-// Nested loop with outer-loop invariant - WHILE LOOP VERSION
-fn nested_with_invariant(outer_n: i64, inner_n: i64, constant: i64) -> i64 = {
-    let mut i: i64 = 0;
-    let mut sum: i64 = 0;
-    while i < outer_n { {
+fn nested_outer_iter(outer_n: i64, inner_n: i64, constant: i64, i: i64, sum: i64) -> i64 =
+    if i >= outer_n { sum }
+    else {
         // Outer-loop invariant (can be hoisted outside outer loop)
-        sum = sum + inner_loop(inner_n, expensive_compute(constant, constant), i * i);
-        i = i + 1;
-        ()
-    } };
-    sum
-};
+        let outer_invariant = expensive_compute(constant, constant);
+        let inner_sum = nested_inner_iter(inner_n, outer_invariant, i * i, 0, 0);
+        nested_outer_iter(outer_n, inner_n, constant, i + 1, sum + inner_sum)
+    };
 
-// Multiple invariants in same loop - WHILE LOOP VERSION
-fn multiple_invariants(n: i64, a: i64, b: i64, c: i64) -> i64 = {
-    let mut i: i64 = 0;
-    let mut sum: i64 = 0;
-    while i < n { {
-        // These computations are loop-invariant
-        sum = sum + (a * a + b * b) + (b * c + c * a) + expensive_compute(a, b) + i;
-        i = i + 1;
-        ()
-    } };
-    sum
-};
+fn nested_inner_iter(inner_n: i64, outer_inv: i64, inner_inv: i64, j: i64, sum: i64) -> i64 =
+    if j >= inner_n { sum }
+    else { nested_inner_iter(inner_n, outer_inv, inner_inv, j + 1, sum + outer_inv + inner_inv + j) };
 
-// Run benchmark iterations
-fn run_benchmark(iterations: i64) -> i64 = {
-    let mut remaining: i64 = iterations;
-    let mut total: i64 = 0;
-    while remaining > 0 { {
-        total = total + loop_with_invariant(100, 5, 7);
-        total = total + nested_with_invariant(10, 10, 3);
-        total = total + multiple_invariants(100, 3, 5, 7);
-        remaining = remaining - 1;
-        ()
-    } };
-    total
-};
+// Multiple invariants in same loop
+fn multiple_invariants(n: i64, a: i64, b: i64, c: i64) -> i64 =
+    multiple_invariants_iter(n, a, b, c, 0, 0);
 
-fn main() -> i64 = run_benchmark(100);
+fn multiple_invariants_iter(n: i64, a: i64, b: i64, c: i64, i: i64, sum: i64) -> i64 =
+    if i >= n { sum }
+    else {
+        let inv1 = a * a + b * b;            // Invariant 1
+        let inv2 = b * c + c * a;            // Invariant 2
+        let inv3 = expensive_compute(a, b);  // Invariant 3
+        multiple_invariants_iter(n, a, b, c, i + 1, sum + inv1 + inv2 + inv3 + i)
+    };
+
+fn main() -> i64 = {
+    let u1 = printline("Invariant Hoist Benchmark");
+    let u2 = printline("");
+
+    // Test loop with invariant
+    let result1 = loop_with_invariant(100, 5, 7);
+    let u3 = printline("Loop with invariant: " + int_to_string(result1));
+
+    // Test nested with invariant
+    let result2 = nested_with_invariant(10, 10, 3);
+    let u4 = printline("Nested with invariant: " + int_to_string(result2));
+
+    // Test multiple invariants
+    let result3 = multiple_invariants(100, 3, 5, 7);
+    let u5 = printline("Multiple invariants: " + int_to_string(result3));
+
+    let total = result1 + result2 + result3;
+    let u6 = printline("");
+    let u7 = printline("Total: " + int_to_string(total));
+    printline("Done.")
+};
