@@ -30,16 +30,20 @@ fn map_double(opt: i64) -> i64 =
 // Chain of operations (each could require null check in other languages)
 fn process_chain(value: i64) -> i64
   pre value >= 0
-= let step1 = some(value);
+= {
+  let step1 = some(value);
   let step2 = map_double(step1);
   let step3 = map_double(step2);
   let step4 = map_double(step3);
-  unwrap_or(step4, 0);
+  unwrap_or(step4, 0)
+};
 
 // Benchmark: many chained operations
 fn run_benchmark(n: i64, acc: i64) -> i64 =
-    if n <= 0 { acc } else { let result = process_chain(n) };
-         run_benchmark(n - 1, acc + result);
+    if n <= 0 { acc } else {
+        let result = process_chain(n);
+        run_benchmark(n - 1, acc + result)
+    };
 
 fn main() -> i64 =
     run_benchmark(10000, 0);

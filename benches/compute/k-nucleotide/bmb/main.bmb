@@ -4,7 +4,7 @@
 // Self-contained with embedded test sequence
 
 // Helper: print string with newline
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 // Convert nucleotide char code to 0-3 index
 // A=65, C=67, G=71, T=84 (uppercase)
@@ -164,7 +164,7 @@ fn print_pattern_count(seq: String, pattern: String) -> i64 = {
     let map = count_kmers(seq, k);
     let count = get_pattern_count(map, pattern);
     let u = hashmap_free(map);
-    printline(int_to_string(count) + char_to_string(chr(9)) + pattern)  -- chr(9) = tab
+    printline(int_to_string(count) + " " + pattern)
 };
 
 -- Test sequence (subset of sequence THREE from Benchmarks Game)

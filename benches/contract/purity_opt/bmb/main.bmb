@@ -14,10 +14,12 @@ fn expensive_iter(n: i64, i: i64, acc: i64) -> i64 =
 // Multiple calls to same pure function (CSE opportunity)
 fn compute_with_redundancy(x: i64) -> i64
   pre x >= 0
-= let a = expensive_pure(x);    // First call
+= {
+  let a = expensive_pure(x);    // First call
   let b = expensive_pure(x);    // Identical call (can be eliminated)
   let c = expensive_pure(x);    // Identical call (can be eliminated)
-  a + b + c;
+  a + b + c
+};
 
 // Loop with invariant pure computation
 fn loop_with_invariant(n: i64, constant: i64) -> i64
@@ -25,15 +27,20 @@ fn loop_with_invariant(n: i64, constant: i64) -> i64
 = loop_iter(n, constant, 0);
 
 fn loop_iter(remaining: i64, constant: i64, acc: i64) -> i64 =
-    if remaining <= 0 { acc } else { let pure_result = expensive_pure(constant) };  // Loop invariant
-         loop_iter(remaining - 1, constant, acc + pure_result);
+    if remaining <= 0 { acc } else {
+        let pure_result = expensive_pure(constant);  // Loop invariant
+        loop_iter(remaining - 1, constant, acc + pure_result)
+    };
 
 // Benchmark: many redundant pure calls
 fn run_benchmark(n: i64, acc: i64) -> i64 =
-    if n <= 0 { acc } else { let result = compute_with_redundancy(n / 10) };
-         run_benchmark(n - 1, acc + result);
+    if n <= 0 { acc } else {
+        let result = compute_with_redundancy(n / 10);
+        run_benchmark(n - 1, acc + result)
+    };
 
-fn main() -> i64 =
+fn main() -> i64 = {
     let pure_test = run_benchmark(1000, 0);
     let loop_test = loop_with_invariant(1000, 50);
-    pure_test + loop_test;
+    pure_test + loop_test
+};

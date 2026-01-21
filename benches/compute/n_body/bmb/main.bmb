@@ -7,28 +7,25 @@ fn PI() -> f64 = 3.141592653589793;
 fn SOLAR_MASS() -> f64 = 4.0 * PI() * PI();
 fn DAYS_PER_YEAR() -> f64 = 365.24;
 
-// 2-body simulation state: Sun and Jupiter
-// Position: x1,y1,z1 (Sun), x2,y2,z2 (Jupiter)
-// Velocity: vx1,vy1,vz1 (Sun), vx2,vy2,vz2 (Jupiter)
-// Mass: m1 (Sun), m2 (Jupiter)
-
 // Compute distance between two bodies
-fn distance(x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64) -> f64 =
+fn distance(x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64) -> f64 = {
     let dx = x1 - x2;
     let dy = y1 - y2;
     let dz = z1 - z2;
-    sqrt(dx * dx + dy * dy + dz * dz);
+    sqrt(dx * dx + dy * dy + dz * dz)
+};
 
 // Energy of 2-body system
 fn energy_2body(
     x1: f64, y1: f64, z1: f64, vx1: f64, vy1: f64, vz1: f64, m1: f64,
     x2: f64, y2: f64, z2: f64, vx2: f64, vy2: f64, vz2: f64, m2: f64
-) -> f64 =
+) -> f64 = {
     let ke1 = 0.5 * m1 * (vx1 * vx1 + vy1 * vy1 + vz1 * vz1);
     let ke2 = 0.5 * m2 * (vx2 * vx2 + vy2 * vy2 + vz2 * vz2);
     let dist = distance(x1, y1, z1, x2, y2, z2);
     let pe = 0.0 - (m1 * m2 / dist);
-    ke1 + ke2 + pe;
+    ke1 + ke2 + pe
+};
 
 // Simulation step for 2-body problem
 // Returns energy after n steps
@@ -37,7 +34,10 @@ fn simulate_rec(
     x2: f64, y2: f64, z2: f64, vx2: f64, vy2: f64, vz2: f64, m2: f64,
     dt: f64, step: i64, n: i64
 ) -> f64 =
-    if step >= n { energy_2body(x1, y1, z1, vx1, vy1, vz1, m1, x2, y2, z2, vx2, vy2, vz2, m2) } else { let dx = x1 - x2 };
+    if step >= n {
+        energy_2body(x1, y1, z1, vx1, vy1, vz1, m1, x2, y2, z2, vx2, vy2, vz2, m2)
+    } else {
+        let dx = x1 - x2;
         let dy = y1 - y2;
         let dz = z1 - z2;
         let d2 = dx * dx + dy * dy + dz * dz;
@@ -64,7 +64,8 @@ fn simulate_rec(
             new_x1, new_y1, new_z1, new_vx1, new_vy1, new_vz1, m1,
             new_x2, new_y2, new_z2, new_vx2, new_vy2, new_vz2, m2,
             dt, step + 1, n
-        );
+        )
+    };
 
 fn main() -> i64 = {
     // Sun initial state (at origin, stationary)

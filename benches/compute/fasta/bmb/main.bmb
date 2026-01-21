@@ -3,7 +3,7 @@
 // Uses fixed-point arithmetic (1000000 scale factor)
 
 // Helper: print string with newline (println takes i64, not String)
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 // LCG constants
 fn im() -> i64 = 139968;

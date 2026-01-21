@@ -2,7 +2,7 @@
 // Measures: dead branch removal based on value constraints
 // BMB's contracts prove branch impossibility, enabling guaranteed elimination
 
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }

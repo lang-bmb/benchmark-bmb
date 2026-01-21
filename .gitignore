@@ -29,3 +29,22 @@ benches/**/c/spectral_norm
 
 # Build output directory
 build/
+
+# Temporary files
+*.tmp
+*.mir
+
+# Intermediate results (manually managed)
+results/benchmark_available_*.csv
+results/benchmark_final_*.csv
+results/benchmark_full_2026-01-20_*.csv
+results/benchmark_full_2026-01-21_09*.csv
+results/benchmark_full_2026-01-21_10[0-4]*.csv
+results/BENCHMARK_REPORT_2026-01-20_*.md
+results/BENCHMARK_REPORT_2026-01-21_09*.md
+results/BENCHMARK_REPORT_2026-01-21_10[0-4]*.md
+
+# Local run scripts
+run_all_benchmarks.ps1
+run_available_benchmarks.ps1
+run_final_benchmarks.ps1

@@ -4,7 +4,7 @@
 // (BMB interpreter doesn't support stdin line reading)
 
 // Helper: print string with newline
-fn printline(s: String) -> i64 = print_str(s + char_to_string(chr(10)));
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 // Line width for FASTA output
 fn line_width() -> i64 = 60;
@@ -48,7 +48,7 @@ fn reverse_build(s: String, idx: i64, acc: String) -> String =
     if idx < 0 { acc }
     else {
         let c = ord(char_at(s, idx));
-        let comp = char_to_string(chr(complement(c)));
+        let comp = chr(complement(c));
         reverse_build(s, idx - 1, acc + comp)
     };
 
