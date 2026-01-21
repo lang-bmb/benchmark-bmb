@@ -3,22 +3,20 @@
 //
 // Uses file_exists as a minimal syscall (stat-like operation)
 // Measures overhead of crossing user/kernel boundary
+//
+// v0.50.71: Use while loop instead of recursion for fair C comparison
 
-// Minimal syscall - check if file exists
-fn check_exists(path: String) -> i64 = file_exists(path);
-
-// Run syscall iterations
-fn run_syscalls(path: String, remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 {
-    acc
-  } else {
-    let result = check_exists(path);
-    run_syscalls(path, remaining - 1, acc + result)
-  };
-
-// Main entry point
+// Main entry point - using while loop for minimal overhead
 fn main() -> i64 = {
-    // Check a path that likely exists (current directory marker)
     let path = ".";
-    run_syscalls(path, 10000, 0)
+    let mut acc: i64 = 0;
+    let mut remaining: i64 = 10000;
+    while remaining > 0 {
+        {
+            acc = acc + file_exists(path);
+            remaining = remaining - 1;
+            ()
+        }
+    };
+    acc
 };
