@@ -17,7 +17,7 @@ fn write_and_read(path: String, content: String) -> i64 = {
     let write_result = write_file(path, content);
     let read_content = read_file(path);
     // Return length of read content as verification
-    str_len(read_content)
+    read_content.len()
 };
 
 // Run iterations
