@@ -51,7 +51,12 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 | Benchmark | Ratio | Root Cause |
 |-----------|-------|------------|
 | syscall_overhead | 2.81x | String wrapper overhead in extern fn |
-| fibonacci | 1.56x | Non-tail-recursive (TCO cannot apply) |
+
+#### Recently Fixed (v0.51.18)
+
+| Benchmark | Before | After | Fix |
+|-----------|--------|-------|-----|
+| fibonacci | 1.56x | **1.04x** | Proper i32 narrowing + O3 optimization |
 
 **Benchmark Gate #1 PASSED**: Interpreter baseline established
 **Benchmark Gate #2 PASSED**: Native compilation infrastructure ready
