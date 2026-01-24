@@ -9,12 +9,13 @@
 extern fn file_exists(path: String) -> i64;
 
 // Main entry point - uses while loop instead of recursion
+// v0.51.18: Use direct string literal for _cstr optimization (zero string wrapper overhead)
 fn main() -> i64 = {
-    let path = ".";
     let mut acc: i64 = 0;
     let mut remaining: i64 = 10000;
     while remaining > 0 { {
-        acc = acc + file_exists(path);
+        // Direct literal enables file_exists_cstr optimization (raw const char*)
+        acc = acc + file_exists(".");
         remaining = remaining - 1;
         ()
     } };

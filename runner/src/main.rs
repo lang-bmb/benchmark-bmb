@@ -378,7 +378,13 @@ fn find_bmb_compiler() -> Option<PathBuf> {
     }
 
     // Try relative paths from benchmark runner
+    // v0.51.18: Prefer GNU target build (has LLVM feature for native compilation)
     let candidates = [
+        // GNU target builds (have LLVM support)
+        PathBuf::from("../../target/x86_64-pc-windows-gnu/release/bmb.exe"),
+        PathBuf::from("../../../target/x86_64-pc-windows-gnu/release/bmb.exe"),
+        PathBuf::from("../../../../target/x86_64-pc-windows-gnu/release/bmb.exe"),
+        // Standard release builds
         PathBuf::from("../../target/release/bmb"),
         PathBuf::from("../../target/release/bmb.exe"),
         PathBuf::from("../../../target/release/bmb"),

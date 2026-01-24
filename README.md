@@ -42,20 +42,16 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 | pointer_chase | 4.52 | 4.50 | 1.00x |
 | process_spawn | 472.36 | 472.35 | 1.00x |
 | file_io_seq | 660.13 | 652.62 | 1.01x |
+| syscall_overhead | 33.00 | 32.36 | 1.02x |
 | matrix_multiply | 3.66 | 3.55 | 1.03x |
 | fannkuch | 62.83 | 64.22 | 0.98x |
 | binary_trees | 90.94 | 79.76 | 1.14x |
-
-#### Known Limitations (Require Compiler Changes)
-
-| Benchmark | Ratio | Root Cause |
-|-----------|-------|------------|
-| syscall_overhead | 2.81x | String wrapper overhead in extern fn |
 
 #### Recently Fixed (v0.51.18)
 
 | Benchmark | Before | After | Fix |
 |-----------|--------|-------|-----|
+| syscall_overhead | 2.81x | **1.02x** | Direct C string for extern fn (zero wrapper overhead) |
 | fibonacci | 1.56x | **1.04x** | Proper i32 narrowing + O3 optimization |
 
 **Benchmark Gate #1 PASSED**: Interpreter baseline established
