@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
+use wait_timeout::ChildExt;
 
 #[derive(Parser)]
 #[command(name = "benchmark-bmb")]
@@ -34,6 +35,10 @@ enum Commands {
         /// Warm-up iterations
         #[arg(short, long, default_value = "2")]
         warmup: u32,
+
+        /// Timeout per benchmark execution in seconds (0 = no timeout)
+        #[arg(short = 't', long, default_value = "60")]
+        timeout: u64,
     },
     /// Compare languages for a benchmark
     Compare {
@@ -119,7 +124,8 @@ fn main() {
             category,
             iterations,
             warmup,
-        } => run_benchmarks(&name, category.as_deref(), iterations, warmup),
+            timeout,
+        } => run_benchmarks(&name, category.as_deref(), iterations, warmup, timeout),
         Commands::Compare { name, langs } => compare_benchmark(&name, &langs),
         Commands::List { category } => list_benchmarks(category.as_deref()),
         Commands::New { name, category } => create_benchmark(&name, &category),
@@ -129,7 +135,7 @@ fn main() {
     }
 }
 
-fn run_benchmarks(name: &str, category: Option<&str>, iterations: u32, warmup: u32) {
+fn run_benchmarks(name: &str, category: Option<&str>, iterations: u32, warmup: u32, timeout_secs: u64) {
     println!("{}", "=== BMB Benchmark Suite ===".cyan().bold());
     println!();
 
@@ -157,12 +163,12 @@ fn run_benchmarks(name: &str, category: Option<&str>, iterations: u32, warmup: u
 
     for (bench_name, bench_path) in &benchmarks {
         println!("{} {}", "Running:".green(), bench_name);
-        run_single_benchmark(bench_name, bench_path, iterations, warmup);
+        run_single_benchmark(bench_name, bench_path, iterations, warmup, timeout_secs);
         println!();
     }
 }
 
-fn run_single_benchmark(name: &str, path: &Path, iterations: u32, warmup: u32) {
+fn run_single_benchmark(name: &str, path: &Path, iterations: u32, warmup: u32, timeout_secs: u64) {
     let mut results: HashMap<String, Vec<f64>> = HashMap::new();
 
     // Find language implementations
@@ -174,7 +180,7 @@ fn run_single_benchmark(name: &str, path: &Path, iterations: u32, warmup: u32) {
 
         let lang = lang_dir.file_name().unwrap().to_string_lossy().to_string();
 
-        if let Some(times) = run_language_benchmark(&lang_dir, &lang, iterations, warmup) {
+        if let Some(times) = run_language_benchmark(&lang_dir, &lang, iterations, warmup, timeout_secs) {
             results.insert(lang, times);
         }
     }
@@ -227,6 +233,7 @@ fn run_language_benchmark(
     lang: &str,
     iterations: u32,
     warmup: u32,
+    timeout_secs: u64,
 ) -> Option<Vec<f64>> {
     let executable = match lang {
         "c" => compile_c(dir)?,
@@ -236,24 +243,72 @@ fn run_language_benchmark(
     };
 
     let mut times = Vec::new();
+    let timeout = if timeout_secs > 0 {
+        Some(Duration::from_secs(timeout_secs))
+    } else {
+        None
+    };
 
     // v0.51.2: Run benchmarks from executable's directory for consistent results
     // (file_exists(".") syscall time depends on current directory's content count)
     let exe_dir = executable.parent().unwrap_or(Path::new("."));
 
-    // Warmup
+    // Warmup (also with timeout to avoid hanging)
     for _ in 0..warmup {
-        let _ = Command::new(&executable).current_dir(exe_dir).output();
+        if let Ok(mut child) = Command::new(&executable)
+            .current_dir(exe_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            if let Some(t) = timeout {
+                match child.wait_timeout(t) {
+                    Ok(Some(_)) => {} // Completed normally
+                    Ok(None) => {
+                        // Timeout - kill the process
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        println!("  {} {} warmup timed out ({}s)", "Warning:".yellow(), lang.to_uppercase(), timeout_secs);
+                        return None;
+                    }
+                    Err(_) => {}
+                }
+            } else {
+                let _ = child.wait();
+            }
+        }
     }
 
     // Measure
     for _ in 0..iterations {
         let start = Instant::now();
-        let output = Command::new(&executable).current_dir(exe_dir).output();
-        let elapsed = start.elapsed();
 
-        if output.is_ok() {
-            times.push(elapsed.as_secs_f64() * 1000.0);
+        if let Ok(mut child) = Command::new(&executable)
+            .current_dir(exe_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            let success = if let Some(t) = timeout {
+                match child.wait_timeout(t) {
+                    Ok(Some(status)) => status.success(),
+                    Ok(None) => {
+                        // Timeout - kill the process
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        println!("  {} {} timed out ({}s)", "Warning:".yellow(), lang.to_uppercase(), timeout_secs);
+                        return None;
+                    }
+                    Err(_) => false,
+                }
+            } else {
+                child.wait().map(|s| s.success()).unwrap_or(false)
+            };
+
+            let elapsed = start.elapsed();
+            if success {
+                times.push(elapsed.as_secs_f64() * 1000.0);
+            }
         }
     }
 
@@ -324,6 +379,8 @@ fn find_bmb_compiler() -> Option<PathBuf> {
 
     // Try relative paths from benchmark runner
     let candidates = [
+        PathBuf::from("../../target/release/bmb"),
+        PathBuf::from("../../target/release/bmb.exe"),
         PathBuf::from("../../../target/release/bmb"),
         PathBuf::from("../../../target/release/bmb.exe"),
         PathBuf::from("../../../../target/release/bmb"),
@@ -356,10 +413,11 @@ fn compile_bmb(dir: &Path) -> Option<PathBuf> {
         dir.join("main")
     };
 
-    // v0.50.72: Use --release (O2) instead of --aggressive (O3)
-    // O3 causes issues with inttoptr/ptrtoint pointer arithmetic in LLVM
+    // v0.51.18: Use --aggressive (O3) for fair comparison with C -O3
+    // O3 enables LLVM's recursive-to-iterative transformation for fibonacci
+    // Previous inttoptr/ptrtoint issues were fixed in v0.51.x
     let status = Command::new(&bmb_compiler)
-        .args(["build", "--release", "-o"])
+        .args(["build", "--aggressive", "-o"])
         .arg(&output)
         .arg(&source)
         .status();
@@ -570,8 +628,8 @@ fn verify_gate(gate: &str, iterations: u32, verbose: bool) {
             continue;
         }
 
-        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2);
-        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2);
+        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2, 60);
+        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2, 60);
 
         if let (Some(c_t), Some(bmb_t)) = (c_times, bmb_times) {
             let c_median = median(&c_t);
@@ -609,8 +667,8 @@ fn verify_gate(gate: &str, iterations: u32, verbose: bool) {
             continue;
         }
 
-        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2);
-        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2);
+        let c_times = run_language_benchmark(&bench_path.join("c"), "c", iterations, 2, 60);
+        let bmb_times = run_language_benchmark(&bench_path.join("bmb"), "bmb", iterations, 2, 60);
 
         if let (Some(c_t), Some(bmb_t)) = (c_times, bmb_times) {
             let c_median = median(&c_t);
