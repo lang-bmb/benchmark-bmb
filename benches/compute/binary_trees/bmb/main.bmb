@@ -1,6 +1,6 @@
-// Binary trees benchmark with Box<i64> heap allocation (Phase 34.2.8)
+// Binary trees benchmark with while loops (v0.51.7)
 // Measures: memory allocation, tree traversal, recursion
-// Uses box_new_i64/box_free_i64 for heap allocation
+// Uses while loops where possible for LLVM optimization
 
 // Node structure (2 consecutive i64 values):
 // node+0: left child pointer (0 = None)
@@ -17,7 +17,7 @@ fn node_set_left(node: i64, left: i64) -> i64 = { store_i64(node, left); 0 };
 fn node_get_right(node: i64) -> i64 = load_i64(node + 8);
 fn node_set_right(node: i64, right: i64) -> i64 = { store_i64(node + 8, right); 0 };
 
-// Create a tree of given depth
+// Create a tree of given depth (inherently recursive - tree structure)
 fn make_tree(depth: i64) -> i64 = {
     let node = node_new();
     if depth > 0 {
@@ -31,7 +31,7 @@ fn make_tree(depth: i64) -> i64 = {
     }
 };
 
-// Count nodes in tree (check)
+// Count nodes in tree (inherently recursive - tree traversal)
 fn check_tree(node: i64) -> i64 =
     if node == 0 { 0 } else {
         let left = node_get_left(node);
@@ -39,7 +39,7 @@ fn check_tree(node: i64) -> i64 =
         1 + check_tree(left) + check_tree(right)
     };
 
-// Free tree recursively
+// Free tree recursively (inherently recursive - tree traversal)
 fn free_tree(node: i64) -> i64 =
     if node != 0 {
         let _l = free_tree(node_get_left(node));
@@ -48,23 +48,35 @@ fn free_tree(node: i64) -> i64 =
         0
     } else { 0 };
 
-// Count nodes for a depth (2^(depth+1) - 1)
-fn count_nodes(depth: i64) -> i64 =
-    if depth <= 0 { 1 } else { 1 + 2 * count_nodes(depth - 1) };
+// Left shift using while loop: 1 << n
+fn shift_left(x: i64, n: i64) -> i64 = {
+    let mut result: i64 = x;
+    let mut i: i64 = 0;
+    while i < n {
+        { result = result * 2 };
+        { i = i + 1 };
+    };
+    result
+};
 
-// Run iterations at given depth
-fn run_iterations(depth: i64, iterations: i64, check: i64) -> i64 =
-    if iterations <= 0 { check } else {
+// Run iterations at given depth - while loop version
+fn run_iterations(depth: i64, iterations: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut check: i64 = 0;
+    while i < iterations {
         let tree = make_tree(depth);
         let c = check_tree(tree);
         let _f = free_tree(tree);
-        run_iterations(depth, iterations - 1, check + c)
+        { check = check + c };
+        { i = i + 1 };
     };
+    check
+};
 
 // Main benchmark (depth aligned with C version for fair comparison)
 fn main() -> i64 = {
     let min_depth = 4;
-    let max_depth = 14;  // Aligned with C version (16 causes timeout in interpreter)
+    let max_depth = 14;
     let stretch_depth = max_depth + 1;
 
     // Stretch tree
@@ -76,8 +88,16 @@ fn main() -> i64 = {
     // Long-lived tree
     let long_lived_tree = make_tree(max_depth);
 
-    // Iterate through depths
-    let total = iterate_depths(min_depth, max_depth, 0);
+    // Iterate through depths - while loop version
+    let mut depth: i64 = min_depth;
+    let mut total: i64 = 0;
+    while depth <= max_depth {
+        let iterations = shift_left(1, max_depth - depth + 4);
+        let check = run_iterations(depth, iterations);
+        let _p = println(check);
+        { total = total + check };
+        { depth = depth + 2 };
+    };
 
     // Long-lived tree check
     let long_check = check_tree(long_lived_tree);
@@ -86,15 +106,3 @@ fn main() -> i64 = {
 
     total + long_check
 };
-
-fn iterate_depths(depth: i64, max_depth: i64, total: i64) -> i64 =
-    if depth > max_depth { total } else {
-        let iterations = shift_left(1, max_depth - depth + 4);
-        let check = run_iterations(depth, iterations, 0);
-        let _p = println(check);
-        iterate_depths(depth + 2, max_depth, total + check)
-    };
-
-// Left shift: 1 << n
-fn shift_left(x: i64, n: i64) -> i64 =
-    if n <= 0 { x } else { shift_left(x * 2, n - 1) };

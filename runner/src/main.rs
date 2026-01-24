@@ -237,15 +237,19 @@ fn run_language_benchmark(
 
     let mut times = Vec::new();
 
+    // v0.51.2: Run benchmarks from executable's directory for consistent results
+    // (file_exists(".") syscall time depends on current directory's content count)
+    let exe_dir = executable.parent().unwrap_or(Path::new("."));
+
     // Warmup
     for _ in 0..warmup {
-        let _ = Command::new(&executable).output();
+        let _ = Command::new(&executable).current_dir(exe_dir).output();
     }
 
     // Measure
     for _ in 0..iterations {
         let start = Instant::now();
-        let output = Command::new(&executable).output();
+        let output = Command::new(&executable).current_dir(exe_dir).output();
         let elapsed = start.elapsed();
 
         if output.is_ok() {

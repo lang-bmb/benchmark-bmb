@@ -1,5 +1,6 @@
 // Mandelbrot set computation benchmark
 // Measures: floating-point arithmetic (simulated with fixed-point), loops
+// v0.50.xx: Rewritten with while loops for proper performance comparison
 
 // Fixed-point scale: 10000 = 1.0
 fn scale() -> i64 = 10000;
@@ -10,37 +11,65 @@ fn mul_fp(a: i64, b: i64) -> i64 = (a * b) / scale();
 // Square
 fn square_fp(x: i64) -> i64 = mul_fp(x, x);
 
-// Check if point escapes Mandelbrot set
-fn iterate(cr: i64, ci: i64, zr: i64, zi: i64, iter: i64, max_iter: i64) -> i64 =
-    if iter >= max_iter { max_iter } else {
-        let zr2 = square_fp(zr);
-        let zi2 = square_fp(zi);
-        let mag = zr2 + zi2;
-        if mag > 4 * scale() * scale() { iter } else {
-            let new_zr = zr2 - zi2 + cr;
-            let new_zi = 2 * mul_fp(zr, zi) + ci;
-            iterate(cr, ci, new_zr, new_zi, iter + 1, max_iter)
-        }
-    };
+// Check if point escapes Mandelbrot set - using while loop
+fn iterate(cr: i64, ci: i64, max_iter: i64) -> i64 = {
+    let threshold = 4 * scale() * scale();
+    let mut zr: i64 = 0;
+    let mut zi: i64 = 0;
+    let mut iter: i64 = 0;
+    let mut result: i64 = max_iter;
+    let mut running: i64 = 1;
+    let mut zr2: i64 = 0;
+    let mut zi2: i64 = 0;
+    let mut mag: i64 = 0;
+    let mut new_zr: i64 = 0;
+    let mut new_zi: i64 = 0;
+
+    while running == 1 { {
+        zr2 = square_fp(zr);
+        zi2 = square_fp(zi);
+        mag = zr2 + zi2;
+        running = if mag > threshold { 0 } else { if iter >= max_iter { 0 } else { 1 } };
+        result = if mag > threshold { iter } else { result };
+        new_zr = zr2 - zi2 + cr;
+        new_zi = 2 * mul_fp(zr, zi) + ci;
+        zr = if running == 1 { new_zr } else { zr };
+        zi = if running == 1 { new_zi } else { zi };
+        iter = iter + 1;
+        ()
+    } };
+
+    result
+};
 
 fn mandelbrot_point(x: i64, y: i64, width: i64, height: i64, max_iter: i64) -> i64 = {
     let cr = (x * 4 * scale() / width) - 2 * scale();
     let ci = (y * 4 * scale() / height) - 2 * scale();
-    iterate(cr, ci, 0, 0, 0, max_iter)
+    iterate(cr, ci, max_iter)
 };
 
-// Count escaping points in a region
-fn count_region(x: i64, y: i64, width: i64, height: i64, max_iter: i64, acc: i64) -> i64 =
-    if y >= height { acc } else if x >= width {
-        count_region(0, y + 1, width, height, max_iter, acc)
-    } else {
-        let result = mandelbrot_point(x, y, width, height, max_iter);
-        let delta = if result < max_iter { 1 } else { 0 };
-        count_region(x + 1, y, width, height, max_iter, acc + delta)
-    };
-
+// Count escaping points - using nested while loops
 fn main() -> i64 = {
     let size = 50;
     let max_iter = 50;
-    count_region(0, 0, size, size, max_iter, 0)
+    let mut count: i64 = 0;
+    let mut y: i64 = 0;
+    let mut x: i64 = 0;
+    let mut result: i64 = 0;
+    let mut delta: i64 = 0;
+
+    while y < size { {
+        x = 0;
+        while x < size { {
+            result = mandelbrot_point(x, y, size, size, max_iter);
+            delta = if result < max_iter { 1 } else { 0 };
+            count = count + delta;
+            x = x + 1;
+            ()
+        } };
+        y = y + 1;
+        ()
+    } };
+
+    count
 };

@@ -196,13 +196,13 @@ fn main() -> i64 = {
     let u7 = printline("  Punctuation: " + int_to_string(punct));
     let u8 = printline("");
 
-    -- Larger source (10x for interpreter)
-    let large = gen_large(10, "");
+    -- Larger source (FAIR VERSION v0.51.5: 100x like C)
+    let large = gen_large(100, "");
     let large_counts = count_tokens(large);
     let total = (large_counts / 10000000) + ((large_counts / 100000) % 100) +
                 ((large_counts / 1000) % 100) + ((large_counts / 10) % 100) + (large_counts % 10);
 
-    let u9 = printline("Large source (10x):");
+    let u9 = printline("Large source (100x):");
     let u10 = printline("  Total tokens: " + int_to_string(total));
 
     printline("Done.")

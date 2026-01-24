@@ -1,12 +1,11 @@
-// Hash Table benchmark (Phase 34.2.8)
+// Hash Table benchmark - WHILE LOOP VERSION
+// v0.51.7: Rewritten with while loops for optimal LLVM optimization
 // Measures: hashmap insert, lookup, and delete operations
-// Comparable to Rust's HashMap and C's hash table implementations
 
-// Number of operations (reduced for interpreter; use 100000 for native)
-fn get_n() -> i64 = 1000;
+// Number of operations (same as C: 100000)
+fn get_n() -> i64 = 100000;
 
 // Sentinel value for "not found" (i64::MIN equivalent)
-// Using -1 shifted left to avoid i64::MIN overflow in lexer
 fn not_found() -> i64 = 0 - 9223372036854775807 - 1;
 
 // Simple pseudo-random number generator (linear congruential)
@@ -14,40 +13,50 @@ fn random_next(seed: i64) -> i64 =
     (seed * 1103515245 + 12345) % 2147483648;
 
 // Insert N key-value pairs into hashmap
-fn benchmark_insert(m: i64, n: i64, seed: i64) -> i64 =
-    insert_loop(m, 0, n, seed);
-
-fn insert_loop(m: i64, i: i64, n: i64, seed: i64) -> i64 =
-    if i >= n { seed } else { {
-        let key = seed % 1000000;
+fn benchmark_insert(m: i64, n: i64, seed: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut s: i64 = seed;
+    while i < n {
+        let key = s % 1000000;
         let value = key * 7;
-        hashmap_insert(m, key, value);
-        insert_loop(m, i + 1, n, random_next(seed))
-    } };
+        let _r = hashmap_insert(m, key, value);
+        { s = random_next(s) };
+        { i = i + 1 };
+    };
+    s
+};
 
 // Lookup N keys from hashmap
-fn benchmark_lookup(m: i64, n: i64, seed: i64) -> i64 =
-    lookup_loop(m, 0, n, seed, 0);
-
-fn lookup_loop(m: i64, i: i64, n: i64, seed: i64, found: i64) -> i64 =
-    if i >= n { found } else { {
-        let key = seed % 1000000;
+fn benchmark_lookup(m: i64, n: i64, seed: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut s: i64 = seed;
+    let mut found: i64 = 0;
+    while i < n {
+        let key = s % 1000000;
         let result = hashmap_get(m, key);
         let is_found = if result != not_found() { 1 } else { 0 };
-        lookup_loop(m, i + 1, n, random_next(seed), found + is_found)
-    } };
+        { found = found + is_found };
+        { s = random_next(s) };
+        { i = i + 1 };
+    };
+    found
+};
 
 // Delete N keys from hashmap
-fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 =
-    delete_loop(m, 0, n, seed, 0);
-
-fn delete_loop(m: i64, i: i64, n: i64, seed: i64, deleted: i64) -> i64 =
-    if i >= n { deleted } else { {
-        let key = seed % 1000000;
+fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut s: i64 = seed;
+    let mut deleted: i64 = 0;
+    while i < n {
+        let key = s % 1000000;
         let result = hashmap_remove(m, key);
         let was_deleted = if result != not_found() { 1 } else { 0 };
-        delete_loop(m, i + 1, n, random_next(seed), deleted + was_deleted)
-    } };
+        { deleted = deleted + was_deleted };
+        { s = random_next(s) };
+        { i = i + 1 };
+    };
+    deleted
+};
 
 fn main() -> i64 = {
     let n = get_n();
@@ -59,19 +68,19 @@ fn main() -> i64 = {
     // Phase 1: Insert operations
     let seed1 = benchmark_insert(m, n, seed);
     let len1 = hashmap_len(m);
-    println(len1);
+    let _p1 = println(len1);
 
     // Phase 2: Lookup operations (same seed = same keys)
     let found = benchmark_lookup(m, n, seed);
-    println(found);
+    let _p2 = println(found);
 
     // Phase 3: Delete half the entries (different seed)
     let deleted = benchmark_delete(m, n / 2, random_next(seed));
     let len2 = hashmap_len(m);
-    println(len2);
+    let _p3 = println(len2);
 
     // Cleanup
-    hashmap_free(m);
+    let _f = hashmap_free(m);
 
     // Return final length as verification
     len2

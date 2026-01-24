@@ -175,44 +175,22 @@ fn method_name(m: i64) -> String =
     else if m == method_head() { "HEAD" }
     else { "UNKNOWN" };
 
-// Test requests (using chr for CR/LF: chr returns String)
-fn crlf() -> String = chr(13) + chr(10);
-
+// Test requests - using \r\n escape sequences (v0.51.14)
+// These are string literals that should be treated as constants
 fn request1() -> String =
-    "GET /index.html HTTP/1.1" + crlf() +
-    "Host: example.com" + crlf() +
-    "User-Agent: Mozilla/5.0" + crlf() +
-    "Accept: text/html" + crlf() +
-    "Connection: keep-alive" + crlf() +
-    crlf();
+    "GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0\r\nAccept: text/html\r\nConnection: keep-alive\r\n\r\n";
 
 fn request2() -> String =
-    "POST /api/users HTTP/1.1" + crlf() +
-    "Host: api.example.com" + crlf() +
-    "Content-Type: application/json" + crlf() +
-    "Content-Length: 42" + crlf() +
-    "Authorization: Bearer token123" + crlf() +
-    crlf();
+    "POST /api/users HTTP/1.1\r\nHost: api.example.com\r\nContent-Type: application/json\r\nContent-Length: 42\r\nAuthorization: Bearer token123\r\n\r\n";
 
 fn request3() -> String =
-    "PUT /api/resource/123 HTTP/1.1" + crlf() +
-    "Host: api.example.com" + crlf() +
-    "Content-Type: application/json" + crlf() +
-    "Content-Length: 256" + crlf() +
-    crlf();
+    "PUT /api/resource/123 HTTP/1.1\r\nHost: api.example.com\r\nContent-Type: application/json\r\nContent-Length: 256\r\n\r\n";
 
 fn request4() -> String =
-    "DELETE /api/users/456 HTTP/1.1" + crlf() +
-    "Host: api.example.com" + crlf() +
-    "Authorization: Bearer token456" + crlf() +
-    crlf();
+    "DELETE /api/users/456 HTTP/1.1\r\nHost: api.example.com\r\nAuthorization: Bearer token456\r\n\r\n";
 
 fn request5() -> String =
-    "GET /static/style.css HTTP/1.1" + crlf() +
-    "Host: cdn.example.com" + crlf() +
-    "Accept: text/css" + crlf() +
-    "Cache-Control: max-age=3600" + crlf() +
-    crlf();
+    "GET /static/style.css HTTP/1.1\r\nHost: cdn.example.com\r\nAccept: text/css\r\nCache-Control: max-age=3600\r\n\r\n";
 
 // Parse all requests and accumulate totals
 fn parse_all_requests(total_headers: i64, total_content_len: i64) -> i64 = {
@@ -264,12 +242,12 @@ fn main() -> i64 = {
     let u7 = printline("  Headers: " + int_to_string(header_count));
     let u8 = printline("");
 
-    -- Benchmark (1000 iterations for interpreter speed)
-    let bench = run_benchmark(1000);
+    -- Benchmark (FAIR VERSION v0.51.5: 10000 iterations like C)
+    let bench = run_benchmark(10000);
     let total_headers = bench / 1000000;
     let total_content_len = bench % 1000000;
 
-    let u9 = printline("Benchmark (1000 iterations x 5 requests):");
+    let u9 = printline("Benchmark (10000 iterations x 5 requests):");
     let u10 = printline("  Total headers parsed: " + int_to_string(total_headers));
     let u11 = printline("  Total content-length: " + int_to_string(total_content_len));
 

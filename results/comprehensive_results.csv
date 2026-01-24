@@ -1,0 +1,11 @@
+benchmark,c_ms,rust_ms,bmb_ms,bmb_vs_c_pct,bmb_vs_rust_pct,status
+fibonacci,664,530,596,89,112,FAST
+mandelbrot,341,266,273,80,102,FAST
+spectral_norm,481,289,316,65,109,FAST
+n_body,462,248,277,59,111,FAST
+binary_trees,1100,406,897,81,220,FAST
+fannkuch,577,443,665,115,150,SLOW
+stack_allocation,340,0,327,96,-,FAST
+loop_invariant,330,0,283,85,-,FAST
+syscall_overhead,934,0,816,87,-,FAST
+json_serialize,296,372,816,275,219,SLOW

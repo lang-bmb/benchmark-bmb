@@ -1,52 +1,142 @@
-// Spectral norm benchmark (simplified)
-// Measures: matrix operations, fixed-point arithmetic
+// Spectral norm benchmark - WHILE LOOP VERSION
+// v0.51.6: Rewritten with while loops for optimal LLVM vectorization
+// - N = 100 (same as C)
+// - 10 iterations (same as C)
+// - Uses malloc-based f64 arrays
+// - while loops allow LLVM to unroll and vectorize
 
-fn scale() -> i64 = 1000000;
+// Constants
+fn N() -> i64 = 100;
+fn ITERATIONS() -> i64 = 10;
+
+// Array operations using malloc
+fn array_new(n: i64) -> i64 = malloc(n * 8);
+fn array_get(arr: i64, i: i64) -> f64 = load_f64(arr + i * 8);
+fn array_set(arr: i64, i: i64, val: f64) -> i64 = { store_f64(arr + i * 8, val); 0 };
+fn array_free(arr: i64) -> i64 = { free(arr); 0 };
 
 // A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
-// Using fixed-point: result * scale
-fn matrix_a(i: i64, j: i64) -> i64 =
+fn matrix_a(i: i64, j: i64) -> f64 = {
     let sum = i + j;
     let denom = (sum * (sum + 1)) / 2 + i + 1;
-    scale() / denom;
+    1.0 / i64_to_f64(denom)
+};
 
-// Dot product of vectors (accumulated sum)
-fn dot_iter(v1_base: i64, v2_base: i64, n: i64, i: i64, acc: i64) -> i64 =
-    if i >= n { acc } else {
-        let val = (v1_base + i) * (v2_base + i);
-        dot_iter(v1_base, v2_base, n, i + 1, acc + val / scale())
+// Initialize vector with 1.0
+fn init_ones(v: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        array_set(v, i, 1.0);
+        { i = i + 1 };
     };
+    0
+};
 
-// Simplified matrix-vector multiply step
-fn mult_av_element(u_sum: i64, n: i64, i: i64) -> i64 =
-    mult_av_iter(u_sum, n, i, 0, 0);
-
-fn mult_av_iter(u_sum: i64, n: i64, i: i64, j: i64, acc: i64) -> i64 =
-    if j >= n { acc } else {
-        let a_ij = matrix_a(i, j);
-        let u_j = u_sum / n;  // simplified: uniform distribution
-        mult_av_iter(u_sum, n, i, j + 1, acc + (a_ij * u_j) / scale())
+// mult_Av: Av[i] = sum_j(A(i,j) * v[j])
+fn mult_av(v: i64, av: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let mut j: i64 = 0;
+        let mut sum: f64 = 0.0;
+        while j < n {
+            let a_ij = matrix_a(i, j);
+            let v_j = array_get(v, j);
+            { sum = sum + a_ij * v_j };
+            { j = j + 1 };
+        };
+        array_set(av, i, sum);
+        { i = i + 1 };
     };
+    0
+};
 
-// Compute sum of result vector
-fn compute_sum(n: i64, u_sum: i64, iter: i64) -> i64 =
-    compute_sum_iter(n, u_sum, iter, 0, 0);
-
-fn compute_sum_iter(n: i64, u_sum: i64, iter: i64, i: i64, acc: i64) -> i64 =
-    if i >= n { acc } else {
-        let val = mult_av_element(u_sum, n, i);
-        compute_sum_iter(n, u_sum, iter, i + 1, acc + val)
+// mult_Atv: Atv[i] = sum_j(A(j,i) * v[j])
+fn mult_atv(v: i64, atv: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let mut j: i64 = 0;
+        let mut sum: f64 = 0.0;
+        while j < n {
+            let a_ji = matrix_a(j, i);  // Note: A(j,i) not A(i,j)
+            let v_j = array_get(v, j);
+            { sum = sum + a_ji * v_j };
+            { j = j + 1 };
+        };
+        array_set(atv, i, sum);
+        { i = i + 1 };
     };
+    0
+};
 
-// Run iterations
-fn run_iter(n: i64, sum: i64, remaining: i64) -> i64 =
-    if remaining <= 0 { sum } else {
-        let new_sum = compute_sum(n, sum, remaining);
-        run_iter(n, new_sum, remaining - 1)
+// mult_AtAv: computes A^T * A * v
+fn mult_atav(v: i64, atav: i64, temp: i64, n: i64) -> i64 = {
+    let _m1 = mult_av(v, temp, n);
+    mult_atv(temp, atav, n)
+};
+
+// Run power iterations
+fn power_iterations(u: i64, v: i64, temp: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < ITERATIONS() {
+        let _m1 = mult_atav(u, v, temp, n);
+        let _m2 = mult_atav(v, u, temp, n);
+        { i = i + 1 };
     };
+    0
+};
+
+// Compute vBv = sum_i(u[i] * v[i])
+fn compute_vbv(u: i64, v: i64, n: i64) -> f64 = {
+    let mut i: i64 = 0;
+    let mut acc: f64 = 0.0;
+    while i < n {
+        let u_i = array_get(u, i);
+        let v_i = array_get(v, i);
+        { acc = acc + u_i * v_i };
+        { i = i + 1 };
+    };
+    acc
+};
+
+// Compute vv = sum_i(v[i] * v[i])
+fn compute_vv(v: i64, n: i64) -> f64 = {
+    let mut i: i64 = 0;
+    let mut acc: f64 = 0.0;
+    while i < n {
+        let v_i = array_get(v, i);
+        { acc = acc + v_i * v_i };
+        { i = i + 1 };
+    };
+    acc
+};
 
 fn main() -> i64 = {
-    let n = 20;
-    let initial = n * scale();
-    run_iter(n, initial, 5)
+    let n = N();
+
+    // Allocate vectors
+    let u = array_new(n);
+    let v = array_new(n);
+    let temp = array_new(n);
+
+    // Initialize u with 1.0
+    let _init = init_ones(u, n);
+
+    // Run power iterations
+    let _iter = power_iterations(u, v, temp, n);
+
+    // Compute result: sqrt(vBv / vv)
+    let vbv = compute_vbv(u, v, n);
+    let vv = compute_vv(v, n);
+    let result = sqrt(vbv / vv);
+
+    // Scale and print (9 decimal places scaled to integer)
+    let result_scaled = f64_to_i64(result * 1e9);
+    let _p = println(result_scaled);
+
+    // Free memory
+    let _f1 = array_free(u);
+    let _f2 = array_free(v);
+    let _f3 = array_free(temp);
+
+    0
 };
