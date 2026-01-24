@@ -1,9 +1,10 @@
 // fasta - DNA sequence generation benchmark
 // Benchmarks Game algorithm with LCG random
 // Uses fixed-point arithmetic (1000000 scale factor)
+// v0.52: StringBuilder + tail recursion for O(n) performance
 
 // Helper: print string with newline (println takes i64, not String)
-fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
+fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
 // LCG constants
 fn im() -> i64 = 139968;
@@ -13,9 +14,6 @@ fn line_width() -> i64 = 60;
 
 // Fixed-point scale (for probabilities)
 fn scale() -> i64 = 1000000;
-
-// Global seed (simulated with recursion)
-fn next_seed(seed: i64) -> i64 = (seed * ia() + ic()) % im();
 
 // Random number as fixed-point (0 to scale)
 fn random_scaled(seed: i64) -> i64 = (seed * scale()) / im();
@@ -38,22 +36,23 @@ fn iub_prob(idx: i64) -> i64 =
     else if idx == 13 { 980000 }  -- W: 0.02
     else { 1000000 };             -- Y: 0.02
 
-fn iub_char(idx: i64) -> String =
-    if idx == 0 { "a" }
-    else if idx == 1 { "c" }
-    else if idx == 2 { "g" }
-    else if idx == 3 { "t" }
-    else if idx == 4 { "B" }
-    else if idx == 5 { "D" }
-    else if idx == 6 { "H" }
-    else if idx == 7 { "K" }
-    else if idx == 8 { "M" }
-    else if idx == 9 { "N" }
-    else if idx == 10 { "R" }
-    else if idx == 11 { "S" }
-    else if idx == 12 { "V" }
-    else if idx == 13 { "W" }
-    else { "Y" };
+// IUB nucleotide char codes (ASCII)
+fn iub_char_code(idx: i64) -> i64 =
+    if idx == 0 { 97 }   -- 'a'
+    else if idx == 1 { 99 }   -- 'c'
+    else if idx == 2 { 103 }  -- 'g'
+    else if idx == 3 { 116 }  -- 't'
+    else if idx == 4 { 66 }   -- 'B'
+    else if idx == 5 { 68 }   -- 'D'
+    else if idx == 6 { 72 }   -- 'H'
+    else if idx == 7 { 75 }   -- 'K'
+    else if idx == 8 { 77 }   -- 'M'
+    else if idx == 9 { 78 }   -- 'N'
+    else if idx == 10 { 82 }  -- 'R'
+    else if idx == 11 { 83 }  -- 'S'
+    else if idx == 12 { 86 }  -- 'V'
+    else if idx == 13 { 87 }  -- 'W'
+    else { 89 };              -- 'Y'
 
 fn iub_len() -> i64 = 15;
 
@@ -64,119 +63,119 @@ fn homo_prob(idx: i64) -> i64 =
     else if idx == 2 { 698491 }   -- g: 0.1975473066391
     else { 1000000 };             -- t: 0.3015094502008
 
-fn homo_char(idx: i64) -> String =
-    if idx == 0 { "a" }
-    else if idx == 1 { "c" }
-    else if idx == 2 { "g" }
-    else { "t" };
+fn homo_char_code(idx: i64) -> i64 =
+    if idx == 0 { 97 }   -- 'a'
+    else if idx == 1 { 99 }   -- 'c'
+    else if idx == 2 { 103 }  -- 'g'
+    else { 116 };             -- 't'
 
 fn homo_len() -> i64 = 4;
 
-// Select nucleotide based on random value
-fn select_iub(r: i64, idx: i64) -> String =
-    if idx >= iub_len() { iub_char(iub_len() - 1) }
-    else if r < iub_prob(idx) { iub_char(idx) }
-    else { select_iub(r, idx + 1) };
+// Select nucleotide based on random value (returns char code) - iterative
+fn select_iub_iter(r: i64, idx: i64) -> i64 =
+    if idx >= iub_len() - 1 or r < iub_prob(idx) { iub_char_code(idx) }
+    else { select_iub_iter(r, idx + 1) };
 
-fn select_homo(r: i64, idx: i64) -> String =
-    if idx >= homo_len() { homo_char(homo_len() - 1) }
-    else if r < homo_prob(idx) { homo_char(idx) }
-    else { select_homo(r, idx + 1) };
+fn select_iub_code(r: i64) -> i64 = select_iub_iter(r, 0);
+
+fn select_homo_iter(r: i64, idx: i64) -> i64 =
+    if idx >= homo_len() - 1 or r < homo_prob(idx) { homo_char_code(idx) }
+    else { select_homo_iter(r, idx + 1) };
+
+fn select_homo_code(r: i64) -> i64 = select_homo_iter(r, 0);
 
 // ALU sequence
 fn alu() -> String = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
 fn alu_len() -> i64 = 287;
 
-// Build repeat line (returns accumulated string and next k position)
-fn build_repeat_line(alu_str: String, k: i64, remaining: i64, line: String) -> String =
-    if remaining == 0 or line.len() >= line_width() { line }
+// Build one line of repeat sequence into StringBuilder
+fn build_repeat_line(sb: i64, alu_str: String, k: i64, count: i64, limit: i64) -> i64 =
+    if count >= limit { k }
     else {
         let pos = k % alu_len();
-        let c = alu_str.slice(pos, pos + 1);
-        build_repeat_line(alu_str, k + 1, remaining - 1, line + c)
+        let c = alu_str.byte_at(pos);
+        let _u = sb_push_char(sb, c);
+        build_repeat_line(sb, alu_str, k + 1, count + 1, limit)
     };
 
-// Generate repeat sequence (ALU) - returns k position
+// Generate repeat sequence lines
 fn print_repeat_lines(alu_str: String, k: i64, remaining: i64) -> i64 =
     if remaining <= 0 { k }
     else {
-        let line = build_repeat_line(alu_str, k, remaining, "");
-        let u = printline(line);
-        let chars_printed = line.len();
-        print_repeat_lines(alu_str, k + chars_printed, remaining - chars_printed)
+        let sb = sb_new();
+        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
+        let new_k = build_repeat_line(sb, alu_str, k, 0, chars_to_write);
+        let line = sb_build(sb);
+        let _u = printline(line);
+        print_repeat_lines(alu_str, new_k, remaining - chars_to_write)
     };
 
 fn print_repeat(n: i64) -> i64 = {
-    let u0 = printline(">ONE Homo sapiens alu");
+    let _u0 = printline(">ONE Homo sapiens alu");
     print_repeat_lines(alu(), 0, n)
 };
 
-// Build random IUB line (returns seed and line as string encoded pair)
-fn build_random_iub_line(seed: i64, remaining: i64, line: String) -> String =
-    if remaining == 0 or line.len() >= line_width() {
-        -- Encode seed in the result (hacky but works for benchmark)
-        line
-    }
+// Build one line of random IUB sequence into StringBuilder
+fn build_iub_line(sb: i64, seed: i64, count: i64, limit: i64) -> i64 =
+    if count >= limit { seed }
     else {
-        let new_seed = next_seed(seed);
+        let new_seed = (seed * ia() + ic()) % im();
         let r = random_scaled(new_seed);
-        let c = select_iub(r, 0);
-        build_random_iub_line(new_seed, remaining - 1, line + c)
+        let c = select_iub_code(r);
+        let _u = sb_push_char(sb, c);
+        build_iub_line(sb, new_seed, count + 1, limit)
     };
 
--- For random sequences, we need to track seed through recursion
--- Simplified version: generate all random numbers at once with iteration count
-fn generate_random_iub_iter(seed: i64, remaining: i64, line: String) -> i64 =
-    if remaining <= 0 {
-        -- Print remaining partial line if any
-        let _u = if line.len() > 0 { printline(line) } else { printline("") };
-        seed
-    }
-    else if line.len() >= line_width() {
-        let u = printline(line);
-        generate_random_iub_iter(seed, remaining, "")
-    }
+// Generate random IUB sequence lines
+fn print_iub_lines(seed: i64, remaining: i64) -> i64 =
+    if remaining <= 0 { seed }
     else {
-        let new_seed = next_seed(seed);
-        let r = random_scaled(new_seed);
-        let c = select_iub(r, 0);
-        generate_random_iub_iter(new_seed, remaining - 1, line + c)
+        let sb = sb_new();
+        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
+        let new_seed = build_iub_line(sb, seed, 0, chars_to_write);
+        let line = sb_build(sb);
+        let _u = printline(line);
+        print_iub_lines(new_seed, remaining - chars_to_write)
     };
 
 fn print_random_iub(seed: i64, n: i64) -> i64 = {
-    let u0 = printline(">TWO IUB ambiguity codes");
-    let final_seed = generate_random_iub_iter(seed, n, "");
-    final_seed
+    let _u0 = printline(">TWO IUB ambiguity codes");
+    print_iub_lines(seed, n)
 };
 
--- Random homo sapiens sequence
-fn generate_random_homo_iter(seed: i64, remaining: i64, line: String) -> i64 =
-    if remaining <= 0 {
-        -- Print remaining partial line if any
-        let _u = if line.len() > 0 { printline(line) } else { printline("") };
-        seed
-    }
-    else if line.len() >= line_width() {
-        let u = printline(line);
-        generate_random_homo_iter(seed, remaining, "")
-    }
+// Build one line of random homo sequence into StringBuilder
+fn build_homo_line(sb: i64, seed: i64, count: i64, limit: i64) -> i64 =
+    if count >= limit { seed }
     else {
-        let new_seed = next_seed(seed);
+        let new_seed = (seed * ia() + ic()) % im();
         let r = random_scaled(new_seed);
-        let c = select_homo(r, 0);
-        generate_random_homo_iter(new_seed, remaining - 1, line + c)
+        let c = select_homo_code(r);
+        let _u = sb_push_char(sb, c);
+        build_homo_line(sb, new_seed, count + 1, limit)
+    };
+
+// Generate random homo sequence lines
+fn print_homo_lines(seed: i64, remaining: i64) -> i64 =
+    if remaining <= 0 { seed }
+    else {
+        let sb = sb_new();
+        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
+        let new_seed = build_homo_line(sb, seed, 0, chars_to_write);
+        let line = sb_build(sb);
+        let _u = printline(line);
+        print_homo_lines(new_seed, remaining - chars_to_write)
     };
 
 fn print_random_homo(seed: i64, n: i64) -> i64 = {
-    let u0 = printline(">THREE Homo sapiens frequency");
-    generate_random_homo_iter(seed, n, "")
+    let _u0 = printline(">THREE Homo sapiens frequency");
+    print_homo_lines(seed, n)
 };
 
 fn main() -> i64 = {
     let n = 1000;  -- FAIR VERSION v0.51.5: same as C (was 100)
-    let u1 = print_repeat(n * 2);
+    let _u1 = print_repeat(n * 2);
     let seed1 = print_random_iub(42, n * 3);
-    let seed2 = print_random_homo(seed1, n * 5);
+    let _seed2 = print_random_homo(seed1, n * 5);
     0
 };

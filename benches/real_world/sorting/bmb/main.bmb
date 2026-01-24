@@ -209,5 +209,8 @@ fn run_benchmark(sizes: i64, acc: i64) -> i64 =
         run_benchmark(sizes - 1, acc + bubble + insertion + merge_cost + quick)
     };
 
-fn main() -> i64 =
-    run_benchmark(50, 0);
+fn main() -> i64 = {
+    let result = run_benchmark(50, 0);
+    let _u = println(result);
+    0
+};

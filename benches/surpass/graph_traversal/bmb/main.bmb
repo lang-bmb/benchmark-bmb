@@ -114,5 +114,7 @@ fn main() -> i64 = {
 
     let with_proof = run_with_proof(edges, values, 2000, 0);
     let without_proof = run_without_proof(edges, values, visited, 2000, 0);
-    with_proof + without_proof
+    let result = with_proof + without_proof;
+    let _u = println(result);
+    0
 };

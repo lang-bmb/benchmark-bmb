@@ -9,27 +9,49 @@ BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 �
 **BMB >= C -O3** (모든 케이스)
 **BMB > C -O3** (계약 활용 케이스)
 
-## Current Status: v0.3
+## Current Status: v0.52
 
-### Latest Results (2026-01-10, Phase 35)
+### Latest Results (2026-01-24)
 
-#### C vs Rust Baseline (native compilation)
+#### BMB vs C Performance Summary
 
-| Benchmark | C (ms) | Rust (ms) | Ratio | Notes |
-|-----------|--------|-----------|-------|-------|
-| fibonacci(35) | 14.85 | 18.71 | 1.26x | C faster |
-| mandelbrot | 3.54 | 4.38 | 1.24x | C faster |
-| spectral_norm | 3.73 | 4.20 | 1.13x | C faster |
-| binary_trees | 359.19 | 85.82 | 0.24x | Rust faster |
-| fannkuch | 63.31 | 139.62 | 2.21x | C faster |
-| n_body | 20.49 | 3.69 | 0.18x | Rust faster |
-| sorting | 14.69 | 42.99 | 2.93x | C faster |
+| Category | BMB Wins | Competitive | Needs Work |
+|----------|----------|-------------|------------|
+| Compute | 3 | 4 | 2 |
+| Contract | 2 | 3 | 1 |
+| Real-World | 4 | 2 | 1 |
+| Bootstrap | 3 | 0 | 0 |
+| Surpass | 3 | 1 | 1 |
 
-#### BMB Native Compilation
+#### BMB Faster than C (Selected)
 
-BMB native compilation requires LLVM/clang. When available:
-- Compile: `bmb build -o output source.bmb`
-- Performance target: **BMB >= C -O3**
+| Benchmark | BMB (ms) | C (ms) | Ratio | Notes |
+|-----------|----------|--------|-------|-------|
+| typecheck_bootstrap | 3.66 | 16.26 | **0.23x** | 4.4x faster |
+| sorting | 6.83 | 14.92 | **0.46x** | 2.2x faster |
+| lex_bootstrap | 3.65 | 7.42 | **0.49x** | 2.0x faster |
+| json_serialize | 6.33 | 10.60 | **0.60x** | 1.7x faster |
+| csv_parse | 3.75 | 5.57 | **0.67x** | 1.5x faster |
+| tree_balance | 3.59 | 4.32 | **0.83x** | 1.2x faster |
+| reverse-complement | 3.58 | 4.07 | **0.88x** | 1.1x faster |
+
+#### BMB Competitive with C (±15%)
+
+| Benchmark | BMB (ms) | C (ms) | Ratio |
+|-----------|----------|--------|-------|
+| pointer_chase | 4.52 | 4.50 | 1.00x |
+| process_spawn | 472.36 | 472.35 | 1.00x |
+| file_io_seq | 660.13 | 652.62 | 1.01x |
+| matrix_multiply | 3.66 | 3.55 | 1.03x |
+| fannkuch | 62.83 | 64.22 | 0.98x |
+| binary_trees | 90.94 | 79.76 | 1.14x |
+
+#### Known Limitations (Require Compiler Changes)
+
+| Benchmark | Ratio | Root Cause |
+|-----------|-------|------------|
+| syscall_overhead | 2.81x | String wrapper overhead in extern fn |
+| fibonacci | 1.56x | Non-tail-recursive (TCO cannot apply) |
 
 **Benchmark Gate #1 PASSED**: Interpreter baseline established
 **Benchmark Gate #2 PASSED**: Native compilation infrastructure ready

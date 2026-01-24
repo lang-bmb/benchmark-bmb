@@ -34,4 +34,8 @@ fn run_iterations(remaining: i64, acc: i64) -> i64 =
   if remaining <= 0 { acc } else { run_iterations(remaining - 1, acc + deep_stack(50, 0)) };
 
 // Main entry point
-fn main() -> i64 = run_iterations(1000, 0);
+fn main() -> i64 = {
+    let result = run_iterations(1000, 0);
+    let _u = println(result);
+    0
+};

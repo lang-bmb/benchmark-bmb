@@ -45,5 +45,8 @@ fn run_benchmark(n: i64, acc: i64) -> i64 =
         run_benchmark(n - 1, acc + result)
     };
 
-fn main() -> i64 =
-    run_benchmark(10000, 0);
+fn main() -> i64 = {
+    let result = run_benchmark(10000, 0);
+    let _u = println(result);
+    0
+};

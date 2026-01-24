@@ -104,5 +104,7 @@ fn main() -> i64 = {
     let _p2 = println(long_check);
     let _f2 = free_tree(long_lived_tree);
 
-    total + long_check
+    let result = total + long_check;
+    let _u = println(result);
+    0
 };

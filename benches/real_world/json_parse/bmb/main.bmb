@@ -1,43 +1,44 @@
 // JSON parsing benchmark
 // Measures: string processing, recursive descent parsing
+// v0.52: Use byte_at for direct byte access (avoid char_at + ord overhead)
 
 // Character classes
 fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
 fn is_digit(c: i64) -> bool = c >= 48 and c <= 57;
 
-// Skip whitespace
+// Skip whitespace - v0.52: use byte_at
 fn skip_ws(s: String, pos: i64) -> i64 =
     if pos >= s.len() { pos }
-    else if is_ws(ord(char_at(s, pos))) { skip_ws(s, pos + 1) }
+    else if is_ws(s.byte_at(pos)) { skip_ws(s, pos + 1) }
     else { pos };
 
-// Parse number - returns pos * 1000000 + value
+// Parse number - returns pos * 1000000 + value - v0.52: use byte_at
 fn parse_number(s: String, pos: i64, acc: i64) -> i64 =
     if pos >= s.len() { pos * 1000000 + acc }
     else {
-        let c = ord(char_at(s, pos));
+        let c = s.byte_at(pos);
         if is_digit(c) { parse_number(s, pos + 1, acc * 10 + c - 48) }
         else { pos * 1000000 + acc }
     };
 
-// Find closing bracket/brace
+// Find closing bracket/brace - v0.52: use byte_at
 fn find_close(s: String, pos: i64, depth: i64, open: i64, close: i64) -> i64 =
     if pos >= s.len() { pos }
     else {
-        let c = ord(char_at(s, pos));
+        let c = s.byte_at(pos);
         if c == close and depth == 0 { pos }
         else if c == open { find_close(s, pos + 1, depth + 1, open, close) }
         else if c == close { find_close(s, pos + 1, depth - 1, open, close) }
         else { find_close(s, pos + 1, depth, open, close) }
     };
 
-// Count elements in array
+// Count elements in array - v0.52: use byte_at
 fn count_array(s: String, pos: i64) -> i64 = {
     let p = skip_ws(s, pos);
     if p >= s.len() { 0 }
-    else if ord(char_at(s, p)) == 91 {
+    else if s.byte_at(p) == 91 {
         let p2 = skip_ws(s, p + 1);
-        if p2 >= s.len() or ord(char_at(s, p2)) == 93 { 0 }
+        if p2 >= s.len() or s.byte_at(p2) == 93 { 0 }
         else { count_elements(s, p2, 0, 1) }
     }
     else { 0 }
@@ -46,7 +47,7 @@ fn count_array(s: String, pos: i64) -> i64 = {
 fn count_elements(s: String, pos: i64, depth: i64, count: i64) -> i64 =
     if pos >= s.len() { count }
     else {
-        let c = ord(char_at(s, pos));
+        let c = s.byte_at(pos);
         if c == 93 and depth == 0 { count }
         else if c == 91 or c == 123 { count_elements(s, pos + 1, depth + 1, count) }
         else if c == 93 or c == 125 { count_elements(s, pos + 1, depth - 1, count) }
@@ -54,12 +55,12 @@ fn count_elements(s: String, pos: i64, depth: i64, count: i64) -> i64 =
         else { count_elements(s, pos + 1, depth, count) }
     };
 
-// Simple JSON structure validation
+// Simple JSON structure validation - v0.52: use byte_at
 fn validate_json(s: String, pos: i64) -> bool = {
     let p = skip_ws(s, pos);
     if p >= s.len() { false }
     else {
-        let c = ord(char_at(s, p));
+        let c = s.byte_at(p);
         if c == 123 { validate_object(s, p) }
         else if c == 91 { validate_array(s, p) }
         else if c == 34 { validate_string(s, p) }
@@ -82,10 +83,11 @@ fn validate_array(s: String, pos: i64) -> bool = {
 fn validate_string(s: String, pos: i64) -> bool =
     find_string_end(s, pos + 1) < s.len();
 
+// v0.52: use byte_at
 fn find_string_end(s: String, pos: i64) -> i64 =
     if pos >= s.len() { pos }
     else {
-        let c = ord(char_at(s, pos));
+        let c = s.byte_at(pos);
         if c == 34 { pos }
         else if c == 92 { find_string_end(s, pos + 2) }
         else { find_string_end(s, pos + 1) }
@@ -101,5 +103,8 @@ fn run_benchmark(iterations: i64, valid_count: i64) -> i64 =
         run_benchmark(iterations - 1, valid_count + is_valid + element_count)
     };
 
-fn main() -> i64 =
-    run_benchmark(10000, 0);
+fn main() -> i64 = {
+    let result = run_benchmark(10000, 0);
+    let _u = println(result);
+    0
+};

@@ -3,14 +3,15 @@
 //
 // Simple array sum that should be auto-vectorized by LLVM
 // BMB's pure/no-aliasing semantics should enable full SIMD
+// v0.52: Use array references to avoid O(n) copy per recursive call
 
 // Sum array elements - SIMD-friendly pattern
-fn sum_array(arr: [i64; 64], idx: i64, acc: i64) -> i64
+fn sum_array(arr: &[i64; 64], idx: i64, acc: i64) -> i64
   pre idx >= 0
 = if idx >= 64 { acc } else { sum_array(arr, idx + 1, acc + arr[idx]) };
 
 // Sum with unrolled access (4 elements at a time)
-fn sum_unrolled(arr: [i64; 64], idx: i64, acc: i64) -> i64
+fn sum_unrolled(arr: &[i64; 64], idx: i64, acc: i64) -> i64
   pre idx >= 0
 = if idx >= 64 {
     acc
@@ -21,12 +22,12 @@ fn sum_unrolled(arr: [i64; 64], idx: i64, acc: i64) -> i64
   };
 
 // Dot product - classic SIMD operation
-fn dot_product(a: [i64; 64], b: [i64; 64], idx: i64, acc: i64) -> i64
+fn dot_product(a: &[i64; 64], b: &[i64; 64], idx: i64, acc: i64) -> i64
   pre idx >= 0
 = if idx >= 64 { acc } else { dot_product(a, b, idx + 1, acc + a[idx] * b[idx]) };
 
 // Run iterations
-fn run_iterations(arr: [i64; 64], remaining: i64, acc: i64) -> i64 =
+fn run_iterations(arr: &[i64; 64], remaining: i64, acc: i64) -> i64 =
   if remaining <= 0 { acc } else {
     let sum1 = sum_array(arr, 0, 0);
     let sum2 = sum_unrolled(arr, 0, 0);
@@ -42,5 +43,7 @@ fn main() -> i64 = {
         33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
         49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
     ];
-    run_iterations(arr, 10000, 0)
+    let result = run_iterations(&arr, 10000, 0);
+    let _u = println(result);
+    0
 };

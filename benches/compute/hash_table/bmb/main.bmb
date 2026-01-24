@@ -83,5 +83,7 @@ fn main() -> i64 = {
     let _f = hashmap_free(m);
 
     // Return final length as verification
-    len2
+    let result = len2;
+    let _u = println(result);
+    0
 };

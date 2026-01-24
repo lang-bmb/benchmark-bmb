@@ -62,5 +62,7 @@ fn main() -> i64 = {
 
     let with_contract = run_with_contract(text, pattern, 10000, 0);
     let without_contract = run_without_contract(text, pattern, 10000, 0);
-    with_contract + without_contract
+    let result = with_contract + without_contract;
+    let _u = println(result);
+    0
 };

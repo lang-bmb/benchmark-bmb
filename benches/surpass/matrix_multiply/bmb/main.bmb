@@ -5,20 +5,21 @@
 // enabling aggressive SIMD optimization that C restrict cannot match
 //
 // BMB advantage: Pure functions + contracts = guaranteed no aliasing
+// v0.52: Use references to avoid O(n) array copies per recursive call
 
 // Matrix represented as flat array (row-major)
 // 8x8 matrix = 64 elements
 
 // Pure matrix element access with bounds proof
 @pure
-fn mat_get(mat: [i64; 64], row: i64, col: i64) -> i64
+fn mat_get(mat: &[i64; 64], row: i64, col: i64) -> i64
   pre row >= 0 and row < 8 and col >= 0 and col < 8
 = mat[row * 8 + col];
 
 // Compute single cell of result matrix
 // Dot product of row from A and column from B
 @pure
-fn compute_cell(a: [i64; 64], b: [i64; 64], row: i64, col: i64, k: i64, acc: i64) -> i64
+fn compute_cell(a: &[i64; 64], b: &[i64; 64], row: i64, col: i64, k: i64, acc: i64) -> i64
   pre row >= 0 and row < 8 and col >= 0 and col < 8 and k >= 0
 = if k >= 8 { acc } else {
     let a_val = mat_get(a, row, k);
@@ -27,7 +28,7 @@ fn compute_cell(a: [i64; 64], b: [i64; 64], row: i64, col: i64, k: i64, acc: i64
   };
 
 // Compute row of result matrix
-fn compute_row(a: [i64; 64], b: [i64; 64], row: i64, col: i64, acc: i64) -> i64
+fn compute_row(a: &[i64; 64], b: &[i64; 64], row: i64, col: i64, acc: i64) -> i64
   pre row >= 0 and row < 8 and col >= 0
 = if col >= 8 { acc } else {
     let cell = compute_cell(a, b, row, col, 0, 0);
@@ -35,7 +36,7 @@ fn compute_row(a: [i64; 64], b: [i64; 64], row: i64, col: i64, acc: i64) -> i64
   };
 
 // Sum entire result matrix (simplified: sum all cells)
-fn matrix_multiply_sum(a: [i64; 64], b: [i64; 64], row: i64, acc: i64) -> i64
+fn matrix_multiply_sum(a: &[i64; 64], b: &[i64; 64], row: i64, acc: i64) -> i64
   pre row >= 0
 = if row >= 8 { acc } else {
     let row_sum = compute_row(a, b, row, 0, 0);
@@ -43,7 +44,7 @@ fn matrix_multiply_sum(a: [i64; 64], b: [i64; 64], row: i64, acc: i64) -> i64
   };
 
 // Run iterations
-fn run_iterations(a: [i64; 64], b: [i64; 64], remaining: i64, acc: i64) -> i64 =
+fn run_iterations(a: &[i64; 64], b: &[i64; 64], remaining: i64, acc: i64) -> i64 =
   if remaining <= 0 { acc } else {
     run_iterations(a, b, remaining - 1, acc + matrix_multiply_sum(a, b, 0, 0))
   };
@@ -70,5 +71,7 @@ fn main() -> i64 = {
         0, 0, 0, 0, 0, 0, 1, 0,
         0, 0, 0, 0, 0, 0, 0, 1
     ];
-    run_iterations(a, b, 1000, 0)
+    let result = run_iterations(&a, &b, 1000, 0);
+    let _u = println(result);
+    0
 };

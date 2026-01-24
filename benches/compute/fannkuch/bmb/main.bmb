@@ -123,5 +123,7 @@ fn fannkuch(n: i64) -> i64 = {
 
 fn main() -> i64 = {
     let n = 10;
-    fannkuch(n)
+    let result = fannkuch(n);
+    let _u = println(result);
+    0
 };

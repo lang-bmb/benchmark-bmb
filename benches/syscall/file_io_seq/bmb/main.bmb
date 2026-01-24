@@ -33,5 +33,7 @@ fn run_io(path: String, content: String, remaining: i64, acc: i64) -> i64 =
 fn main() -> i64 = {
     let path = "benchmark_test_file.tmp";
     let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    run_io(path, content, 1000, 0)
+    let result = run_io(path, content, 1000, 0);
+    let _u = println(result);
+    0
 };

@@ -42,5 +42,7 @@ fn run_benchmark(n: i64, acc: i64) -> i64 =
 fn main() -> i64 = {
     let pure_test = run_benchmark(1000, 0);
     let loop_test = loop_with_invariant(1000, 50);
-    pure_test + loop_test
+    let result = pure_test + loop_test;
+    let _u = println(result);
+    0
 };

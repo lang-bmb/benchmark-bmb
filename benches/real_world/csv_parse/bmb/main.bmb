@@ -1,8 +1,9 @@
 // csv-parse - CSV parsing benchmark
 // Tests string processing, field extraction
 // Self-contained with embedded test data
+// v0.52: Use byte_at for direct byte access (avoid char_at + ord overhead)
 
-fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
+fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
@@ -15,11 +16,11 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// v0.51.16: Position-based parsing - no slice() allocations
+// v0.52: Use byte_at for direct byte access - no allocation per character
 // Count fields in a range [start, end) (simple: count commas + 1)
 fn count_commas_range(data: String, pos: i64, end: i64, count: i64) -> i64 =
     if pos >= end { count }
-    else if ord(char_at(data, pos)) == 44 { count_commas_range(data, pos + 1, end, count + 1) }  -- comma
+    else if data.byte_at(pos) == 44 { count_commas_range(data, pos + 1, end, count + 1) }  -- comma
     else { count_commas_range(data, pos + 1, end, count) };
 
 fn count_fields_range(data: String, start: i64, end: i64) -> i64 =
@@ -29,7 +30,7 @@ fn count_fields_range(data: String, start: i64, end: i64) -> i64 =
 // Count quoted fields in a range [start, end)
 fn count_quotes_range(data: String, pos: i64, end: i64, count: i64) -> i64 =
     if pos >= end { count }
-    else if ord(char_at(data, pos)) == 34 { count_quotes_range(data, pos + 1, end, count + 1) }  -- quote
+    else if data.byte_at(pos) == 34 { count_quotes_range(data, pos + 1, end, count + 1) }  -- quote
     else { count_quotes_range(data, pos + 1, end, count) };
 
 fn count_quoted_fields_range(data: String, start: i64, end: i64) -> i64 =
@@ -38,8 +39,8 @@ fn count_quoted_fields_range(data: String, start: i64, end: i64) -> i64 =
 // Find next newline or pipe (row separator) in data
 fn find_newline(data: String, pos: i64) -> i64 =
     if pos >= data.len() { pos }
-    else if ord(char_at(data, pos)) == 10 { pos }   -- newline
-    else if ord(char_at(data, pos)) == 124 { pos }  -- pipe (our row separator)
+    else if data.byte_at(pos) == 10 { pos }   -- newline
+    else if data.byte_at(pos) == 124 { pos }  -- pipe (our row separator)
     else { find_newline(data, pos + 1) };
 
 // Parse all lines and accumulate stats using position-based approach
@@ -64,8 +65,8 @@ fn get_stat_quoted(stats: i64) -> i64 = stats % 10000;
 
 // Print stats
 fn print_stats(stats: i64) -> i64 = {
-    let u1 = printline("  Rows: " + int_to_string(get_stat_rows(stats)));
-    let u2 = printline("  Fields: " + int_to_string(get_stat_fields(stats)));
+    let _u1 = printline("  Rows: " + int_to_string(get_stat_rows(stats)));
+    let _u2 = printline("  Fields: " + int_to_string(get_stat_fields(stats)));
     printline("  Quoted fields: " + int_to_string(get_stat_quoted(stats)))
 };
 
@@ -81,27 +82,37 @@ fn test_data() -> String =
 fn generate_row() -> String =
     "field1,field2,field3," + quote() + "quoted" + quote() + ",field5|";
 
-fn generate_large(n: i64, acc: String) -> String =
-    if n <= 0 { acc }
-    else { generate_large(n - 1, acc + generate_row()) };
+// v0.52: Use StringBuilder to avoid O(n²) string concatenation
+fn generate_large_sb(n: i64, sb: i64) -> i64 =
+    if n <= 0 { sb }
+    else {
+        let _u = sb_push(sb, generate_row());
+        generate_large_sb(n - 1, sb)
+    };
+
+fn generate_large(n: i64) -> String = {
+    let sb = sb_new();
+    let _u = generate_large_sb(n, sb);
+    sb_build(sb)
+};
 
 fn main() -> i64 = {
-    let u1 = printline("CSV Parse Benchmark");
-    let u2 = printline("");
+    let _u1 = printline("CSV Parse Benchmark");
+    let _u2 = printline("");
 
     -- Parse test data
     let data = test_data();
     let stats = parse_lines(data, 0, 0, 0, 0);
-    let u3 = printline("Small dataset:");
-    let u4 = print_stats(stats);
-    let u5 = printline("");
+    let _u3 = printline("Small dataset:");
+    let _u4 = print_stats(stats);
+    let _u5 = printline("");
 
     -- Generate and parse larger dataset (FAIR VERSION v0.51.5: 1000 rows like C)
-    let large = generate_large(1000, "");
+    let large = generate_large(1000);
     let large_stats = parse_lines(large, 0, 0, 0, 0);
-    let u6 = printline("Large dataset (1000 rows):");
-    let u7 = print_stats(large_stats);
+    let _u6 = printline("Large dataset (1000 rows):");
+    let _u7 = print_stats(large_stats);
 
-    let u8 = printline("");
+    let _u8 = printline("");
     printline("Done.")
 };
