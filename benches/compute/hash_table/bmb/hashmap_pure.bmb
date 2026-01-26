@@ -1,0 +1,134 @@
+// Pure BMB HashMap implementation for P0-B optimization
+// v0.51.45: Allows full inlining unlike runtime HashMap
+//
+// Entry layout: [key: i64, value: i64, state: i64] = 24 bytes
+// State: 0 = empty, 1 = occupied, 2 = deleted
+
+fn table_size() -> i64 = 131072;   // Power of 2, matches C benchmark
+fn entry_size() -> i64 = 24;       // 3 * 8 bytes
+fn not_found() -> i64 = 0 - 9223372036854775807 - 1;  // i64::MIN
+
+// Fibonacci hash function (same as C implementation)
+// h = key * 0x517cc1b727220a95; return h ^ (h >> 32)
+fn hash_i64(key: i64) -> i64 = {
+    // Magic constant: 0x517cc1b727220a95 = 5871781006564002453
+    let h = key * 5871781006564002453;
+    h bxor (h >> 32)
+};
+
+// Create new hashmap (returns pointer to entry array)
+fn hm_new() -> i64 = {
+    let size = table_size() * entry_size();
+    calloc(1, size)  // Zero-initialized (all states = 0 = empty)
+};
+
+// Free hashmap
+fn hm_free(m: i64) -> i64 = {
+    free(m);
+    0
+};
+
+// Get entry pointer at index
+fn entry_ptr(m: i64, idx: i64) -> i64 = m + (idx * entry_size());
+
+// Read entry fields
+fn entry_key(e: i64) -> i64 = load_i64(e);
+fn entry_value(e: i64) -> i64 = load_i64(e + 8);
+fn entry_state(e: i64) -> i64 = load_i64(e + 16);
+
+// Write entry fields
+fn set_entry_key(e: i64, key: i64) -> i64 = { store_i64(e, key); 0 };
+fn set_entry_value(e: i64, value: i64) -> i64 = { store_i64(e + 8, value); 0 };
+fn set_entry_state(e: i64, state: i64) -> i64 = { store_i64(e + 16, state); 0 };
+
+// Insert key-value pair (returns old value or 0 if new)
+fn hm_insert(m: i64, key: i64, value: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    let mut idx: i64 = hash band mask;
+    let mut i: i64 = 0;
+    let mut result: i64 = 0;
+    let mut done: i64 = 0;
+
+    while i < table_size() and done == 0 {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+
+        if state == 0 or state == 2 {
+            // Empty or deleted slot - insert here
+            let _k = set_entry_key(e, key);
+            let _v = set_entry_value(e, value);
+            let _s = set_entry_state(e, 1);
+            { done = 1 };
+        } else if state == 1 and entry_key(e) == key {
+            // Key exists - update value
+            { result = entry_value(e) };
+            let _v = set_entry_value(e, value);
+            { done = 1 };
+        } else {
+            // Continue probing
+            { idx = (idx + 1) band mask };
+            { i = i + 1 };
+        };
+    };
+    result
+};
+
+// Get value for key (returns not_found() if missing)
+fn hm_get(m: i64, key: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    let mut idx: i64 = hash band mask;
+    let mut i: i64 = 0;
+    let mut result: i64 = not_found();
+    let mut done: i64 = 0;
+
+    while i < table_size() and done == 0 {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+
+        if state == 0 {
+            // Empty slot - key not found
+            { done = 1 };
+        } else if state == 1 and entry_key(e) == key {
+            // Found
+            { result = entry_value(e) };
+            { done = 1 };
+        } else {
+            // Continue probing (skip deleted slots)
+            { idx = (idx + 1) band mask };
+            { i = i + 1 };
+        };
+    };
+    result
+};
+
+// Remove key (returns old value or not_found() if missing)
+fn hm_remove(m: i64, key: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    let mut idx: i64 = hash band mask;
+    let mut i: i64 = 0;
+    let mut result: i64 = not_found();
+    let mut done: i64 = 0;
+
+    while i < table_size() and done == 0 {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+
+        if state == 0 {
+            // Empty slot - key not found
+            { done = 1 };
+        } else if state == 1 and entry_key(e) == key {
+            // Found - mark as deleted (tombstone)
+            { result = entry_value(e) };
+            let _s = set_entry_state(e, 2);
+            { done = 1 };
+        } else {
+            // Continue probing
+            { idx = (idx + 1) band mask };
+            { i = i + 1 };
+        };
+    };
+    result
+};
