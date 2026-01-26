@@ -46,9 +46,9 @@ fn is_punct_char(c: i64) -> i64 =
     if c == 40 or c == 41 or c == 123 or c == 125 or c == 91 or c == 93 or
        c == 59 or c == 58 or c == 44 or c == 46 { 1 } else { 0 };
 
-// Get character at position
+// Get byte at position (v0.51.44: use byte_at directly instead of ord(char_at()))
 fn peek(src: String, pos: i64) -> i64 =
-    if pos >= src.len() { 0 } else { ord(char_at(src, pos)) };
+    if pos >= src.len() { 0 } else { src.byte_at(pos) };
 
 // Skip whitespace
 fn skip_ws(src: String, pos: i64) -> i64 =
