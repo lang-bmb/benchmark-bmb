@@ -1,0 +1,214 @@
+// N-Body simulation benchmark - STRUCT ARRAY VERSION
+// v0.51.36: Uses proper [Body; 5] struct array for SIMD-friendly memory layout
+
+struct Body {
+    x: f64,
+    y: f64,
+    z: f64,
+    vx: f64,
+    vy: f64,
+    vz: f64,
+    mass: f64
+}
+
+fn PI() -> f64 = 3.141592653589793;
+fn SOLAR_MASS() -> f64 = 4.0 * PI() * PI();
+fn DAYS_PER_YEAR() -> f64 = 365.24;
+fn N_STEPS() -> i64 = 2000000;
+
+// Offset momentum (make total momentum zero)
+fn offset_momentum(bodies: [Body; 5]) -> i64 = {
+    let px = compute_px(bodies, 0, 0.0);
+    let py = compute_py(bodies, 0, 0.0);
+    let pz = compute_pz(bodies, 0, 0.0);
+    let _v1 = set bodies[0].vx = 0.0 - px / SOLAR_MASS();
+    let _v2 = set bodies[0].vy = 0.0 - py / SOLAR_MASS();
+    let _v3 = set bodies[0].vz = 0.0 - pz / SOLAR_MASS();
+    0
+};
+
+fn compute_px(bodies: [Body; 5], i: i64, acc: f64) -> f64 =
+    if i >= 5 { acc }
+    else {
+        let b = bodies[i];
+        compute_px(bodies, i + 1, acc + b.vx * b.mass)
+    };
+
+fn compute_py(bodies: [Body; 5], i: i64, acc: f64) -> f64 =
+    if i >= 5 { acc }
+    else {
+        let b = bodies[i];
+        compute_py(bodies, i + 1, acc + b.vy * b.mass)
+    };
+
+fn compute_pz(bodies: [Body; 5], i: i64, acc: f64) -> f64 =
+    if i >= 5 { acc }
+    else {
+        let b = bodies[i];
+        compute_pz(bodies, i + 1, acc + b.vz * b.mass)
+    };
+
+// Advance simulation by dt
+fn advance(bodies: [Body; 5], dt: f64) -> i64 = {
+    let _v = advance_velocities(bodies, dt, 0);
+    advance_positions(bodies, dt, 0)
+};
+
+fn advance_velocities(bodies: [Body; 5], dt: f64, i: i64) -> i64 =
+    if i >= 5 { 0 }
+    else {
+        let _inner = advance_velocities_inner(bodies, dt, i, i + 1);
+        advance_velocities(bodies, dt, i + 1)
+    };
+
+fn advance_velocities_inner(bodies: [Body; 5], dt: f64, i: i64, j: i64) -> i64 =
+    if j >= 5 { 0 }
+    else {
+        let bi = bodies[i];
+        let bj = bodies[j];
+
+        let dx = bi.x - bj.x;
+        let dy = bi.y - bj.y;
+        let dz = bi.z - bj.z;
+        let dist_sq = dx * dx + dy * dy + dz * dz;
+        let dist = sqrt(dist_sq);
+        let mag = dt / (dist_sq * dist);
+
+        let mi = bi.mass;
+        let mj = bj.mass;
+
+        let _vi1 = set bodies[i].vx = bi.vx - dx * mj * mag;
+        let _vi2 = set bodies[i].vy = bi.vy - dy * mj * mag;
+        let _vi3 = set bodies[i].vz = bi.vz - dz * mj * mag;
+
+        let _vj1 = set bodies[j].vx = bj.vx + dx * mi * mag;
+        let _vj2 = set bodies[j].vy = bj.vy + dy * mi * mag;
+        let _vj3 = set bodies[j].vz = bj.vz + dz * mi * mag;
+
+        advance_velocities_inner(bodies, dt, i, j + 1)
+    };
+
+fn advance_positions(bodies: [Body; 5], dt: f64, i: i64) -> i64 =
+    if i >= 5 { 0 }
+    else {
+        let b = bodies[i];
+        let _p1 = set bodies[i].x = b.x + dt * b.vx;
+        let _p2 = set bodies[i].y = b.y + dt * b.vy;
+        let _p3 = set bodies[i].z = b.z + dt * b.vz;
+        advance_positions(bodies, dt, i + 1)
+    };
+
+// Compute total energy
+fn energy(bodies: [Body; 5]) -> f64 = {
+    let ke = kinetic_energy(bodies, 0, 0.0);
+    let pe = potential_energy(bodies, 0, 0.0);
+    ke + pe
+};
+
+fn kinetic_energy(bodies: [Body; 5], i: i64, acc: f64) -> f64 =
+    if i >= 5 { acc }
+    else {
+        let b = bodies[i];
+        let ke = 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
+        kinetic_energy(bodies, i + 1, acc + ke)
+    };
+
+fn potential_energy(bodies: [Body; 5], i: i64, acc: f64) -> f64 =
+    if i >= 5 { acc }
+    else {
+        let pe = potential_energy_inner(bodies, i, i + 1, 0.0);
+        potential_energy(bodies, i + 1, acc + pe)
+    };
+
+fn potential_energy_inner(bodies: [Body; 5], i: i64, j: i64, acc: f64) -> f64 =
+    if j >= 5 { acc }
+    else {
+        let bi = bodies[i];
+        let bj = bodies[j];
+        let dx = bi.x - bj.x;
+        let dy = bi.y - bj.y;
+        let dz = bi.z - bj.z;
+        let dist = sqrt(dx * dx + dy * dy + dz * dz);
+        let pe = 0.0 - (bi.mass * bj.mass / dist);
+        potential_energy_inner(bodies, i, j + 1, acc + pe)
+    };
+
+// Run simulation loop - recursive for now (TODO: while loop)
+fn run_simulation(bodies: [Body; 5], n: i64) -> i64 =
+    run_simulation_loop(bodies, n, 0);
+
+fn run_simulation_loop(bodies: [Body; 5], n: i64, step: i64) -> i64 =
+    if step >= n { 0 }
+    else {
+        let _a = advance(bodies, 0.01);
+        run_simulation_loop(bodies, n, step + 1)
+    };
+
+fn main() -> i64 = {
+    // Create bodies array with proper struct initialization
+    let mut bodies: [Body; 5] = [
+        // Sun
+        new Body {
+            x: 0.0, y: 0.0, z: 0.0,
+            vx: 0.0, vy: 0.0, vz: 0.0,
+            mass: SOLAR_MASS()
+        },
+        // Jupiter
+        new Body {
+            x: 4.84143144246472090e0,
+            y: 0.0 - 1.16032004402742839e0,
+            z: 0.0 - 1.03622044471123109e-1,
+            vx: 1.66007664274403694e-3 * DAYS_PER_YEAR(),
+            vy: 7.69901118419740425e-3 * DAYS_PER_YEAR(),
+            vz: 0.0 - 6.90460016972063023e-5 * DAYS_PER_YEAR(),
+            mass: 9.54791938424326609e-4 * SOLAR_MASS()
+        },
+        // Saturn
+        new Body {
+            x: 8.34336671824457987e0,
+            y: 4.12479856412430479e0,
+            z: 0.0 - 4.03523417114321381e-1,
+            vx: 0.0 - 2.76742510726862411e-3 * DAYS_PER_YEAR(),
+            vy: 4.99852801234917238e-3 * DAYS_PER_YEAR(),
+            vz: 2.30417297573763929e-5 * DAYS_PER_YEAR(),
+            mass: 2.85885980666130812e-4 * SOLAR_MASS()
+        },
+        // Uranus
+        new Body {
+            x: 1.28943695621391310e1,
+            y: 0.0 - 1.51111514016986312e1,
+            z: 0.0 - 2.23307578892655734e-1,
+            vx: 2.96460137564761618e-3 * DAYS_PER_YEAR(),
+            vy: 2.37847173959480950e-3 * DAYS_PER_YEAR(),
+            vz: 0.0 - 2.96589568540237556e-5 * DAYS_PER_YEAR(),
+            mass: 4.36624404335156298e-5 * SOLAR_MASS()
+        },
+        // Neptune
+        new Body {
+            x: 1.53796971148509165e1,
+            y: 0.0 - 2.59193146099879641e1,
+            z: 1.79258772950371181e-1,
+            vx: 2.68067772490389322e-3 * DAYS_PER_YEAR(),
+            vy: 1.62824170038242295e-3 * DAYS_PER_YEAR(),
+            vz: 0.0 - 9.51592254519715870e-5 * DAYS_PER_YEAR(),
+            mass: 5.15138902046611451e-5 * SOLAR_MASS()
+        }
+    ];
+
+    let _offset = offset_momentum(bodies);
+
+    // Print initial energy
+    let e1 = energy(bodies);
+    let e1_scaled = f64_to_i64(e1 * 1e9);
+    let _p1 = println(e1_scaled);
+
+    // Run simulation
+    let _run = run_simulation(bodies, N_STEPS());
+
+    // Print final energy
+    let e2 = energy(bodies);
+    let e2_scaled = f64_to_i64(e2 * 1e9);
+    let _p2 = println(e2_scaled);
+
+    0
+};
