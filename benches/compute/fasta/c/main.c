@@ -108,7 +108,7 @@ static const char alu[] =
     "CACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
 int main(int argc, char **argv) {
-    int n = 1000;
+    int n = 250000;  // Increased for measurable timing
     if (argc > 1) n = atoi(argv[1]);
 
     make_cumulative(iub, IUB_LEN);

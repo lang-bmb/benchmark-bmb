@@ -37,8 +37,8 @@ fn mandelbrot_point(x: i64, y: i64, width: i64, height: i64, max_iter: i64) -> i
 
 // Count escaping points - using nested while loops
 fn main() -> i64 = {
-    let size = 50;
-    let max_iter = 50;
+    let size = 2000;
+    let max_iter = 100;
     let mut count: i64 = 0;
     let mut y: i64 = 0;
     let mut x: i64 = 0;

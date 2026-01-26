@@ -6,7 +6,7 @@
 // - while loops allow LLVM to unroll and vectorize
 
 // Constants
-fn N() -> i64 = 100;
+fn N() -> i64 = 1000;
 fn ITERATIONS() -> i64 = 10;
 
 // Array operations using malloc

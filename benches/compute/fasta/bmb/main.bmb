@@ -173,7 +173,7 @@ fn print_random_homo(seed: i64, n: i64) -> i64 = {
 };
 
 fn main() -> i64 = {
-    let n = 1000;  -- FAIR VERSION v0.51.5: same as C (was 100)
+    let n = 250000;  -- FAIR VERSION: increased for measurable timing
     let _u1 = print_repeat(n * 2);
     let seed1 = print_random_iub(42, n * 3);
     let _seed2 = print_random_homo(seed1, n * 5);

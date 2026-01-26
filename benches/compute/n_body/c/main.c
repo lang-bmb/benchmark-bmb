@@ -65,6 +65,19 @@ void init_bodies() {
     };
 }
 
+// Make total momentum zero (required for accurate simulation)
+void offset_momentum() {
+    double px = 0, py = 0, pz = 0;
+    for (int i = 0; i < 5; i++) {
+        px += bodies[i].vx * bodies[i].mass;
+        py += bodies[i].vy * bodies[i].mass;
+        pz += bodies[i].vz * bodies[i].mass;
+    }
+    bodies[0].vx = -px / SOLAR_MASS;
+    bodies[0].vy = -py / SOLAR_MASS;
+    bodies[0].vz = -pz / SOLAR_MASS;
+}
+
 void advance(double dt) {
     for (int i = 0; i < 5; i++) {
         for (int j = i + 1; j < 5; j++) {
@@ -112,9 +125,10 @@ double energy() {
 }
 
 int main() {
-    int n = 500000;
+    int n = 2000000;
 
     init_bodies();
+    offset_momentum();
     printf("%.9f\n", energy());
 
     for (int i = 0; i < n; i++) {

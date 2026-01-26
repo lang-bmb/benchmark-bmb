@@ -9,7 +9,7 @@ fn PI() -> f64 = 3.141592653589793;
 fn SOLAR_MASS() -> f64 = 4.0 * PI() * PI();
 fn DAYS_PER_YEAR() -> f64 = 365.24;
 fn N_BODIES() -> i64 = 5;
-fn N_STEPS() -> i64 = 500000;
+fn N_STEPS() -> i64 = 2000000;
 
 // Body structure (7 f64 values per body):
 // offset 0: x, 8: y, 16: z, 24: vx, 32: vy, 40: vz, 48: mass

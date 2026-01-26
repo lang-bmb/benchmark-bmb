@@ -37,8 +37,8 @@ int64_t mandelbrot_point(int64_t x, int64_t y, int64_t width, int64_t height, in
 }
 
 int main() {
-    int size = 50;
-    int max_iter = 50;
+    int size = 2000;
+    int max_iter = 100;
     int64_t count = 0;
 
     for (int y = 0; y < size; y++) {
