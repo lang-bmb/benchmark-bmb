@@ -2,6 +2,7 @@
 // Benchmarks Game algorithm with LCG random
 // Uses fixed-point arithmetic (1000000 scale factor)
 // v0.52: StringBuilder + tail recursion for O(n) performance
+// v0.51.45: sb_with_capacity(61) to avoid reallocations (P0-E)
 
 // Helper: print string with newline (println takes i64, not String)
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
@@ -103,7 +104,7 @@ fn build_repeat_line(sb: i64, alu_str: String, k: i64, count: i64, limit: i64) -
 fn print_repeat_lines(alu_str: String, k: i64, remaining: i64) -> i64 =
     if remaining <= 0 { k }
     else {
-        let sb = sb_new();
+        let sb = sb_with_capacity(61);  -- v0.51.45: pre-allocate 61 bytes (60 + null)
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
         let new_k = build_repeat_line(sb, alu_str, k, 0, chars_to_write);
         let line = sb_build(sb);
@@ -131,7 +132,7 @@ fn build_iub_line(sb: i64, seed: i64, count: i64, limit: i64) -> i64 =
 fn print_iub_lines(seed: i64, remaining: i64) -> i64 =
     if remaining <= 0 { seed }
     else {
-        let sb = sb_new();
+        let sb = sb_with_capacity(61);  -- v0.51.45: pre-allocate 61 bytes
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
         let new_seed = build_iub_line(sb, seed, 0, chars_to_write);
         let line = sb_build(sb);
@@ -159,7 +160,7 @@ fn build_homo_line(sb: i64, seed: i64, count: i64, limit: i64) -> i64 =
 fn print_homo_lines(seed: i64, remaining: i64) -> i64 =
     if remaining <= 0 { seed }
     else {
-        let sb = sb_new();
+        let sb = sb_with_capacity(61);  -- v0.51.45: pre-allocate 61 bytes
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
         let new_seed = build_homo_line(sb, seed, 0, chars_to_write);
         let line = sb_build(sb);
