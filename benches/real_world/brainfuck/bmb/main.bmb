@@ -22,10 +22,10 @@ fn init_tape(tape: i64, i: i64) -> i64 =
         init_tape(tape, i + 1)
     };
 
-// Get character at position in program string
+// Get byte at position in program string (v0.51.44: use byte_at directly)
 fn get_char(prog: String, pos: i64) -> i64 =
     if pos >= prog.len() { 0 }
-    else { ord(char_at(prog, pos)) };
+    else { prog.byte_at(pos) };
 
 // Find matching bracket (for [ and ])
 fn find_matching_close(prog: String, pc: i64, depth: i64) -> i64 =
