@@ -1,5 +1,6 @@
 // brainfuck - Esoteric language interpreter benchmark
 // Tests interpreter overhead, loop handling, array access
+// v0.57: Inlined all instruction handlers to avoid tuple returns
 // v0.55: Fixed to use 1-byte cells (like C) instead of 8-byte cells
 // Performance target: C parity
 
@@ -48,67 +49,62 @@ fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
     pc + 1
 };
 
-// Individual instruction handlers
-fn do_right(ptr: i64, ts: i64) -> i64 = if ptr + 1 >= ts { 0 } else { ptr + 1 };
-fn do_left(ptr: i64, ts: i64) -> i64 = if ptr == 0 { ts - 1 } else { ptr - 1 };
-fn do_inc(val: i64) -> i64 = (val + 1) % 256;
-fn do_dec(val: i64) -> i64 = if val == 0 { 255 } else { val - 1 };
+// v0.57: Inline all instruction handling in main loop to avoid tuple returns
+// The C version uses a switch statement inline - we mirror this pattern
 
-// Execute single instruction, returns (new_ptr, new_pc) tuple
-fn exec_instr(tape: i64, ptr: i64, pc: i64, c: i64, prog: String) -> (i64, i64) = {
-    let ts = tape_size();
-
-    if c == 62 {            -- '>' = 62
-        (do_right(ptr, ts), pc)
-    }
-    else { if c == 60 {     -- '<' = 60
-        (do_left(ptr, ts), pc)
-    }
-    else { if c == 43 {     -- '+' = 43
-        let val = tape_get(tape, ptr);
-        let _s = tape_set(tape, ptr, do_inc(val));
-        (ptr, pc)
-    }
-    else { if c == 45 {     -- '-' = 45
-        let val = tape_get(tape, ptr);
-        let _s = tape_set(tape, ptr, do_dec(val));
-        (ptr, pc)
-    }
-    else { if c == 46 {     -- '.' = 46 (output)
-        let val = tape_get(tape, ptr);
-        let _p = print_str(chr(val));
-        (ptr, pc)
-    }
-    else { if c == 44 {     -- ',' = 44 (input - no-op)
-        (ptr, pc)
-    }
-    else { if c == 91 {     -- '[' = 91
-        let val = tape_get(tape, ptr);
-        let new_pc = if val == 0 { find_matching_close(prog, pc) } else { pc };
-        (ptr, new_pc)
-    }
-    else { if c == 93 {     -- ']' = 93
-        let val = tape_get(tape, ptr);
-        let new_pc = if val != 0 { find_matching_open(prog, pc) } else { pc };
-        (ptr, new_pc)
-    }
-    else { (ptr, pc) } } } } } } } }
-};
-
-// Main interpreter
+// Main interpreter - v0.57: All instructions inlined, no tuple returns
 fn interpret(prog: String) -> i64 = {
     let tape = tape_new();
     let prog_len = prog.len();
+    let ts = tape_size();
     let mut ptr: i64 = 0;
     let mut pc: i64 = 0;
     let mut c: i64 = 0;
-    let mut result: (i64, i64) = (0, 0);
+    let mut val: i64 = 0;
 
     while pc < prog_len { {
         c = get_char(prog, pc);
-        result = exec_instr(tape, ptr, pc, c, prog);
-        ptr = result.0;
-        pc = result.1 + 1;
+
+        -- '>' = 62: move pointer right
+        ptr = if c == 62 { if ptr + 1 >= ts { 0 } else { ptr + 1 } } else { ptr };
+
+        -- '<' = 60: move pointer left
+        ptr = if c == 60 { if ptr == 0 { ts - 1 } else { ptr - 1 } } else { ptr };
+
+        -- '+' = 43: increment cell
+        val = if c == 43 {
+            let v = tape_get(tape, ptr);
+            let _s = tape_set(tape, ptr, (v + 1) % 256);
+            0
+        } else { 0 };
+
+        -- '-' = 45: decrement cell
+        val = if c == 45 {
+            let v = tape_get(tape, ptr);
+            let _s = tape_set(tape, ptr, if v == 0 { 255 } else { v - 1 });
+            0
+        } else { 0 };
+
+        -- '.' = 46: output
+        val = if c == 46 {
+            let v = tape_get(tape, ptr);
+            let _p = print_str(chr(v));
+            0
+        } else { 0 };
+
+        -- '[' = 91: jump forward if zero
+        pc = if c == 91 {
+            let v = tape_get(tape, ptr);
+            if v == 0 { find_matching_close(prog, pc) } else { pc }
+        } else { pc };
+
+        -- ']' = 93: jump back if non-zero
+        pc = if c == 93 {
+            let v = tape_get(tape, ptr);
+            if v != 0 { find_matching_open(prog, pc) } else { pc }
+        } else { pc };
+
+        { pc = pc + 1 };
         ()
     } };
 
