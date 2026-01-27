@@ -1,6 +1,6 @@
 // JSON parsing benchmark
 // Measures: string processing, recursive descent parsing
-// v0.52: Use byte_at for direct byte access (avoid char_at + ord overhead)
+// v0.55: Updated with native tuple support
 
 // Character classes
 fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
@@ -12,13 +12,13 @@ fn skip_ws(s: String, pos: i64) -> i64 =
     else if is_ws(s.byte_at(pos)) { skip_ws(s, pos + 1) }
     else { pos };
 
-// Parse number - returns pos * 1000000 + value - v0.52: use byte_at
-fn parse_number(s: String, pos: i64, acc: i64) -> i64 =
-    if pos >= s.len() { pos * 1000000 + acc }
+// Parse number - returns (new_pos, value)
+fn parse_number(s: String, pos: i64, acc: i64) -> (i64, i64) =
+    if pos >= s.len() { (pos, acc) }
     else {
         let c = s.byte_at(pos);
         if is_digit(c) { parse_number(s, pos + 1, acc * 10 + c - 48) }
-        else { pos * 1000000 + acc }
+        else { (pos, acc) }
     };
 
 // Find closing bracket/brace - v0.52: use byte_at

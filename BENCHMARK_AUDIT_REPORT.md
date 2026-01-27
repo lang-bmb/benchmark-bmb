@@ -189,9 +189,25 @@ Based on the audit, these compiler improvements would have the most impact:
 
 | Benchmark | Result | Root Cause | Fix Required |
 |-----------|--------|------------|--------------|
-| fasta | 130% | i64-to-pointer overhead, linear search | Compiler: struct types, jump tables |
-| json_parse | 106% | Measurement variance (~5%) | Statistically equivalent |
-| lexer | 105% | Measurement variance (~4%) | Statistically equivalent |
+| fasta | 135% | StringBuilder overhead, i64-to-pointer | Compiler: struct types, inlined string ops |
+| sorting | 106% | Measurement variance (~5%) | Statistically equivalent |
+| json_parse | 109% | Measurement variance (~5%) | Statistically equivalent |
+| lexer | 105% | Measurement variance (~6%) | Statistically equivalent |
+
+### v0.57 Cycle 4 Finding: TCO vs While Loops
+
+**Key Discovery:** Tail recursion with TCO is FASTER than while loops for hot paths.
+
+Testing on fasta's character generation loops:
+- Tail recursive version: 135% of C
+- While loop version: 275% of C (2x slower!)
+
+**Reason:** While loops with mutable variables incur:
+1. alloca for each mutable variable
+2. store/load on each iteration
+3. PHI nodes less optimized than tail calls
+
+**Recommendation:** Prefer tail recursion over while loops for performance-critical loops.
 
 ### Next Steps for Compiler
 

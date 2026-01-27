@@ -1,6 +1,6 @@
 // csv-parse - CSV parsing benchmark
-// Tests string processing, field extraction
-// v0.51.50: Single-pass parsing for optimal performance
+// Tests string processing, field extraction, quote handling
+// v0.51.52: FAIR VERSION - Real CSV parsing with field extraction like C/Rust
 
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
@@ -15,55 +15,232 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// Single-pass parsing: count rows, commas, and quotes in one iteration
-// Returns: rows * 10000000 + fields * 10000 + quoted
-fn parse_single_pass(data: String) -> i64 = {
-    let data_len = data.len();
-    let mut pos: i64 = 0;
-    let mut rows: i64 = 0;
-    let mut commas: i64 = 0;
-    let mut quotes: i64 = 0;
-    let mut c: i64 = 0;
-    let mut in_row: i64 = 0;  -- 1 if we've seen non-separator content
+// Parse stats structure (encoded as single i64)
+// rows * 1000000000 + fields * 10000 + quoted * 100 + total_chars % 100
+fn make_stats(rows: i64, fields: i64, quoted: i64, chars: i64) -> i64 =
+    rows * 1000000000 + fields * 10000 + quoted * 100 + (chars % 100);
 
-    while pos < data_len { {
+fn get_rows(stats: i64) -> i64 = stats / 1000000000;
+fn get_fields(stats: i64) -> i64 = (stats / 10000) % 100000;
+fn get_quoted(stats: i64) -> i64 = (stats / 100) % 100;
+
+// Skip whitespace, return new position
+fn skip_ws(data: String, pos: i64, len: i64) -> i64 = {
+    let mut p: i64 = pos;
+    let mut c: i64 = 0;
+    while p < len { {
+        c = data.byte_at(p);
+        p = if c == 32 { p + 1 }      -- space
+            else if c == 9 { p + 1 }  -- tab
+            else { len + p };         -- exit trick: set p > len
+        ()
+    } };
+    -- p > len means exit trick used (found non-whitespace), return p - len
+    -- p == len means reached end naturally, return len
+    if p > len { p - len } else { p }
+};
+
+// Parse a quoted field, handling escaped quotes ("" -> ")
+// Returns: new_pos * 1000 + field_len
+fn parse_quoted_field(data: String, start: i64, len: i64) -> i64 = {
+    let mut pos: i64 = start + 1;  -- skip opening quote
+    let mut field_len: i64 = 0;
+    let mut c: i64 = 0;
+    let mut done: i64 = 0;
+    let mut end_pos: i64 = 0;
+
+    while pos < len { {
         c = data.byte_at(pos);
-        -- Count character types
-        commas = if c == 44 { commas + 1 } else { commas };   -- comma
-        quotes = if c == 34 { quotes + 1 } else { quotes };   -- quote
-        -- Track rows (newline or pipe ends a row)
-        rows = if c == 10 { rows + 1 }                        -- newline
-               else { if c == 124 { rows + 1 }                -- pipe
-               else { rows } };
-        pos = pos + 1;
+        done = if c == 34 {  -- quote
+            if pos + 1 < len {
+                if data.byte_at(pos + 1) == 34 { {
+                    -- escaped quote "" -> " (count as 1 char)
+                    field_len = field_len + 1;
+                    pos = pos + 2;
+                    0  -- not done
+                } } else { {
+                    -- closing quote, record position after it
+                    end_pos = pos + 1;
+                    1  -- done
+                } }
+            } else { {
+                -- closing quote at end
+                end_pos = pos + 1;
+                1  -- done
+            } }
+        } else { {
+            field_len = field_len + 1;
+            pos = pos + 1;
+            0
+        } };
+        pos = if done == 1 { len + 1 } else { pos };  -- exit trick
+        ()
+    } };
+    -- If done, use recorded end_pos; otherwise pos == len (end of string)
+    let final_pos = if done == 1 { end_pos } else { pos };
+    final_pos * 1000 + field_len
+};
+
+// Parse an unquoted field
+// Returns: new_pos * 1000 + field_len
+fn parse_unquoted_field(data: String, start: i64, len: i64) -> i64 = {
+    let mut pos: i64 = start;
+    let mut field_len: i64 = 0;
+    let mut c: i64 = 0;
+
+    while pos < len { {
+        c = data.byte_at(pos);
+        pos = if c == 44 { len + pos }      -- comma, end of field
+              else if c == 10 { len + pos } -- newline, end of field
+              else if c == 13 { len + pos } -- CR, end of field
+              else { {
+                  field_len = field_len + 1;
+                  pos + 1
+              } };
+        ()
+    } };
+    -- pos > len means exit trick used (found delimiter), return pos - len
+    -- pos == len means reached end naturally, return len
+    let final_pos = if pos > len { pos - len } else { pos };
+    final_pos * 1000 + field_len
+};
+
+// Parse a single field starting at position
+// Returns: new_pos * 10000 + field_len * 10 + is_quoted
+fn parse_field(data: String, start: i64, len: i64) -> i64 = {
+    let pos = skip_ws(data, start, len);
+    if pos >= len { pos * 10000 }  -- empty at end
+    else {
+        let c = data.byte_at(pos);
+        if c == 34 {  -- quoted field
+            let result = parse_quoted_field(data, pos, len);
+            let new_pos = result / 1000;
+            let field_len = result % 1000;
+            -- skip trailing whitespace and comma
+            let final_pos = skip_ws(data, new_pos, len);
+            let fp = if final_pos < len {
+                if data.byte_at(final_pos) == 44 { final_pos + 1 } else { final_pos }
+            } else { final_pos };
+            fp * 10000 + field_len * 10 + 1
+        } else {
+            let result = parse_unquoted_field(data, pos, len);
+            let new_pos = result / 1000;
+            let field_len = result % 1000;
+            -- skip comma if present
+            let fp = if new_pos < len {
+                if data.byte_at(new_pos) == 44 { new_pos + 1 } else { new_pos }
+            } else { new_pos };
+            fp * 10000 + field_len * 10 + 0
+        }
+    }
+};
+
+// Parse a single line, return stats
+// Returns: fields * 10000 + quoted * 100 + total_chars % 100
+fn parse_line(data: String, start: i64, end: i64) -> i64 = {
+    let mut pos: i64 = start;
+    let mut fields: i64 = 0;
+    let mut quoted: i64 = 0;
+    let mut total_chars: i64 = 0;
+    let mut result: i64 = 0;
+    let mut new_pos: i64 = 0;
+    let mut field_len: i64 = 0;
+    let mut is_quoted: i64 = 0;
+
+    while pos < end { {
+        result = parse_field(data, pos, end);
+        new_pos = result / 10000;
+        field_len = (result / 10) % 1000;
+        is_quoted = result % 10;
+
+        fields = fields + 1;
+        quoted = quoted + is_quoted;
+        total_chars = total_chars + field_len;
+        pos = new_pos;
         ()
     } };
 
-    -- Add final row if data doesn't end with separator
-    rows = if data_len > 0 { rows + 1 } else { rows };
-    -- Fields = commas + rows (each row has commas+1 fields)
-    -- Quoted fields = quotes / 2
-    rows * 10000000 + (commas + rows) * 10000 + (quotes / 2)
+    fields * 10000 + quoted * 100 + (total_chars % 100)
 };
 
-fn get_stat_rows(stats: i64) -> i64 = stats / 10000000;
-fn get_stat_fields(stats: i64) -> i64 = (stats / 10000) % 1000;
-fn get_stat_quoted(stats: i64) -> i64 = stats % 10000;
+// Find end of line (newline or end of string)
+fn find_eol(data: String, start: i64, len: i64) -> i64 = {
+    let mut pos: i64 = start;
+    let mut c: i64 = 0;
+    while pos < len { {
+        c = data.byte_at(pos);
+        pos = if c == 10 { len + pos }       -- newline
+              else if c == 13 { len + pos }  -- CR
+              else { pos + 1 };
+        ()
+    } };
+    -- pos > len means exit trick used (found newline), return pos - len
+    -- pos == len means reached end naturally, return len
+    if pos > len { pos - len } else { pos }
+};
+
+// Parse entire CSV data
+fn parse_csv(data: String) -> i64 = {
+    let len = data.len();
+    let mut pos: i64 = 0;
+    let mut rows: i64 = 0;
+    let mut fields: i64 = 0;
+    let mut quoted: i64 = 0;
+    let mut total_chars: i64 = 0;
+    let mut line_end: i64 = 0;
+    let mut line_stats: i64 = 0;
+
+    while pos < len { {
+        line_end = find_eol(data, pos, len);
+
+        -- Skip empty lines
+        rows = if line_end > pos { {
+            line_stats = parse_line(data, pos, line_end);
+            fields = fields + (line_stats / 10000);
+            quoted = quoted + ((line_stats / 100) % 100);
+            total_chars = total_chars + (line_stats % 100);
+            rows + 1
+        } } else { rows };
+
+        -- Move past newline
+        pos = if line_end < len {
+            if data.byte_at(line_end) == 13 {
+                if line_end + 1 < len {
+                    if data.byte_at(line_end + 1) == 10 { line_end + 2 }
+                    else { line_end + 1 }
+                } else { line_end + 1 }
+            } else { line_end + 1 }
+        } else { line_end };
+        ()
+    } };
+
+    make_stats(rows, fields, quoted, total_chars)
+};
 
 fn print_stats(stats: i64) -> i64 = {
-    let _u1 = printline("  Rows: " + int_to_string(get_stat_rows(stats)));
-    let _u2 = printline("  Fields: " + int_to_string(get_stat_fields(stats)));
-    printline("  Quoted fields: " + int_to_string(get_stat_quoted(stats)))
+    let _u1 = printline("  Rows: " + int_to_string(get_rows(stats)));
+    let _u2 = printline("  Fields: " + int_to_string(get_fields(stats)));
+    printline("  Quoted fields: " + int_to_string(get_quoted(stats)))
 };
 
 fn quote() -> String = chr(34);
 
+// Test data matching C version format (newlines, not pipes)
 fn test_data() -> String =
-    "name,age,city,salary|John Doe,30,New York,50000|Jane Smith,25,Los Angeles,60000|" +
-    quote() + "Bob Jones" + quote() + ",45,Chicago,75000|Alice,28," + quote() + "San Francisco" + quote() + ",80000|Charlie,35,Boston,55000";
+    "name,age,city,salary\n" +
+    "John Doe,30,New York,50000\n" +
+    "Jane Smith,25,Los Angeles,60000\n" +
+    quote() + "Bob " + quote() + quote() + "The Builder" + quote() + quote() + " Jones" + quote() + ",45,Chicago,75000\n" +
+    "Alice,28," + quote() + "San Francisco, CA" + quote() + ",80000\n" +
+    "Charlie Brown,35,Boston,55000\n" +
+    quote() + "Diana, Princess" + quote() + ",40,London,90000\n" +
+    "Edward,22,Miami,45000\n" +
+    quote() + "Fiona " + quote() + quote() + "Fi" + quote() + quote() + " Green" + quote() + ",33,Seattle,70000\n" +
+    "George,29,Denver,52000\n" +
+    "Helen,31,Phoenix,58000\n";
 
 fn generate_row() -> String =
-    "field1,field2,field3," + quote() + "quoted" + quote() + ",field5|";
+    "field1,field2,field3,field4,field5," + quote() + "quoted,field" + quote() + ",field7,field8,field9,field10\n";
 
 fn generate_large(n: i64) -> String = {
     let sb = sb_new();
@@ -82,13 +259,13 @@ fn main() -> i64 = {
     let _u2 = printline("");
 
     let data = test_data();
-    let stats = parse_single_pass(data);
+    let stats = parse_csv(data);
     let _u3 = printline("Small dataset:");
     let _u4 = print_stats(stats);
     let _u5 = printline("");
 
     let large = generate_large(1000);
-    let large_stats = parse_single_pass(large);
+    let large_stats = parse_csv(large);
     let _u6 = printline("Large dataset (1000 rows):");
     let _u7 = print_stats(large_stats);
 

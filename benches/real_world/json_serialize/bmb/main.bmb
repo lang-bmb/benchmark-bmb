@@ -1,8 +1,6 @@
 // json-serialize - JSON serialization benchmark
 // Tests string building, escaping, formatting
-// Optimized version using StringBuilder to avoid allocation explosion
-// v0.51: Rewritten with StringBuilder for O(n) allocation instead of O(n^2)
-// v0.50.74: Use sb_push_escaped for bulk escape (eliminates per-char function call overhead)
+// v0.51.52: FAIR VERSION - Per-character escaping like C/Rust (no sb_push_escaped)
 
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
@@ -17,16 +15,50 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
+// Escape a single character - returns 0 if no escape needed, escape char otherwise
+fn get_escape_char(c: i64) -> i64 =
+    if c == 34 { 34 }       -- " -> \"
+    else if c == 92 { 92 }  -- \ -> \\
+    else if c == 10 { 110 } -- \n -> n
+    else if c == 13 { 114 } -- \r -> r
+    else if c == 9 { 116 }  -- \t -> t
+    else { 0 };
+
+// Write escaped string to StringBuilder - per-character like C/Rust
+fn write_escaped_string(s: String, sb: i64) -> i64 = {
+    let slen = s.len();
+    let mut i: i64 = 0;
+    let mut c: i64 = 0;
+    let mut esc: i64 = 0;
+
+    while i < slen { {
+        c = s.byte_at(i);
+        esc = get_escape_char(c);
+
+        esc = if esc > 0 { {
+            sb_push_char(sb, 92);  -- backslash
+            sb_push_char(sb, esc);
+            0
+        } } else { {
+            sb_push_char(sb, c);
+            0
+        } };
+
+        i = i + 1;
+        ()
+    } };
+
+    slen
+};
+
 // Write JSON string (with quotes) to StringBuilder
-// v0.50.74: Use sb_push_escaped for bulk escape in one call (eliminates per-char overhead)
 fn json_string_to_sb(s: String, sb: i64) -> i64 = {
-    let u1 = sb_push(sb, "\"");
-    let u2 = sb_push_escaped(sb, s);
-    sb_push(sb, "\"")
+    let u1 = sb_push_char(sb, 34);  -- opening quote
+    let u2 = write_escaped_string(s, sb);
+    sb_push_char(sb, 34)  -- closing quote
 };
 
 // Write JSON integer to StringBuilder
-// v0.50.73: Use sb_push_int for O(1) allocation instead of O(n) from int_to_string
 fn json_int_to_sb(n: i64, sb: i64) -> i64 =
     sb_push_int(sb, n);
 
@@ -43,12 +75,18 @@ fn serialize_person_to_sb(name: String, age: i64, city: String, salary: i64, sb:
     sb_push(sb, "}")
 };
 
-// Pre-built int array (for performance comparison parity with C)
-fn array_1_to_10() -> String =
-    "[1,2,3,4,5,6,7,8,9,10]";
-
-fn array_1_to_5() -> String =
-    "[1,2,3,4,5]";
+// Serialize integer array to StringBuilder
+fn serialize_int_array(arr: i64, len: i64, sb: i64) -> i64 = {
+    let u0 = sb_push_char(sb, 91);  -- [
+    let mut i: i64 = 0;
+    while i < len { {
+        i = if i > 0 { { sb_push_char(sb, 44); i } } else { i };  -- comma
+        sb_push_int(sb, load_i64(arr + i * 8));
+        i = i + 1;
+        ()
+    } };
+    sb_push_char(sb, 93)  -- ]
+};
 
 // Test strings with special characters
 fn name_with_quote() -> String = "Alice \"The Great\"";
@@ -63,21 +101,34 @@ fn run_benchmark(iterations: i64) -> i64 = {
     let mut len2: i64 = 0;
     let mut len3: i64 = 0;
 
-    { i = 0 };
-    while i < iterations {
+    -- Create test array [1,2,3,4,5,6,7,8,9,10]
+    let arr = calloc(10, 8);
+    let mut j: i64 = 0;
+    while j < 10 { {
+        store_i64(arr + j * 8, j + 1);
+        j = j + 1;
+        ()
+    } };
+
+    while i < iterations { {
         sb_clear(sb);
         serialize_person_to_sb("John Doe", 30, "New York", 50000, sb);
-        { len1 = sb_len(sb) };
+        len1 = sb_len(sb);
+
+        sb_clear(sb);
+        serialize_int_array(arr, 10, sb);
+        len2 = sb_len(sb);
 
         sb_clear(sb);
         serialize_person_to_sb(name_with_quote(), 25, city_with_newline(), 60000, sb);
-        { len2 = sb_len(sb) };
+        len3 = sb_len(sb);
 
-        { len3 = 21 };
-        { total_len = total_len + len1 + len2 + len3 };
+        total_len = total_len + len1 + len2 + len3;
         i = i + 1;
-    };
+        ()
+    } };
 
+    let u = free(arr);
     total_len
 };
 
@@ -94,7 +145,12 @@ fn main() -> i64 = {
     let sample1 = sb_build(sb);
     let u4 = printline("  Object: " + sample1);
 
-    let sample2 = array_1_to_5();
+    sb_clear(sb);
+    let arr = calloc(5, 8);
+    let mut i: i64 = 0;
+    while i < 5 { { store_i64(arr + i * 8, i + 1); i = i + 1; () } };
+    let s2 = serialize_int_array(arr, 5, sb);
+    let sample2 = sb_build(sb);
     let u5 = printline("  Array: " + sample2);
 
     printline("Done.")
