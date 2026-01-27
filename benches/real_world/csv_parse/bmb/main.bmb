@@ -1,7 +1,6 @@
 // csv-parse - CSV parsing benchmark
 // Tests string processing, field extraction
-// Self-contained with embedded test data
-// v0.52: Use byte_at for direct byte access (avoid char_at + ord overhead)
+// v0.51.50: Single-pass parsing for optimal performance
 
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
@@ -16,83 +15,65 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// v0.52: Use byte_at for direct byte access - no allocation per character
-// Count fields in a range [start, end) (simple: count commas + 1)
-fn count_commas_range(data: String, pos: i64, end: i64, count: i64) -> i64 =
-    if pos >= end { count }
-    else if data.byte_at(pos) == 44 { count_commas_range(data, pos + 1, end, count + 1) }  -- comma
-    else { count_commas_range(data, pos + 1, end, count) };
-
-fn count_fields_range(data: String, start: i64, end: i64) -> i64 =
-    if end <= start { 0 }
-    else { count_commas_range(data, start, end, 0) + 1 };
-
-// Count quoted fields in a range [start, end)
-fn count_quotes_range(data: String, pos: i64, end: i64, count: i64) -> i64 =
-    if pos >= end { count }
-    else if data.byte_at(pos) == 34 { count_quotes_range(data, pos + 1, end, count + 1) }  -- quote
-    else { count_quotes_range(data, pos + 1, end, count) };
-
-fn count_quoted_fields_range(data: String, start: i64, end: i64) -> i64 =
-    count_quotes_range(data, start, end, 0) / 2;  -- Each quoted field has 2 quotes
-
-// Find next newline or pipe (row separator) in data
-fn find_newline(data: String, pos: i64) -> i64 =
-    if pos >= data.len() { pos }
-    else if data.byte_at(pos) == 10 { pos }   -- newline
-    else if data.byte_at(pos) == 124 { pos }  -- pipe (our row separator)
-    else { find_newline(data, pos + 1) };
-
-// Parse all lines and accumulate stats using position-based approach
+// Single-pass parsing: count rows, commas, and quotes in one iteration
 // Returns: rows * 10000000 + fields * 10000 + quoted
-fn parse_lines(data: String, pos: i64, rows: i64, fields: i64, quoted: i64) -> i64 =
-    if pos >= data.len() {
-        rows * 10000000 + fields * 10000 + quoted
-    }
-    else {
-        let end = find_newline(data, pos);
-        let line_len = end - pos;
-        let new_rows = if line_len > 0 { rows + 1 } else { rows };
-        let new_fields = fields + count_fields_range(data, pos, end);
-        let new_quoted = quoted + count_quoted_fields_range(data, pos, end);
-        let next_pos = if end < data.len() { end + 1 } else { end };
-        parse_lines(data, next_pos, new_rows, new_fields, new_quoted)
-    };
+fn parse_single_pass(data: String) -> i64 = {
+    let data_len = data.len();
+    let mut pos: i64 = 0;
+    let mut rows: i64 = 0;
+    let mut commas: i64 = 0;
+    let mut quotes: i64 = 0;
+    let mut c: i64 = 0;
+    let mut in_row: i64 = 0;  -- 1 if we've seen non-separator content
+
+    while pos < data_len { {
+        c = data.byte_at(pos);
+        -- Count character types
+        commas = if c == 44 { commas + 1 } else { commas };   -- comma
+        quotes = if c == 34 { quotes + 1 } else { quotes };   -- quote
+        -- Track rows (newline or pipe ends a row)
+        rows = if c == 10 { rows + 1 }                        -- newline
+               else { if c == 124 { rows + 1 }                -- pipe
+               else { rows } };
+        pos = pos + 1;
+        ()
+    } };
+
+    -- Add final row if data doesn't end with separator
+    rows = if data_len > 0 { rows + 1 } else { rows };
+    -- Fields = commas + rows (each row has commas+1 fields)
+    -- Quoted fields = quotes / 2
+    rows * 10000000 + (commas + rows) * 10000 + (quotes / 2)
+};
 
 fn get_stat_rows(stats: i64) -> i64 = stats / 10000000;
 fn get_stat_fields(stats: i64) -> i64 = (stats / 10000) % 1000;
 fn get_stat_quoted(stats: i64) -> i64 = stats % 10000;
 
-// Print stats
 fn print_stats(stats: i64) -> i64 = {
     let _u1 = printline("  Rows: " + int_to_string(get_stat_rows(stats)));
     let _u2 = printline("  Fields: " + int_to_string(get_stat_fields(stats)));
     printline("  Quoted fields: " + int_to_string(get_stat_quoted(stats)))
 };
 
-// Quote character (chr returns String)
 fn quote() -> String = chr(34);
 
-// Test data
 fn test_data() -> String =
     "name,age,city,salary|John Doe,30,New York,50000|Jane Smith,25,Los Angeles,60000|" +
     quote() + "Bob Jones" + quote() + ",45,Chicago,75000|Alice,28," + quote() + "San Francisco" + quote() + ",80000|Charlie,35,Boston,55000";
 
-// Generate repeated rows for larger test
 fn generate_row() -> String =
     "field1,field2,field3," + quote() + "quoted" + quote() + ",field5|";
 
-// v0.52: Use StringBuilder to avoid O(n²) string concatenation
-fn generate_large_sb(n: i64, sb: i64) -> i64 =
-    if n <= 0 { sb }
-    else {
-        let _u = sb_push(sb, generate_row());
-        generate_large_sb(n - 1, sb)
-    };
-
 fn generate_large(n: i64) -> String = {
     let sb = sb_new();
-    let _u = generate_large_sb(n, sb);
+    let row = generate_row();
+    let mut i: i64 = 0;
+    while i < n { {
+        sb_push(sb, row);
+        i = i + 1;
+        ()
+    } };
     sb_build(sb)
 };
 
@@ -100,16 +81,14 @@ fn main() -> i64 = {
     let _u1 = printline("CSV Parse Benchmark");
     let _u2 = printline("");
 
-    -- Parse test data
     let data = test_data();
-    let stats = parse_lines(data, 0, 0, 0, 0);
+    let stats = parse_single_pass(data);
     let _u3 = printline("Small dataset:");
     let _u4 = print_stats(stats);
     let _u5 = printline("");
 
-    -- Generate and parse larger dataset (FAIR VERSION v0.51.5: 1000 rows like C)
     let large = generate_large(1000);
-    let large_stats = parse_lines(large, 0, 0, 0, 0);
+    let large_stats = parse_single_pass(large);
     let _u6 = printline("Large dataset (1000 rows):");
     let _u7 = print_stats(large_stats);
 
