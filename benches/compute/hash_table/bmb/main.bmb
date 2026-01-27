@@ -1,39 +1,128 @@
-// Hash Table benchmark - WHILE LOOP VERSION
-// v0.51.7: Rewritten with while loops for optimal LLVM optimization
-// Measures: hashmap insert, lookup, and delete operations
+// Hash Table benchmark - PURE BMB VERSION
+// v0.51.45: Uses pure BMB HashMap for full inlining (P0-B optimization)
 
-// Number of operations (same as C: 100000)
+fn table_size() -> i64 = 131072;
+fn entry_size() -> i64 = 24;
 fn get_n() -> i64 = 100000;
-
-// Sentinel value for "not found" (i64::MIN equivalent)
 fn not_found() -> i64 = 0 - 9223372036854775807 - 1;
 
-// Simple pseudo-random number generator (linear congruential)
-fn random_next(seed: i64) -> i64 =
-    (seed * 1103515245 + 12345) % 2147483648;
+fn hash_i64(key: i64) -> i64 = {
+    let h = key * 5871781006564002453;
+    h bxor (h >> 32)
+};
 
-// Insert N key-value pairs into hashmap
+fn hm_new() -> i64 = calloc(1, table_size() * entry_size());
+fn hm_free(m: i64) -> i64 = { free(m); 0 };
+
+fn entry_ptr(m: i64, idx: i64) -> i64 = m + (idx * entry_size());
+fn entry_key(e: i64) -> i64 = load_i64(e);
+fn entry_value(e: i64) -> i64 = load_i64(e + 8);
+fn entry_state(e: i64) -> i64 = load_i64(e + 16);
+fn set_entry(e: i64, key: i64, value: i64, state: i64) -> i64 = {
+    store_i64(e, key);
+    store_i64(e + 8, value);
+    store_i64(e + 16, state);
+    0
+};
+
+fn random_next(seed: i64) -> i64 = (seed * 1103515245 + 12345) % 2147483648;
+
+// Insert: returns old value or 0
+fn hm_insert_loop(m: i64, key: i64, value: i64, idx: i64, mask: i64) -> i64 =
+    if idx > mask { 0 }
+    else {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+        if state == 0 or state == 2 {
+            let _s = set_entry(e, key, value, 1);
+            0
+        } else if state == 1 and entry_key(e) == key {
+            let old = entry_value(e);
+            let _u = store_i64(e + 8, value);
+            old
+        } else {
+            hm_insert_loop(m, key, value, (idx + 1) band mask, mask)
+        }
+    };
+
+fn hm_insert(m: i64, key: i64, value: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    hm_insert_loop(m, key, value, hash band mask, mask)
+};
+
+// Get: returns value or not_found
+fn hm_get_loop(m: i64, key: i64, idx: i64, mask: i64) -> i64 =
+    if idx > mask { not_found() }
+    else {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+        if state == 0 { not_found() }
+        else if state == 1 and entry_key(e) == key { entry_value(e) }
+        else { hm_get_loop(m, key, (idx + 1) band mask, mask) }
+    };
+
+fn hm_get(m: i64, key: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    hm_get_loop(m, key, hash band mask, mask)
+};
+
+// Remove: returns old value or not_found
+fn hm_remove_loop(m: i64, key: i64, idx: i64, mask: i64) -> i64 =
+    if idx > mask { not_found() }
+    else {
+        let e = entry_ptr(m, idx);
+        let state = entry_state(e);
+        if state == 0 { not_found() }
+        else if state == 1 and entry_key(e) == key {
+            let old = entry_value(e);
+            let _u = store_i64(e + 16, 2);  -- Mark as deleted
+            old
+        }
+        else { hm_remove_loop(m, key, (idx + 1) band mask, mask) }
+    };
+
+fn hm_remove(m: i64, key: i64) -> i64 = {
+    let hash = hash_i64(key);
+    let mask = table_size() - 1;
+    hm_remove_loop(m, key, hash band mask, mask)
+};
+
+// Count entries (using while loop for interpreter compatibility)
+fn hm_count(m: i64) -> i64 = {
+    let mut idx: i64 = 0;
+    let mut count: i64 = 0;
+    while idx < table_size() {
+        let e = entry_ptr(m, idx);
+        let inc = if entry_state(e) == 1 { 1 } else { 0 };
+        { count = count + inc };
+        { idx = idx + 1 };
+    };
+    count
+};
+
+// Benchmark functions
 fn benchmark_insert(m: i64, n: i64, seed: i64) -> i64 = {
     let mut i: i64 = 0;
     let mut s: i64 = seed;
     while i < n {
         let key = s % 1000000;
         let value = key * 7;
-        let _r = hashmap_insert(m, key, value);
+        let _r = hm_insert(m, key, value);
         { s = random_next(s) };
         { i = i + 1 };
     };
     s
 };
 
-// Lookup N keys from hashmap
 fn benchmark_lookup(m: i64, n: i64, seed: i64) -> i64 = {
     let mut i: i64 = 0;
     let mut s: i64 = seed;
     let mut found: i64 = 0;
     while i < n {
         let key = s % 1000000;
-        let result = hashmap_get(m, key);
+        let result = hm_get(m, key);
         let is_found = if result != not_found() { 1 } else { 0 };
         { found = found + is_found };
         { s = random_next(s) };
@@ -42,14 +131,13 @@ fn benchmark_lookup(m: i64, n: i64, seed: i64) -> i64 = {
     found
 };
 
-// Delete N keys from hashmap
 fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 = {
     let mut i: i64 = 0;
     let mut s: i64 = seed;
     let mut deleted: i64 = 0;
     while i < n {
         let key = s % 1000000;
-        let result = hashmap_remove(m, key);
+        let result = hm_remove(m, key);
         let was_deleted = if result != not_found() { 1 } else { 0 };
         { deleted = deleted + was_deleted };
         { s = random_next(s) };
@@ -61,29 +149,20 @@ fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 = {
 fn main() -> i64 = {
     let n = get_n();
     let seed = 42;
+    let m = hm_new();
 
-    // Create hashmap
-    let m = hashmap_new();
-
-    // Phase 1: Insert operations
-    let seed1 = benchmark_insert(m, n, seed);
-    let len1 = hashmap_len(m);
+    let _seed1 = benchmark_insert(m, n, seed);
+    let len1 = hm_count(m);
     let _p1 = println(len1);
 
-    // Phase 2: Lookup operations (same seed = same keys)
     let found = benchmark_lookup(m, n, seed);
     let _p2 = println(found);
 
-    // Phase 3: Delete half the entries (different seed)
-    let deleted = benchmark_delete(m, n / 2, random_next(seed));
-    let len2 = hashmap_len(m);
+    let _deleted = benchmark_delete(m, n / 2, random_next(seed));
+    let len2 = hm_count(m);
     let _p3 = println(len2);
 
-    // Cleanup
-    let _f = hashmap_free(m);
-
-    // Return final length as verification
-    let result = len2;
-    let _u = println(result);
+    let _f = hm_free(m);
+    let _u = println(len2);
     0
 };
