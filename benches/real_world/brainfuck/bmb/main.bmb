@@ -53,8 +53,9 @@ fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
 // v0.58: Nested if-else for short-circuit evaluation (avoid checking all conditions)
 // v0.57: Inlined instruction handlers
 
-// Execute one instruction - returns (new_ptr, new_pc) encoded as ptr * 1000000 + pc_delta
-// pc_delta: 0 = normal increment, positive = jump forward, negative = jump back
+// Execute one instruction - returns (new_ptr, new_pc)
+// v0.59: @inline forces LLVM alwaysinline attribute for aggressive inlining
+@inline
 fn exec_one(tape: i64, ptr: i64, pc: i64, c: i64, prog: String, ts: i64) -> (i64, i64) =
     if c == 62 {        -- '>'
         (if ptr + 1 >= ts { 0 } else { ptr + 1 }, pc)
