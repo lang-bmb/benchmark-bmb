@@ -1,173 +1,150 @@
 // brainfuck - Esoteric language interpreter benchmark
 // Tests interpreter overhead, loop handling, array access
-// Self-contained with embedded test program
+// v0.51.50: Optimized with malloc-based tape and while loops
+// Performance target: C parity
 
-// Note: BMB interpreter doesn't support stdin, so ',' is a no-op
+fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
-fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
-
-// Tape size
+// Tape size (same as C version)
 fn tape_size() -> i64 = 30000;
 
-// Create and initialize tape
-fn create_tape() -> i64 = {
-    let tape = vec_new();
-    init_tape(tape, 0)
-};
+// Array operations using malloc for direct memory access (i64 per cell)
+fn tape_new() -> i64 = calloc(tape_size(), 8);  -- zero-initialized i64 array
+fn tape_free(tape: i64) -> i64 = { free(tape); 0 };
+fn tape_get(tape: i64, ptr: i64) -> i64 = load_i64(tape + ptr * 8);
+fn tape_set(tape: i64, ptr: i64, val: i64) -> i64 = { store_i64(tape + ptr * 8, val); 0 };
 
-fn init_tape(tape: i64, i: i64) -> i64 =
-    if i >= tape_size() { tape }
-    else {
-        let u = vec_push(tape, 0);
-        init_tape(tape, i + 1)
-    };
-
-// Get byte at position in program string (v0.51.44: use byte_at directly)
+// Get byte at position in program string
 fn get_char(prog: String, pos: i64) -> i64 =
     if pos >= prog.len() { 0 }
     else { prog.byte_at(pos) };
 
-// Find matching bracket (for [ and ])
-fn find_matching_close(prog: String, pc: i64, depth: i64) -> i64 =
-    if depth <= 0 { pc }
-    else {
-        let next_pc = pc + 1;
-        let c = get_char(prog, next_pc);
-        let new_depth = if c == 91 { depth + 1 }       -- '[' = 91
-                        else if c == 93 { depth - 1 }  -- ']' = 93
-                        else { depth };
-        find_matching_close(prog, next_pc, new_depth)
-    };
+// Find matching bracket using while loop
+fn find_matching_close(prog: String, start_pc: i64) -> i64 = {
+    let mut pc: i64 = start_pc + 1;
+    let mut depth: i64 = 1;
+    let mut c: i64 = 0;
 
-fn find_matching_open(prog: String, pc: i64, depth: i64) -> i64 =
-    if depth <= 0 { pc }
-    else {
-        let next_pc = pc - 1;
-        let c = get_char(prog, next_pc);
-        let new_depth = if c == 93 { depth + 1 }       -- ']' = 93
-                        else if c == 91 { depth - 1 }  -- '[' = 91
-                        else { depth };
-        find_matching_open(prog, next_pc, new_depth)
-    };
+    while depth > 0 { {
+        c = get_char(prog, pc);
+        depth = if c == 91 { depth + 1 } else { if c == 93 { depth - 1 } else { depth } };
+        pc = pc + 1;
+        ()
+    } };
+    pc - 1
+};
 
-// Main interpreter loop
-// Returns final pc
-fn interpret_loop(prog: String, tape: i64, ptr: i64, pc: i64) -> i64 =
-    if pc >= prog.len() { pc }
-    else {
-        let c = get_char(prog, pc);
-        let result = execute_instruction(prog, tape, ptr, pc, c);
-        let new_ptr = result / 1000000000;
-        let new_pc = result % 1000000000;
-        interpret_loop(prog, tape, new_ptr, new_pc + 1)
-    };
+fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
+    let mut pc: i64 = start_pc - 1;
+    let mut depth: i64 = 1;
+    let mut c: i64 = 0;
 
-// Execute single instruction
-// Returns encoded (new_ptr * 1000000000 + new_pc)
-fn execute_instruction(prog: String, tape: i64, ptr: i64, pc: i64, c: i64) -> i64 =
+    while depth > 0 { {
+        c = get_char(prog, pc);
+        depth = if c == 93 { depth + 1 } else { if c == 91 { depth - 1 } else { depth } };
+        pc = pc - 1;
+        ()
+    } };
+    pc + 1
+};
+
+// Individual instruction handlers
+fn do_right(ptr: i64, ts: i64) -> i64 = if ptr + 1 >= ts { 0 } else { ptr + 1 };
+fn do_left(ptr: i64, ts: i64) -> i64 = if ptr == 0 { ts - 1 } else { ptr - 1 };
+fn do_inc(val: i64) -> i64 = (val + 1) % 256;
+fn do_dec(val: i64) -> i64 = if val == 0 { 255 } else { val - 1 };
+
+// Execute single instruction, returns new_ptr * 1000000000 + new_pc (encoded)
+fn exec_instr(tape: i64, ptr: i64, pc: i64, c: i64, prog: String) -> i64 = {
+    let ts = tape_size();
+    let enc = 1000000000;
+
     if c == 62 {            -- '>' = 62
-        let new_ptr = (ptr + 1) % tape_size();
-        new_ptr * 1000000000 + pc
+        do_right(ptr, ts) * enc + pc
     }
-    else if c == 60 {       -- '<' = 60
-        let new_ptr = if ptr == 0 { tape_size() - 1 } else { ptr - 1 };
-        new_ptr * 1000000000 + pc
+    else { if c == 60 {     -- '<' = 60
+        do_left(ptr, ts) * enc + pc
     }
-    else if c == 43 {       -- '+' = 43
-        let val = vec_get(tape, ptr);
-        let new_val = (val + 1) % 256;  -- Wrap at 256
-        let u = vec_set(tape, ptr, new_val);
-        ptr * 1000000000 + pc
+    else { if c == 43 {     -- '+' = 43
+        let val = tape_get(tape, ptr);
+        let _s = tape_set(tape, ptr, do_inc(val));
+        ptr * enc + pc
     }
-    else if c == 45 {       -- '-' = 45
-        let val = vec_get(tape, ptr);
-        let new_val = if val == 0 { 255 } else { val - 1 };
-        let u = vec_set(tape, ptr, new_val);
-        ptr * 1000000000 + pc
+    else { if c == 45 {     -- '-' = 45
+        let val = tape_get(tape, ptr);
+        let _s = tape_set(tape, ptr, do_dec(val));
+        ptr * enc + pc
     }
-    else if c == 46 {       -- '.' = 46
-        let val = vec_get(tape, ptr);
-        let u = print_str(chr(val));
-        ptr * 1000000000 + pc
+    else { if c == 46 {     -- '.' = 46 (output)
+        let val = tape_get(tape, ptr);
+        let _p = print_str(chr(val));
+        ptr * enc + pc
     }
-    else if c == 44 {       -- ',' = 44 (input - no-op in BMB)
-        ptr * 1000000000 + pc
+    else { if c == 44 {     -- ',' = 44 (input - no-op)
+        ptr * enc + pc
     }
-    else if c == 91 {       -- '[' = 91
-        let val = vec_get(tape, ptr);
-        if val == 0 {
-            let new_pc = find_matching_close(prog, pc, 1);
-            ptr * 1000000000 + new_pc
-        }
-        else {
-            ptr * 1000000000 + pc
-        }
+    else { if c == 91 {     -- '[' = 91
+        let val = tape_get(tape, ptr);
+        let new_pc = if val == 0 { find_matching_close(prog, pc) } else { pc };
+        ptr * enc + new_pc
     }
-    else if c == 93 {       -- ']' = 93
-        let val = vec_get(tape, ptr);
-        if val != 0 {
-            let new_pc = find_matching_open(prog, pc, 1);
-            ptr * 1000000000 + new_pc
-        }
-        else {
-            ptr * 1000000000 + pc
-        }
+    else { if c == 93 {     -- ']' = 93
+        let val = tape_get(tape, ptr);
+        let new_pc = if val != 0 { find_matching_open(prog, pc) } else { pc };
+        ptr * enc + new_pc
     }
-    else {
-        ptr * 1000000000 + pc  -- Ignore other characters
-    };
+    else { ptr * enc + pc } } } } } } } }
+};
 
-// Run a brainfuck program
+// Main interpreter
 fn interpret(prog: String) -> i64 = {
-    let tape = create_tape();
-    let result = interpret_loop(prog, tape, 0, 0);
-    let u = vec_free(tape);
-    result
+    let tape = tape_new();
+    let prog_len = prog.len();
+    let enc = 1000000000;
+    let mut ptr: i64 = 0;
+    let mut pc: i64 = 0;
+    let mut c: i64 = 0;
+    let mut result: i64 = 0;
+
+    while pc < prog_len { {
+        c = get_char(prog, pc);
+        result = exec_instr(tape, ptr, pc, c, prog);
+        ptr = result / enc;
+        pc = result % enc;
+        pc = pc + 1;
+        ()
+    } };
+
+    tape_free(tape)
 };
 
 // Test programs
-
-// Hello World
 fn hello_world() -> String =
     "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]" +
     ">>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
 
-// Nested loops (smaller for interpreter - 1000 iterations)
-// Output 'X' (88) after computation, then newline
 fn nested_loops() -> String =
-    "++++++++++[" +            // 10 iterations
-    ">++++++++++[" +           // 10 iterations (100 total)
-    ">++++++++++[" +           // 10 iterations (1000 total)
-    ">+<-" +
-    "]<-" +
-    "]<-" +
-    "]" +
-    ">>>[-]" +                 // Clear the result cell
-    "++++++++[>+++++++++++<-]>." +  // Print 'X' (88) = 8*11
-    "[-]++++++++++.";             // Newline (10)
+    "++++++++++[>++++++++++[>++++++++++[>+<-]<-]<-]" +
+    ">>>[-]++++++++[>+++++++++++<-]>.[-]++++++++++.";
 
-// Simple add test
 fn add_test() -> String =
-    "++++++++[>++++++++<-]>."; // 8 * 8 = 64 = '@'
+    "++++++++[>++++++++<-]>.";
 
 fn main() -> i64 = {
-    let u1 = printline("Brainfuck Interpreter Benchmark");
+    let _u1 = printline("Brainfuck Interpreter Benchmark");
 
-    // Run Hello World
-    let u2 = print_str("Hello World: ");
-    let u3 = interpret(hello_world());
-    let u4 = printline("");
+    let _u2 = print_str("Hello World: ");
+    let _u3 = interpret(hello_world());
+    let _u4 = printline("");
 
-    // Run nested loops (smaller scale for interpreter)
-    let u5 = print_str("Nested loops (1000 iterations): ");
-    let u6 = interpret(nested_loops());
-    let u7 = printline("");
+    let _u5 = print_str("Nested loops (1000 iterations): ");
+    let _u6 = interpret(nested_loops());
+    let _u7 = printline("");
 
-    // Run add test
-    let u8 = print_str("Add test (8*8=@): ");
-    let u9 = interpret(add_test());
-    let u10 = printline("");
+    let _u8 = print_str("Add test (8*8=@): ");
+    let _u9 = interpret(add_test());
+    let _u10 = printline("");
 
-    let u11 = printline("Done.");
+    let _u11 = printline("Done.");
     0
 };
