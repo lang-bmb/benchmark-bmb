@@ -1,19 +1,17 @@
-// Sorting benchmark - FAIR VERSION
+// Sorting benchmark - FAIR VERSION v0.56
 // Measures: comparison operations, data movement
-// Uses actual array sorting like C version
-// v0.51.5: Rewritten to match C workload exactly
+// v0.56: Inlined array accessors for reduced overhead
 
-// Array operations using malloc/load_i64/store_i64
+// Inlined array operations
 fn array_new(n: i64) -> i64 = malloc(n * 8);
-fn array_get(arr: i64, i: i64) -> i64 = load_i64(arr + i * 8);
-fn array_set(arr: i64, i: i64, val: i64) -> i64 = { store_i64(arr + i * 8, val); 0 };
-fn array_free(arr: i64) -> i64 = { free(arr); 0 };
+fn array_free(arr: i64) -> i64 = { let _u = free(arr); 0 };
 
-// Swap two elements in array
+// Swap two elements in array (inlined)
 fn swap(arr: i64, i: i64, j: i64) -> i64 = {
-    let tmp = array_get(arr, i);
-    let _a = array_set(arr, i, array_get(arr, j));
-    array_set(arr, j, tmp)
+    let tmp = load_i64(arr + i * 8);
+    let _a = store_i64(arr + i * 8, load_i64(arr + j * 8));
+    let _b = store_i64(arr + j * 8, tmp);
+    0
 };
 
 // Initialize array with reverse order (worst case for bubble/insertion sort)
@@ -23,11 +21,11 @@ fn init_reverse(arr: i64, size: i64) -> i64 =
 fn init_reverse_loop(arr: i64, size: i64, i: i64) -> i64 =
     if i >= size { 0 }
     else {
-        let _s = array_set(arr, i, size - i);
+        let _s = store_i64(arr + i * 8, size - i);
         init_reverse_loop(arr, size, i + 1)
     };
 
-// ============ Bubble Sort ============
+// ============ Bubble Sort (inlined array access) ============
 fn bubble_sort(arr: i64, n: i64) -> i64 =
     bubble_outer(arr, n, 0, 0);
 
@@ -41,40 +39,39 @@ fn bubble_outer(arr: i64, n: i64, i: i64, comparisons: i64) -> i64 =
 fn bubble_inner(arr: i64, n: i64, i: i64, j: i64, comparisons: i64) -> i64 =
     if j >= n - i - 1 { comparisons }
     else {
-        let a = array_get(arr, j);
-        let b = array_get(arr, j + 1);
+        let a = load_i64(arr + j * 8);
+        let b = load_i64(arr + (j + 1) * 8);
         let _s = if a > b { swap(arr, j, j + 1) } else { 0 };
         bubble_inner(arr, n, i, j + 1, comparisons + 1)
     };
 
-// ============ Insertion Sort ============
+// ============ Insertion Sort (inlined array access) ============
 fn insertion_sort(arr: i64, n: i64) -> i64 =
     insertion_outer(arr, n, 1, 0);
 
 fn insertion_outer(arr: i64, n: i64, i: i64, cost: i64) -> i64 =
     if i >= n { cost }
     else {
-        let key = array_get(arr, i);
+        let key = load_i64(arr + i * 8);
         let result = insertion_inner(arr, i - 1, key, cost);
         insertion_outer(arr, n, i + 1, result)
     };
 
 fn insertion_inner(arr: i64, j: i64, key: i64, cost: i64) -> i64 =
     if j < 0 {
-        let _s = array_set(arr, j + 1, key);
+        let _s = store_i64(arr + (j + 1) * 8, key);
         cost + 1
     }
-    else if array_get(arr, j) > key {
-        let _s = array_set(arr, j + 1, array_get(arr, j));
+    else if load_i64(arr + j * 8) > key {
+        let _s = store_i64(arr + (j + 1) * 8, load_i64(arr + j * 8));
         insertion_inner(arr, j - 1, key, cost + 1)
     }
     else {
-        let _s = array_set(arr, j + 1, key);
+        let _s = store_i64(arr + (j + 1) * 8, key);
         cost + 1
     };
 
-// ============ Merge Sort ============
-// Returns cost (comparison count)
+// ============ Merge Sort (inlined array access) ============
 fn merge_sort(arr: i64, n: i64) -> i64 =
     merge_sort_helper(arr, 0, n - 1);
 
@@ -108,30 +105,28 @@ fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
 fn copy_to_temp(src: i64, dst: i64, src_start: i64, count: i64, i: i64) -> i64 =
     if i >= count { 0 }
     else {
-        let _s = array_set(dst, i, array_get(src, src_start + i));
+        let _s = store_i64(dst + i * 8, load_i64(src + (src_start + i) * 8));
         copy_to_temp(src, dst, src_start, count, i + 1)
     };
 
 fn merge_arrays(arr: i64, left: i64, right: i64, n1: i64, n2: i64, k: i64, i: i64, j: i64, cost: i64) -> i64 =
     if i >= n1 and j >= n2 { cost }
     else if i >= n1 {
-        // Copy remaining right
         let _c = copy_remaining(arr, right, k, j, n2);
         cost
     }
     else if j >= n2 {
-        // Copy remaining left
         let _c = copy_remaining(arr, left, k, i, n1);
         cost
     }
     else {
-        let l_val = array_get(left, i);
-        let r_val = array_get(right, j);
+        let l_val = load_i64(left + i * 8);
+        let r_val = load_i64(right + j * 8);
         if l_val <= r_val {
-            let _s = array_set(arr, k, l_val);
+            let _s = store_i64(arr + k * 8, l_val);
             merge_arrays(arr, left, right, n1, n2, k + 1, i + 1, j, cost + 1)
         } else {
-            let _s = array_set(arr, k, r_val);
+            let _s = store_i64(arr + k * 8, r_val);
             merge_arrays(arr, left, right, n1, n2, k + 1, i, j + 1, cost + 1)
         }
     };
@@ -139,39 +134,37 @@ fn merge_arrays(arr: i64, left: i64, right: i64, n1: i64, n2: i64, k: i64, i: i6
 fn copy_remaining(arr: i64, src: i64, k: i64, i: i64, n: i64) -> i64 =
     if i >= n { 0 }
     else {
-        let _s = array_set(arr, k, array_get(src, i));
+        let _s = store_i64(arr + k * 8, load_i64(src + i * 8));
         copy_remaining(arr, src, k + 1, i + 1, n)
     };
 
-// ============ Quick Sort ============
-// Returns cost (comparison count)
+// ============ Quick Sort (inlined array access) ============
 fn quick_sort(arr: i64, n: i64) -> i64 =
     quick_sort_helper(arr, 0, n - 1);
 
 fn quick_sort_helper(arr: i64, low: i64, high: i64) -> i64 =
     if low < high {
-        // partition returns: pi * 1000000 + cost
         let result = partition(arr, low, high);
-        let pi = result / 1000000;
-        let partition_cost = result % 1000000;
+        let pi = result.0;
+        let partition_cost = result.1;
         let cost_left = quick_sort_helper(arr, low, pi - 1);
         let cost_right = quick_sort_helper(arr, pi + 1, high);
         partition_cost + cost_left + cost_right
     } else { 0 };
 
-// Returns: pi * 1000000 + cost (encoded)
-fn partition(arr: i64, low: i64, high: i64) -> i64 = {
-    let pivot = array_get(arr, high);
+// Returns (pivot_index, comparison_cost)
+fn partition(arr: i64, low: i64, high: i64) -> (i64, i64) = {
+    let pivot = load_i64(arr + high * 8);
     partition_loop(arr, low, high, pivot, low, low - 1, 0)
 };
 
-fn partition_loop(arr: i64, low: i64, high: i64, pivot: i64, j: i64, i: i64, cost: i64) -> i64 =
+fn partition_loop(arr: i64, low: i64, high: i64, pivot: i64, j: i64, i: i64, cost: i64) -> (i64, i64) =
     if j >= high {
         let _s = swap(arr, i + 1, high);
-        (i + 1) * 1000000 + cost  // Return encoded pi and cost
+        (i + 1, cost)
     }
     else {
-        if array_get(arr, j) <= pivot {
+        if load_i64(arr + j * 8) <= pivot {
             let new_i = i + 1;
             let _s = swap(arr, new_i, j);
             partition_loop(arr, low, high, pivot, j + 1, new_i, cost + 1)
@@ -182,7 +175,6 @@ fn partition_loop(arr: i64, low: i64, high: i64, pivot: i64, j: i64, i: i64, cos
     };
 
 // ============ Main Benchmark ============
-// Matches C version: sizes from 50 down to 1, each size * 10
 fn run_benchmark(sizes: i64, acc: i64) -> i64 =
     if sizes <= 0 { acc }
     else {
