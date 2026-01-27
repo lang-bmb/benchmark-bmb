@@ -1,8 +1,10 @@
 // Hash Table benchmark - PURE BMB VERSION
-// v0.51.45: Uses pure BMB HashMap for full inlining (P0-B optimization)
+// v0.56: Inlined accessor functions for reduced function call overhead
+// v0.55: FAIR VERSION - Uses O(1) count tracking like C (not O(n) scan)
+// Layout: [count:i64][entries...]
+// Entry layout at offset 8: [key:i64][value:i64][state:i64] = 24 bytes per entry
 
 fn table_size() -> i64 = 131072;
-fn entry_size() -> i64 = 24;
 fn get_n() -> i64 = 100000;
 fn not_found() -> i64 = 0 - 9223372036854775807 - 1;
 
@@ -11,35 +13,36 @@ fn hash_i64(key: i64) -> i64 = {
     h bxor (h >> 32)
 };
 
-fn hm_new() -> i64 = calloc(1, table_size() * entry_size());
-fn hm_free(m: i64) -> i64 = { free(m); 0 };
-
-fn entry_ptr(m: i64, idx: i64) -> i64 = m + (idx * entry_size());
-fn entry_key(e: i64) -> i64 = load_i64(e);
-fn entry_value(e: i64) -> i64 = load_i64(e + 8);
-fn entry_state(e: i64) -> i64 = load_i64(e + 16);
-fn set_entry(e: i64, key: i64, value: i64, state: i64) -> i64 = {
-    store_i64(e, key);
-    store_i64(e + 8, value);
-    store_i64(e + 16, state);
-    0
+// HashMap: 8 bytes for count + entries array
+fn hm_new() -> i64 = {
+    let m = calloc(1, 8 + table_size() * 24);
+    let _u = store_i64(m, 0);  -- Initialize count to 0
+    m
 };
+fn hm_free(m: i64) -> i64 = { let _u = free(m); 0 };
 
 fn random_next(seed: i64) -> i64 = (seed * 1103515245 + 12345) % 2147483648;
 
-// Insert: returns old value or 0
+// ============================================================================
+// Insert with inlined accessors
+// ============================================================================
 fn hm_insert_loop(m: i64, key: i64, value: i64, idx: i64, mask: i64) -> i64 =
     if idx > mask { 0 }
     else {
-        let e = entry_ptr(m, idx);
-        let state = entry_state(e);
+        -- Inlined: entry_ptr = m + 8 + (idx * 24)
+        let e = m + 8 + (idx * 24);
+        -- Inlined: entry_state = load_i64(e + 16)
+        let state = load_i64(e + 16);
         if state == 0 or state == 2 {
-            let _s = set_entry(e, key, value, 1);
-            0
-        } else if state == 1 and entry_key(e) == key {
-            let old = entry_value(e);
-            let _u = store_i64(e + 8, value);
-            old
+            -- Inlined: set_entry
+            let _s1 = store_i64(e, key);
+            let _s2 = store_i64(e + 8, value);
+            let _s3 = store_i64(e + 16, 1);
+            1  -- New entry added
+        } else if state == 1 and load_i64(e) == key {
+            -- Inlined: entry_key = load_i64(e), update value
+            let _s = store_i64(e + 8, value);
+            0  -- Updated existing
         } else {
             hm_insert_loop(m, key, value, (idx + 1) band mask, mask)
         }
@@ -48,17 +51,22 @@ fn hm_insert_loop(m: i64, key: i64, value: i64, idx: i64, mask: i64) -> i64 =
 fn hm_insert(m: i64, key: i64, value: i64) -> i64 = {
     let hash = hash_i64(key);
     let mask = table_size() - 1;
-    hm_insert_loop(m, key, value, hash band mask, mask)
+    let added = hm_insert_loop(m, key, value, hash band mask, mask);
+    -- Inlined count increment
+    let _c = if added == 1 { let _u = store_i64(m, load_i64(m) + 1); 0 } else { 0 };
+    added
 };
 
-// Get: returns value or not_found
+// ============================================================================
+// Get with inlined accessors
+// ============================================================================
 fn hm_get_loop(m: i64, key: i64, idx: i64, mask: i64) -> i64 =
     if idx > mask { not_found() }
     else {
-        let e = entry_ptr(m, idx);
-        let state = entry_state(e);
+        let e = m + 8 + (idx * 24);
+        let state = load_i64(e + 16);
         if state == 0 { not_found() }
-        else if state == 1 and entry_key(e) == key { entry_value(e) }
+        else if state == 1 and load_i64(e) == key { load_i64(e + 8) }
         else { hm_get_loop(m, key, (idx + 1) band mask, mask) }
     };
 
@@ -68,17 +76,18 @@ fn hm_get(m: i64, key: i64) -> i64 = {
     hm_get_loop(m, key, hash band mask, mask)
 };
 
-// Remove: returns old value or not_found
+// ============================================================================
+// Remove with inlined accessors
+// ============================================================================
 fn hm_remove_loop(m: i64, key: i64, idx: i64, mask: i64) -> i64 =
-    if idx > mask { not_found() }
+    if idx > mask { 0 }
     else {
-        let e = entry_ptr(m, idx);
-        let state = entry_state(e);
-        if state == 0 { not_found() }
-        else if state == 1 and entry_key(e) == key {
-            let old = entry_value(e);
-            let _u = store_i64(e + 16, 2);  -- Mark as deleted
-            old
+        let e = m + 8 + (idx * 24);
+        let state = load_i64(e + 16);
+        if state == 0 { 0 }
+        else if state == 1 and load_i64(e) == key {
+            let _s = store_i64(e + 16, 2);  -- Mark as deleted
+            1  -- Removed
         }
         else { hm_remove_loop(m, key, (idx + 1) band mask, mask) }
     };
@@ -86,23 +95,15 @@ fn hm_remove_loop(m: i64, key: i64, idx: i64, mask: i64) -> i64 =
 fn hm_remove(m: i64, key: i64) -> i64 = {
     let hash = hash_i64(key);
     let mask = table_size() - 1;
-    hm_remove_loop(m, key, hash band mask, mask)
+    let removed = hm_remove_loop(m, key, hash band mask, mask);
+    -- Inlined count decrement
+    let _c = if removed == 1 { let _u = store_i64(m, load_i64(m) - 1); 0 } else { 0 };
+    removed
 };
 
-// Count entries (using while loop for interpreter compatibility)
-fn hm_count(m: i64) -> i64 = {
-    let mut idx: i64 = 0;
-    let mut count: i64 = 0;
-    while idx < table_size() {
-        let e = entry_ptr(m, idx);
-        let inc = if entry_state(e) == 1 { 1 } else { 0 };
-        { count = count + inc };
-        { idx = idx + 1 };
-    };
-    count
-};
-
+// ============================================================================
 // Benchmark functions
+// ============================================================================
 fn benchmark_insert(m: i64, n: i64, seed: i64) -> i64 = {
     let mut i: i64 = 0;
     let mut s: i64 = seed;
@@ -111,7 +112,7 @@ fn benchmark_insert(m: i64, n: i64, seed: i64) -> i64 = {
         let value = key * 7;
         let _r = hm_insert(m, key, value);
         { s = random_next(s) };
-        { i = i + 1 };
+        { i = i + 1 }
     };
     s
 };
@@ -126,7 +127,7 @@ fn benchmark_lookup(m: i64, n: i64, seed: i64) -> i64 = {
         let is_found = if result != not_found() { 1 } else { 0 };
         { found = found + is_found };
         { s = random_next(s) };
-        { i = i + 1 };
+        { i = i + 1 }
     };
     found
 };
@@ -138,10 +139,9 @@ fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 = {
     while i < n {
         let key = s % 1000000;
         let result = hm_remove(m, key);
-        let was_deleted = if result != not_found() { 1 } else { 0 };
-        { deleted = deleted + was_deleted };
+        { deleted = deleted + result };
         { s = random_next(s) };
-        { i = i + 1 };
+        { i = i + 1 }
     };
     deleted
 };
@@ -152,14 +152,14 @@ fn main() -> i64 = {
     let m = hm_new();
 
     let _seed1 = benchmark_insert(m, n, seed);
-    let len1 = hm_count(m);
+    let len1 = load_i64(m);  -- O(1) count access (inlined)
     let _p1 = println(len1);
 
     let found = benchmark_lookup(m, n, seed);
     let _p2 = println(found);
 
     let _deleted = benchmark_delete(m, n / 2, random_next(seed));
-    let len2 = hm_count(m);
+    let len2 = load_i64(m);  -- O(1) count access (inlined)
     let _p3 = println(len2);
 
     let _f = hm_free(m);

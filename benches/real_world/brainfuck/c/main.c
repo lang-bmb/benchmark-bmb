@@ -89,23 +89,35 @@ const char *nested_loops =
 // Simple add test
 const char *add_test = "++++++++[>++++++++<-]>."; // 8 * 8 = 64 = '@'
 
+// Run benchmark loop (no output) - v0.55: 10x for ~50ms execution
+void run_benchmark_loop(int n) {
+    for (int i = 0; i < n; i++) {
+        interpret(hello_world);
+        interpret(nested_loops);
+        interpret(add_test);
+    }
+}
+
 int main(void) {
     printf("Brainfuck Interpreter Benchmark\n");
 
-    // Run Hello World
+    // Run Hello World (with output)
     printf("Hello World: ");
     interpret(hello_world);
     printf("\n");
 
-    // Run nested loops benchmark
+    // Run nested loops benchmark (with output)
     printf("Nested loops (1000 iterations): ");
     interpret(nested_loops);
     printf("\n");
 
-    // Run add test
+    // Run add test (with output)
     printf("Add test (8*8=@): ");
     interpret(add_test);
     printf("\n");
+
+    // Run benchmark 10x for measurable timing (~50ms)
+    run_benchmark_loop(9);
 
     printf("Done.\n");
     return 0;

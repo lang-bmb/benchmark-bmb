@@ -188,7 +188,7 @@ int main(void) {
     printf("  Comments: %d\n", counts[TOK_COMMENT]);
     printf("\n");
 
-    // Benchmark with larger source
+    // Benchmark with larger source (100x - matches BMB encoding limits)
     generate_large_source(100);
     count_tokens(large_source, counts);
 

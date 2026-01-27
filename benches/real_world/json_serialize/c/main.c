@@ -1,10 +1,12 @@
 // json-serialize - JSON serialization benchmark
 // Tests string building, escaping, formatting
 // Self-contained with embedded test structures
+// v0.55: FAIR VERSION - Uses integer salary like BMB (no float-to-string)
 
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define BUF_SIZE 65536
 
@@ -41,31 +43,14 @@ static void write_string(const char *s) {
 }
 
 // Write integer
-static void write_int(long long n) {
+static void write_int(int64_t n) {
     char num[32];
-    snprintf(num, sizeof(num), "%lld", n);
+    snprintf(num, sizeof(num), "%lld", (long long)n);
     buf_str(num);
 }
 
-// Write float
-static void write_float(double d) {
-    char num[64];
-    snprintf(num, sizeof(num), "%.6g", d);
-    buf_str(num);
-}
-
-// Write bool
-static void write_bool(bool b) {
-    buf_str(b ? "true" : "false");
-}
-
-// Write null
-static void write_null(void) {
-    buf_str("null");
-}
-
-// Serialize a simple object
-static void serialize_person(const char *name, int age, const char *city, double salary) {
+// Serialize a simple object (salary is now integer like BMB)
+static void serialize_person(const char *name, int age, const char *city, int64_t salary) {
     buf_char('{');
     buf_str("\"name\":");
     write_string(name);
@@ -77,7 +62,7 @@ static void serialize_person(const char *name, int age, const char *city, double
     write_string(city);
     buf_char(',');
     buf_str("\"salary\":");
-    write_float(salary);
+    write_int(salary);  // Integer, not float
     buf_char('}');
 }
 
@@ -98,8 +83,8 @@ static int run_benchmark(int iterations) {
     for (int i = 0; i < iterations; i++) {
         buf_reset();
 
-        // Serialize person object
-        serialize_person("John Doe", 30, "New York", 50000.50);
+        // Serialize person object (integer salary like BMB)
+        serialize_person("John Doe", 30, "New York", 50000);
         total_len += buf_pos;
 
         buf_reset();
@@ -111,8 +96,8 @@ static int run_benchmark(int iterations) {
 
         buf_reset();
 
-        // Serialize with special characters
-        serialize_person("Alice \"The Great\"", 25, "Los\nAngeles", 60000.00);
+        // Serialize with special characters (integer salary like BMB)
+        serialize_person("Alice \"The Great\"", 25, "Los\nAngeles", 60000);
         total_len += buf_pos;
     }
 
@@ -132,7 +117,7 @@ int main(void) {
     printf("Sample output:\n");
 
     buf_reset();
-    serialize_person("Test User", 42, "Boston", 75000.00);
+    serialize_person("Test User", 42, "Boston", 75000);
     printf("  Object: %s\n", buffer);
 
     buf_reset();

@@ -1,52 +1,63 @@
 // fasta - DNA sequence generation benchmark
 // Benchmarks Game standard algorithm with LCG random
+// v0.55: FAIR VERSION - Uses fixed-point arithmetic (1000000 scale) like BMB
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #define IM 139968
 #define IA 3877
 #define IC 29573
 #define LINE_WIDTH 60
+#define SCALE 1000000  // Fixed-point scale factor
 
 static int seed = 42;
 
-static inline double random_num(double max) {
+// Returns scaled random number (0 to SCALE)
+static inline int64_t random_scaled(void) {
     seed = (seed * IA + IC) % IM;
-    return max * seed / IM;
+    return (int64_t)seed * SCALE / IM;
 }
 
-// Nucleotide frequencies for random sequences
+// Nucleotide with fixed-point cumulative probability
 struct AminoAcid {
     char c;
-    double p;
+    int64_t p;  // Cumulative probability (scaled)
 };
 
+// IUB cumulative probabilities (pre-calculated, scaled by 1000000)
 static struct AminoAcid iub[] = {
-    {'a', 0.27}, {'c', 0.12}, {'g', 0.12}, {'t', 0.27},
-    {'B', 0.02}, {'D', 0.02}, {'H', 0.02}, {'K', 0.02},
-    {'M', 0.02}, {'N', 0.02}, {'R', 0.02}, {'S', 0.02},
-    {'V', 0.02}, {'W', 0.02}, {'Y', 0.02}
+    {'a', 270000},   // 0.27
+    {'c', 390000},   // 0.27 + 0.12
+    {'g', 510000},   // 0.39 + 0.12
+    {'t', 780000},   // 0.51 + 0.27
+    {'B', 800000},   // 0.78 + 0.02
+    {'D', 820000},
+    {'H', 840000},
+    {'K', 860000},
+    {'M', 880000},
+    {'N', 900000},
+    {'R', 920000},
+    {'S', 940000},
+    {'V', 960000},
+    {'W', 980000},
+    {'Y', 1000000}
 };
 #define IUB_LEN 15
 
+// Homo sapiens cumulative probabilities (scaled)
 static struct AminoAcid homosapiens[] = {
-    {'a', 0.3029549426680}, {'c', 0.1979883004921},
-    {'g', 0.1975473066391}, {'t', 0.3015094502008}
+    {'a', 302955},   // 0.3029549426680
+    {'c', 500943},   // cumulative
+    {'g', 698491},   // cumulative
+    {'t', 1000000}   // cumulative
 };
 #define HOMO_LEN 4
 
-static void make_cumulative(struct AminoAcid *table, int len) {
-    double cp = 0.0;
-    for (int i = 0; i < len; i++) {
-        cp += table[i].p;
-        table[i].p = cp;
-    }
-}
-
 static char select_random(struct AminoAcid *table, int len) {
-    double r = random_num(1.0);
+    int64_t r = random_scaled();
     for (int i = 0; i < len; i++) {
         if (r < table[i].p) return table[i].c;
     }
@@ -110,9 +121,6 @@ static const char alu[] =
 int main(int argc, char **argv) {
     int n = 250000;  // Increased for measurable timing
     if (argc > 1) n = atoi(argv[1]);
-
-    make_cumulative(iub, IUB_LEN);
-    make_cumulative(homosapiens, HOMO_LEN);
 
     make_repeat_fasta("ONE", "Homo sapiens alu", alu, n * 2);
     make_random_fasta("TWO", "IUB ambiguity codes", iub, IUB_LEN, n * 3);

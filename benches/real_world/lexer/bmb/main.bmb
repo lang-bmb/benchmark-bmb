@@ -93,62 +93,62 @@ fn skip_comment(src: String, pos: i64) -> i64 =
     else if peek(src, pos) == 10 { pos }
     else { skip_comment(src, pos + 1) };
 
-// Get next token (returns: token_type * 1000000 + new_pos)
-fn next_token(src: String, pos: i64) -> i64 = {
+// Get next token - returns (token_type, new_pos) tuple
+fn next_token(src: String, pos: i64) -> (i64, i64) = {
     let p = skip_ws(src, pos);
-    if p >= src.len() { tok_eof() * 1000000 + p }
+    if p >= src.len() { (tok_eof(), p) }
     else {
         let c = peek(src, p);
         -- Comment
         if c == 45 and peek(src, p + 1) == 45 {
             let end = skip_comment(src, p + 2);
-            tok_comment() * 1000000 + end
+            (tok_comment(), end)
         }
         -- Identifier or keyword
         else if is_alpha(c) == 1 or c == 95 {
             let end = skip_ident(src, p + 1);
             let len = end - p;
             let tok = if is_keyword_at(src, p, len) == 1 { tok_keyword() } else { tok_ident() };
-            tok * 1000000 + end
+            (tok, end)
         }
         -- Number
         else if is_digit(c) == 1 {
             let end = skip_number(src, p + 1);
-            tok_number() * 1000000 + end
+            (tok_number(), end)
         }
         -- String
         else if c == 34 {
             let end = skip_string(src, p + 1);
-            tok_string() * 1000000 + end
+            (tok_string(), end)
         }
         -- Operator (check 2-char first)
         else if is_operator_char(c) == 1 {
             let c2 = peek(src, p + 1);
             if (c == 61 or c == 33 or c == 60 or c == 62) and c2 == 61 {
-                tok_operator() * 1000000 + (p + 2)
+                (tok_operator(), p + 2)
             }
             else if (c == 38 and c2 == 38) or (c == 124 and c2 == 124) {
-                tok_operator() * 1000000 + (p + 2)
+                (tok_operator(), p + 2)
             }
             else {
-                tok_operator() * 1000000 + (p + 1)
+                (tok_operator(), p + 1)
             }
         }
         -- Punctuation
         else if is_punct_char(c) == 1 {
-            tok_punct() * 1000000 + (p + 1)
+            (tok_punct(), p + 1)
         }
         else {
-            tok_eof() * 1000000 + p
+            (tok_eof(), p)
         }
     }
 };
 
-// Count tokens loop
+// Count tokens loop - uses native tuples
 fn count_tokens_loop(src: String, pos: i64, ident: i64, num: i64, str: i64, kw: i64, op: i64, punct: i64, comment: i64) -> i64 = {
     let result = next_token(src, pos);
-    let tok = result / 1000000;
-    let new_pos = result % 1000000;
+    let tok = result.0;
+    let new_pos = result.1;
     if tok == tok_eof() {
         ident * 10000000 + num * 100000 + kw * 1000 + op * 10 + punct
     }
@@ -165,15 +165,37 @@ fn count_tokens_loop(src: String, pos: i64, ident: i64, num: i64, str: i64, kw: 
 fn count_tokens(src: String) -> i64 =
     count_tokens_loop(src, 0, 0, 0, 0, 0, 0, 0, 0);
 
-// Test source code
+// Test source code (v0.55: FAIR - matches C version exactly)
 fn test_source() -> String =
-    "fn fibonacci(n: i64) -> i64 = if n <= 1 { n } else { fibonacci(n - 1) + fibonacci(n - 2) }; " +
-    "fn main() -> i64 = { let result = fibonacci(35); let x = 42; let y = 3.14159; if x > 10 { return result; } };";
+    "fn fibonacci(n: i64) -> i64 =\n" +
+    "    if n <= 1 { n }\n" +
+    "    else { fibonacci(n - 1) + fibonacci(n - 2) };\n" +
+    "\n" +
+    "fn main() -> i64 = {\n" +
+    "    let result = fibonacci(35);\n" +
+    "    -- This is a comment\n" +
+    "    let x = 42;\n" +
+    "    let y = 3.14159;\n" +
+    "    let s = " + chr(34) + "Hello, World!" + chr(34) + ";\n" +
+    "    if x > 10 && y < 100.0 {\n" +
+    "        return result;\n" +
+    "    } else {\n" +
+    "        return 0;\n" +
+    "    }\n" +
+    "};\n";
 
-// Generate larger source
-fn gen_large(n: i64, acc: String) -> String =
-    if n <= 0 { acc }
-    else { gen_large(n - 1, acc + test_source()) };
+// Generate larger source using StringBuilder (O(n) instead of O(n²))
+fn gen_large(n: i64) -> String = {
+    let sb = sb_new();
+    let src = test_source();
+    let mut i: i64 = 0;
+    while i < n { {
+        sb_push(sb, src);
+        i = i + 1;
+        ()
+    } };
+    sb_build(sb)
+};
 
 fn main() -> i64 = {
     let u1 = printline("Lexer Benchmark");
@@ -196,8 +218,8 @@ fn main() -> i64 = {
     let u7 = printline("  Punctuation: " + int_to_string(punct));
     let u8 = printline("");
 
-    -- Larger source (FAIR VERSION v0.51.5: 100x like C)
-    let large = gen_large(100, "");
+    -- Larger source (100x - encoding limits prevent higher iterations)
+    let large = gen_large(100);
     let large_counts = count_tokens(large);
     let total = (large_counts / 10000000) + ((large_counts / 100000) % 100) +
                 ((large_counts / 1000) % 100) + ((large_counts / 10) % 100) + (large_counts % 10);
