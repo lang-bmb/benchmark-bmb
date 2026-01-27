@@ -4,13 +4,21 @@
 
 Comprehensive audit of BMB benchmark suite comparing C and BMB implementations for fairness, consistency, and measurement validity.
 
-**Final Results After All Optimizations (2026-01-28 v0.57):**
+**Final Results After All Optimizations (2026-01-28 v0.59):**
 
 | Category | Count | Benchmarks |
 |----------|-------|------------|
-| FAST (<100%) | 7 | hash_table 99%, n_body 95%, fannkuch 81%, json_serialize 78%, sorting 99%, csv_parse 78%, http_parse 67% |
-| OK (100-103%) | 5 | fibonacci 103%, binary_trees 101%, spectral_norm 103%, mandelbrot 101%, brainfuck 102% |
-| SLOW (>103%) | 3 | fasta 130%, json_parse 106%, lexer 105% |
+| FAST (<100%) | 8 | fibonacci 98%, n_body 96%, fannkuch 83%, json_serialize 76%, sorting 99%, csv_parse 73%, http_parse 60%, mandelbrot 99% |
+| OK (100-103%) | 4 | binary_trees 102%, hash_table 103%, brainfuck 102%, lexer 101% |
+| SLOW (>103%) | 3 | spectral_norm 105%, fasta 139%, json_parse 107% |
+
+### v0.59 Compiler-Level Optimizations
+
+| Benchmark | Before | After | Change | Method |
+|-----------|--------|-------|--------|--------|
+| **brainfuck** | 106% SLOW | 102% OK | -4% | Added @inline attribute support to compiler + applied to exec_one |
+
+**Key Finding:** Added compiler-level support for explicit `@inline` attribute that forces LLVM `alwaysinline` attribute, bypassing the compiler's size-based heuristics (15-20 instruction limit).
 
 ### v0.57 Optimizations Applied
 
