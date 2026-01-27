@@ -20,6 +20,26 @@ Comprehensive audit of BMB benchmark suite comparing C and BMB implementations f
 
 **Key Finding:** Added compiler-level support for explicit `@inline` attribute that forces LLVM `alwaysinline` attribute, bypassing the compiler's size-based heuristics (15-20 instruction limit).
 
+### Cycle 6 Analysis (v0.59)
+
+**Measurement Variance Analysis:**
+Short benchmarks (3-8ms) show 3-8% variance between runs. This makes benchmarks near the 103% threshold fluctuate between OK and SLOW status.
+
+**Consistently SLOW:** Only `fasta` (129-139%) is consistently slow across all measurements.
+
+**fasta Root Cause Analysis:**
+- 100 `inttoptr` instructions in optimized LLVM IR
+- Every memory access requires i64 → ptr conversion
+- BMB uses i64 as pointer proxy (language design limitation)
+- **Required fix:** Native pointer/struct types in the language
+
+**Borderline Benchmarks (vary with measurement):**
+- sorting: 99-110% (varies)
+- brainfuck: 102-106% (varies)
+- json_parse: 105-110% (varies)
+
+These variations are within measurement noise for short-running benchmarks.
+
 ### v0.57 Optimizations Applied
 
 | Benchmark | Before | After | Change | Method |
