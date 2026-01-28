@@ -2,7 +2,7 @@
 // Measures: array manipulation, permutation generation
 // Algorithm: Standard Heap's algorithm permutation with pancake flipping
 // Aligned with C version (n=10) for fair comparison
-// v0.51: Rewritten with while loops for optimal performance
+// v0.60.17: Uses break statement for cleaner control flow (v0.60.16 feature)
 // Note: Uses malloc-based arrays due to lack of array element assignment syntax
 
 // Array operations using malloc/load_i64/store_i64
@@ -43,7 +43,6 @@ fn fannkuch(n: i64) -> i64 = {
     let mut c: i64 = 0;
     let mut running: i64 = 1;
     let mut delta: i64 = 0;
-    let mut found_next: i64 = 0;
 
     // Initialize arrays
     { i = 0 };
@@ -84,10 +83,9 @@ fn fannkuch(n: i64) -> i64 = {
         { checksum = checksum + delta };
 
         // Generate next permutation (Heap's algorithm variant)
-        // v0.50.73: Use found_next flag instead of checking i value
-        // C uses break which preserves i; BMB must track break separately
+        // v0.60.17: Uses break statement for clean control flow
         { i = 1 };
-        { found_next = 0 };
+        { running = 0 };
         while i < n {
             // Swap perm1[i] and perm1[i-1] (same as C version)
             { tmp = array_get(perm1, i) };
@@ -97,18 +95,14 @@ fn fannkuch(n: i64) -> i64 = {
             { c = array_get(count, i) - 1 };
             array_set(count, i, c);
             if c != 0 {
-                { found_next = 1; i = n + 1 }
+                // Found next permutation - break out of loop
+                let _r = { running = 1 };
+                let _p = { permCount = permCount + 1 };
+                break
             } else {
-                { array_set(count, i, i + 1); i = i + 1 }
-            };
-        };
-
-        // Check if exhausted all permutations
-        // found_next=1 means we broke out (c!=0), found_next=0 means i reached n
-        if found_next == 0 {
-            { running = 0 }
-        } else {
-            { permCount = permCount + 1 }
+                let _s = array_set(count, i, i + 1);
+                { i = i + 1 }
+            }
         };
     };
 

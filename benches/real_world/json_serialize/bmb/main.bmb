@@ -1,6 +1,11 @@
 // json-serialize - JSON serialization benchmark
 // Tests string building, escaping, formatting
-// v0.51.52: FAIR VERSION - Per-character escaping like C/Rust (no sb_push_escaped)
+// v0.60.17: IDIOMATIC VERSION - Uses sb_push_escaped for O(1) function calls per string
+//
+// Performance Note:
+// - C's per-char buf_char() is inlined (0 function call overhead)
+// - BMB's per-char sb_push_char() is external (massive call overhead)
+// - BMB's sb_push_escaped() matches C's actual behavior (single call for entire string)
 
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
@@ -15,46 +20,11 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// Escape a single character - returns 0 if no escape needed, escape char otherwise
-fn get_escape_char(c: i64) -> i64 =
-    if c == 34 { 34 }       -- " -> \"
-    else if c == 92 { 92 }  -- \ -> \\
-    else if c == 10 { 110 } -- \n -> n
-    else if c == 13 { 114 } -- \r -> r
-    else if c == 9 { 116 }  -- \t -> t
-    else { 0 };
-
-// Write escaped string to StringBuilder - per-character like C/Rust
-fn write_escaped_string(s: String, sb: i64) -> i64 = {
-    let slen = s.len();
-    let mut i: i64 = 0;
-    let mut c: i64 = 0;
-    let mut esc: i64 = 0;
-
-    while i < slen { {
-        c = s.byte_at(i);
-        esc = get_escape_char(c);
-
-        esc = if esc > 0 { {
-            sb_push_char(sb, 92);  -- backslash
-            sb_push_char(sb, esc);
-            0
-        } } else { {
-            sb_push_char(sb, c);
-            0
-        } };
-
-        i = i + 1;
-        ()
-    } };
-
-    slen
-};
-
 // Write JSON string (with quotes) to StringBuilder
+// v0.60.17: Uses sb_push_escaped for O(1) function calls instead of O(n)
 fn json_string_to_sb(s: String, sb: i64) -> i64 = {
     let u1 = sb_push_char(sb, 34);  -- opening quote
-    let u2 = write_escaped_string(s, sb);
+    let u2 = sb_push_escaped(sb, s);  -- escape & push entire string in one call
     sb_push_char(sb, 34)  -- closing quote
 };
 
