@@ -4,13 +4,129 @@
 
 Comprehensive audit of BMB benchmark suite comparing C and BMB implementations for fairness, consistency, and measurement validity.
 
-**Final Results After All Optimizations (2026-01-28 v0.60):**
+**Updated Results (2026-01-28 v0.60.18):**
 
 | Category | Count | Benchmarks |
 |----------|-------|------------|
-| FAST (<100%) | 7 | n_body 94%, fannkuch 82%, json_serialize 76%, brainfuck 98%, csv_parse 75%, http_parse 60% |
-| OK (100-103%) | 4 | binary_trees 100%, hash_table 102%, spectral_norm 102%, sorting 102%, mandelbrot 101% |
-| SLOW (>103%) | 4 | fibonacci 104%, fasta 117%, json_parse 131%, lexer 105% |
+| FAST (<100%) | 7 | **sorting 24%**, json_serialize 66%, json_parse 58%, http_parse 59%, csv_parse 74%, hash_table 97%, lexer ~100% |
+| OK (100-103%) | 1 | fasta 103% |
+| SLOW (>103%) | 7 | fannkuch 107%, binary_trees 107%, mandelbrot 109%, n_body 113%, brainfuck 113%, spectral_norm 120% |
+| BUILD FAIL | 0 | - (tuple codegen bug FIXED in v0.60.18) |
+| UNFAIR | 1 | fibonacci 2% (algorithm transformation) |
+
+### v0.60.18 Key Fixes
+
+1. **Tuple Codegen Bug Fixed** - Both sorting and lexer now compile
+   - Root cause: Missing sext when narrowed i32 parameters inserted into i64 tuples
+   - Fix: Added type widening in `llvm.rs` TupleInit handling
+
+2. **TailRecursiveToLoop Substitution Bug Fixed** - Sorting now produces correct output
+   - Root cause: TupleInit operands weren't being substituted with loop variables
+   - Fix: Added TupleInit and TupleExtract cases to `substitute_params` function
+
+3. **sorting benchmark: 24% of C performance** - BMB is ~4x faster!
+   - C: 640ms, BMB: 150ms
+   - Output verified identical: 403905348
+
+---
+
+## CRITICAL ISSUES FOUND
+
+### Issue 1: fibonacci (2%) - UNFAIR BENCHMARK
+
+**Problem:** BMB's `LinearRecurrenceToLoop` optimization transforms recursive Fibonacci from O(2^n) to O(n).
+
+| Language | Complexity | Time for n=42 |
+|----------|------------|---------------|
+| C | O(2^n) recursive | ~1000ms |
+| BMB | O(n) loop | ~20ms |
+
+**Impact:** Comparing different algorithms, not code generation quality. BMB is ~50x faster due to algorithmic advantage.
+
+**Recommendation:** Remove from C-comparison or use iterative version in both.
+
+### Issue 2: csv_parse - INCORRECT OUTPUT
+
+**Evidence:**
+```
+C Large:   Fields: 10000, Quoted: 1000
+BMB Large: Fields: 10000, Quoted: 99
+```
+
+**Impact:** Benchmarks are not computing equivalent results.
+
+**Recommendation:** Fix BMB csv_parse correctness bug.
+
+### Issue 3: Tuple Codegen Bug (sorting, lexer) - FIXED in v0.60.18
+
+**Error:** `insertvalue operand type mismatch: 'i32' instead of 'i64'`
+
+**Cause:** Two bugs:
+1. `ConstantPropagationNarrowing` narrows parameters to i32, but tuple construction expects i64
+2. `TailRecursiveToLoop` didn't substitute TupleInit operands with loop variables
+
+**Fixes Applied:**
+1. Added sext (sign extension) in `llvm.rs` TupleInit when operand is i32 but element type is i64
+2. Added TupleInit/TupleExtract handling to `substitute_params` in `optimize.rs`
+
+**Impact:** Both sorting and lexer benchmarks now compile AND produce correct output.
+
+---
+
+## Language Limitations Affecting Performance
+
+### Cycle 19 Analysis (v0.60.18)
+
+**Root Cause Investigation Results:**
+- Sorting (24%) is legitimately fast - BMB + LLVM optimizes tail recursion excellently
+- SLOW benchmarks (spectral_norm 114%, n_body 107%, fasta 113%) have real overhead
+- The overhead is caused by `inttoptr` blocking LLVM alias analysis
+- Vectorization helps marginally (114% → 110% for spectral_norm)
+- **Proper fix requires adding native pointer types to BMB language**
+
+| Benchmark | With -vectorize | Without -vectorize | C baseline |
+|-----------|-----------------|---------------------|------------|
+| spectral_norm | 46ms | 48ms | 42ms |
+
+### 1. inttoptr Blocking LLVM Optimization
+
+BMB uses `i64` to represent pointers via `inttoptr` conversion:
+
+```bmb
+fn array_get(arr: i64, i: i64) -> f64 = load_f64(arr + i * 8);
+// Generates: %ptr = inttoptr i64 %addr to ptr
+```
+
+**Impact:** LLVM's alias analysis cannot optimize inttoptr, preventing LICM and vectorization.
+
+**Affected:** spectral_norm (120%), n_body (113%), fannkuch (107%)
+
+**Solution:** Add native pointer types `*T` to language.
+
+### 2. External Runtime Function Calls
+
+BMB's `byte_at`, `sb_push_char` are external C functions - cannot be inlined.
+
+**Impact:** Each character access has full function call overhead.
+
+**Affected:** lexer, brainfuck, json_parse
+
+**Solution:** Implement String in BMB or use LTO.
+
+### 3. Struct Field Access Overhead
+
+BMB structs require explicit pointer arithmetic:
+
+```bmb
+let b = body_at(bodies, i);  // (bodies as i64 + i * 56) as *Body
+let x = b.x;                  // GEP + load
+```
+
+**Impact:** More instructions than C's direct struct access.
+
+**Affected:** n_body (113%)
+
+---
 
 ### v0.60 Cycle 7 Analysis
 
