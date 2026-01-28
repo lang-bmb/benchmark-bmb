@@ -1,7 +1,7 @@
 # BMB Benchmark Progress Report
 
 **Date:** 2026-01-28
-**Compiler Version:** v0.60.11
+**Compiler Version:** v0.60.13
 **Environment:** Windows 11, GCC 15.2.0, LLVM 21.x (via MSYS2)
 
 ## Executive Summary
@@ -16,6 +16,77 @@ All benchmarks compile and run. **LinearRecurrenceToLoop optimization transforms
 | **Compile Fail** | 0 | - | None |
 
 ## Key Improvements This Session
+
+### 0. Type Narrowing Bug Fixes (v0.60.12-v0.60.13) - Cycle 13
+
+**Problem:** mandelbrot benchmark returned incorrect results (0 instead of 3612362) after type narrowing optimization. Multiple codegen bugs in handling narrowed (i32) values.
+
+**Root Cause Analysis:**
+1. **Function call parameter type mismatch**: When calling functions with i64 parameters using i32 arguments (from narrowed locals), no `sext` was emitted
+2. **Copy instruction type mismatch**: When copying narrowed (i32) temps to i64 locals, no `sext` was emitted. When copying i64 temps to i32 locals, no `trunc` was emitted
+3. **Return value type mismatch**: When returning narrowed (i32) local from function with i64 return type, load used wrong type
+4. **Runtime function parameters**: `println`, `print`, etc. weren't in `fn_param_types` map, so i32→i64 extension wasn't triggered
+5. **Overly aggressive LoopBoundedNarrowing**: Parameters used in multiplication were being narrowed, causing i32 overflow (e.g., `60000 * 60000` > INT32_MAX)
+
+**Solutions:**
+
+1. **v0.60.12 - Function call i32→i64 extension** (`llvm_text.rs`):
+```rust
+// Added sext emission for narrowed arguments
+if arg_ty == "i32" && param_ty == "i64" {
+    let sext_name = format!("{}.arg{}.sext", call_base, i);
+    writeln!(out, "  %{} = sext i32 {} to i64", sext_name, val)?;
+}
+```
+
+2. **v0.60.13 - Copy instruction type coercion** (`llvm_text.rs`):
+```rust
+// Handle both directions: truncation and extension
+if ty == "i64" && dest_ty == "i32" {
+    // trunc i64 to i32
+} else if ty == "i32" && dest_ty == "i64" {
+    // sext i32 to i64
+}
+```
+
+3. **v0.60.13 - Return value type widening** (`llvm_text.rs`):
+```rust
+// Use local's alloca type, then sign extend if needed
+let local_ty = place_types.get(&p.name).copied().unwrap_or(ty);
+if local_ty == "i32" && ty == "i64" {
+    // sext i32 to i64 before return
+}
+```
+
+4. **v0.60.13 - Runtime function parameter types** (`llvm_text.rs`):
+```rust
+// Helper to get runtime function parameter types
+let runtime_param_type = |fn_name: &str, idx: usize| -> Option<&'static str> {
+    match (fn_name, idx) {
+        ("println", 0) | ("print", 0) => Some("i64"),
+        ...
+    }
+};
+```
+
+5. **v0.60.13 - Safe narrowing for multiplication** (`optimize.rs`):
+```rust
+// Don't narrow parameters used in multiplication (overflow risk)
+fn is_used_in_multiplication(func: &MirFunction, param_name: &str) -> bool {
+    // Track derived variables and check for Mul operations
+    for inst in &block.instructions {
+        if matches!(op, MirBinOp::Mul) && (lhs_derived || rhs_derived) {
+            return true;
+        }
+    }
+}
+```
+
+**Results:**
+| Metric | Before | After |
+|--------|--------|-------|
+| mandelbrot output | **0 (WRONG)** | **3612362 (CORRECT)** |
+| mandelbrot performance | N/A (broken) | ~156ms (108% of C) |
 
 ### 1. Linear Recurrence to Loop Optimization (v0.60.11)
 
@@ -275,6 +346,8 @@ Acceptable performance gap. No action required.
 
 ## Files Changed
 
+- `bmb/src/codegen/llvm_text.rs`: Fixed type narrowing bugs (i32↔i64 coercion in Copy, Call, Return) (v0.60.12-v0.60.13)
+- `bmb/src/mir/optimize.rs`: Added multiplication safety check to LoopBoundedNarrowing (v0.60.13)
 - `bmb/src/mir/optimize.rs`: Added LinearRecurrenceToLoop pass for O(n) fibonacci transformation (v0.60.11)
 - `bmb/src/mir/mod.rs`: Exported LinearRecurrenceToLoop (v0.60.11)
 - `bmb/src/mir/optimize.rs`: Added LoopBoundedNarrowing pass and propagate_narrowing_to_locals (v0.60.10)
