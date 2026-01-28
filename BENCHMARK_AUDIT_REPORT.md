@@ -4,13 +4,42 @@
 
 Comprehensive audit of BMB benchmark suite comparing C and BMB implementations for fairness, consistency, and measurement validity.
 
-**Final Results After All Optimizations (2026-01-28 v0.59):**
+**Final Results After All Optimizations (2026-01-28 v0.60):**
 
 | Category | Count | Benchmarks |
 |----------|-------|------------|
-| FAST (<100%) | 8 | fibonacci 98%, n_body 96%, fannkuch 83%, json_serialize 76%, sorting 99%, csv_parse 73%, http_parse 60%, mandelbrot 99% |
-| OK (100-103%) | 4 | binary_trees 102%, hash_table 103%, brainfuck 102%, lexer 101% |
-| SLOW (>103%) | 3 | spectral_norm 105%, fasta 139%, json_parse 107% |
+| FAST (<100%) | 7 | n_body 94%, fannkuch 82%, json_serialize 76%, brainfuck 98%, csv_parse 75%, http_parse 60% |
+| OK (100-103%) | 4 | binary_trees 100%, hash_table 102%, spectral_norm 102%, sorting 102%, mandelbrot 101% |
+| SLOW (>103%) | 4 | fibonacci 104%, fasta 117%, json_parse 131%, lexer 105% |
+
+### v0.60 Cycle 7 Analysis
+
+**Key Changes:**
+- Increased iteration counts for better measurement accuracy:
+  - json_parse: 10,000 → 100,000 iterations
+  - sorting: 50 → 200 iterations
+
+**Key Discovery: MIR Optimizations Require `--release` or `--aggressive`**
+
+The default build mode (`Debug`) runs NO MIR optimizations. The benchmark script uses `--aggressive` which correctly enables all optimizations including:
+- TailCallOptimization (8 passes)
+- TailRecursiveToLoop (6 passes)
+- LoopInvariantCodeMotion (5 passes)
+
+**Results After Increased Iterations:**
+
+| Benchmark | Before v0.60 | After v0.60 | Change |
+|-----------|--------------|-------------|--------|
+| **sorting** | 99-114% (varies) | 102% OK | Stabilized |
+| **brainfuck** | 102-106% (varies) | 98% FAST | Improved |
+| **json_parse** | 107% | 131% SLOW | True performance revealed |
+| **fasta** | 117-139% | 117% SLOW | Stabilized |
+
+**json_parse Root Cause Analysis:**
+With 100K iterations, the 131% slowdown is a genuine performance gap, not measurement noise. The TailRecursiveToLoop optimization IS working (verified via verbose output), but there's still overhead from:
+- String object handling vs C's const char*
+- byte_at() method call overhead
+- Store/load patterns in generated LLVM IR (alloca-based temporaries)
 
 ### v0.59 Compiler-Level Optimizations
 

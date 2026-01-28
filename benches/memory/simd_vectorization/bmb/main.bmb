@@ -1,0 +1,192 @@
+// SIMD Vectorization - Vector operations benchmark
+// Measures: Memory bandwidth, auto-vectorization, SIMD potential
+//
+// NOTE: BMB does not have explicit SIMD intrinsics yet
+// This benchmark tests patterns that compilers can auto-vectorize
+//
+// Reference: Measures key vectorizable patterns
+
+fn ARRAY_SIZE() -> i64 = 1000000;
+
+// Buffer operations
+fn buffer_new(size: i64) -> i64 = malloc(size * 8);  // i64 elements
+fn buffer_free(buf: i64) -> i64 = { free(buf); 0 };
+fn buffer_get(buf: i64, i: i64) -> i64 = load_i64(buf + i * 8);
+fn buffer_set(buf: i64, i: i64, val: i64) -> i64 = { store_i64(buf + i * 8, val); 0 };
+
+// Pattern 1: Vector addition (a + b -> c)
+// This is the most basic SIMD pattern
+fn vector_add(a: i64, b: i64, c: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let va = buffer_get(a, i);
+        let vb = buffer_get(b, i);
+        let _s = buffer_set(c, i, va + vb);
+        { i = i + 1 };
+    };
+    0
+};
+
+// Pattern 2: Scalar multiplication (a * scalar -> c)
+fn vector_scale(a: i64, scalar: i64, c: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let va = buffer_get(a, i);
+        let _s = buffer_set(c, i, va * scalar);
+        { i = i + 1 };
+    };
+    0
+};
+
+// Pattern 3: Dot product (sum of a[i] * b[i])
+fn dot_product(a: i64, b: i64, n: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        let va = buffer_get(a, i);
+        let vb = buffer_get(b, i);
+        { sum = sum + va * vb };
+        { i = i + 1 };
+    };
+    sum
+};
+
+// Pattern 4: Reduction (sum all elements)
+fn vector_sum(a: i64, n: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        let va = buffer_get(a, i);
+        { sum = sum + va };
+        { i = i + 1 };
+    };
+    sum
+};
+
+// Pattern 5: Saxpy (a * x + y -> result)
+// Single-precision A*X Plus Y - classic BLAS operation
+fn saxpy(a: i64, x: i64, y: i64, result: i64, n: i64, scalar: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let vx = buffer_get(x, i);
+        let vy = buffer_get(y, i);
+        let _s = buffer_set(result, i, scalar * vx + vy);
+        { i = i + 1 };
+    };
+    0
+};
+
+// Pattern 6: Max element (horizontal max)
+fn vector_max(a: i64, n: i64) -> i64 = {
+    if n == 0 { 0 }
+    else {
+        let mut max_val: i64 = buffer_get(a, 0);
+        let mut i: i64 = 1;
+        while i < n {
+            let va = buffer_get(a, i);
+            if va > max_val {
+                { max_val = va };
+            };
+            { i = i + 1 };
+        };
+        max_val
+    }
+};
+
+// Pattern 7: Copy with stride (gather/scatter pattern)
+fn strided_copy(src: i64, dst: i64, n: i64, stride: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut j: i64 = 0;
+    while i < n {
+        let v = buffer_get(src, i * stride);
+        let _s = buffer_set(dst, j, v);
+        { i = i + 1 };
+        { j = j + 1 };
+    };
+    0
+};
+
+// Pattern 8: Polynomial computation (Horner's method)
+// Computes: c0 + x*(c1 + x*(c2 + x*c3))
+fn poly_compute(coeffs: i64, x: i64, n: i64, result: i64, len: i64) -> i64 = {
+    let mut k: i64 = 0;
+    while k < len {
+        let xk = buffer_get(x, k);
+        let mut val: i64 = buffer_get(coeffs, n - 1);
+        let mut i: i64 = n - 2;
+        while i >= 0 {
+            let ci = buffer_get(coeffs, i);
+            { val = ci + xk * val };
+            { i = i - 1 };
+        };
+        let _s = buffer_set(result, k, val);
+        { k = k + 1 };
+    };
+    0
+};
+
+// Initialize array with pattern
+fn init_array(buf: i64, n: i64, seed: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let val = (i * seed + 12345) % 1000;
+        let _s = buffer_set(buf, i, val);
+        { i = i + 1 };
+    };
+    0
+};
+
+fn main() -> i64 = {
+    let n = ARRAY_SIZE();
+
+    // Allocate buffers
+    let a = buffer_new(n);
+    let b = buffer_new(n);
+    let c = buffer_new(n);
+
+    // Initialize
+    let _ia = init_array(a, n, 7);
+    let _ib = init_array(b, n, 13);
+
+    // Run benchmarks
+    let _add = vector_add(a, b, c, n);
+    let sum_add = vector_sum(c, n);
+
+    let _scale = vector_scale(a, 3, c, n);
+    let sum_scale = vector_sum(c, n);
+
+    let dot = dot_product(a, b, n);
+
+    let sum_a = vector_sum(a, n);
+
+    let _saxpy = saxpy(a, a, b, c, n, 2);
+    let sum_saxpy = vector_sum(c, n);
+
+    let max_a = vector_max(a, n);
+
+    // Print results
+    let _p1 = print_str("vector_add sum: ");
+    let _p2 = println(sum_add);
+
+    let _p3 = print_str("vector_scale sum: ");
+    let _p4 = println(sum_scale);
+
+    let _p5 = print_str("dot_product: ");
+    let _p6 = println(dot);
+
+    let _p7 = print_str("vector_sum: ");
+    let _p8 = println(sum_a);
+
+    let _p9 = print_str("saxpy sum: ");
+    let _p10 = println(sum_saxpy);
+
+    let _p11 = print_str("vector_max: ");
+    let _p12 = println(max_a);
+
+    // Cleanup
+    let _fa = buffer_free(a);
+    let _fb = buffer_free(b);
+    let _fc = buffer_free(c);
+
+    0
+};

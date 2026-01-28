@@ -1,0 +1,8 @@
+fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
+
+fn skip_ws(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else if is_ws(s.byte_at(pos)) { skip_ws(s, pos + 1) }
+    else { pos };
+
+fn main() -> i64 = skip_ws("test", 0);

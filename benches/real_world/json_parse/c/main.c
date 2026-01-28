@@ -90,7 +90,8 @@ int main() {
     const char* json = "[1,2,3,4,5,6,7,8,9,10]";
     long valid_count = 0;
 
-    for (int i = 0; i < 10000; i++) {
+    // v0.60: Increased from 10000 to 100000 for better measurement accuracy
+    for (int i = 0; i < 100000; i++) {
         valid_count += validate_json(json, 0);
         valid_count += count_array(json, 0);
     }

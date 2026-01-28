@@ -1,0 +1,241 @@
+// Chameneos-Redux - Symmetric thread rendezvous benchmark
+// Measures: Thread synchronization, rendezvous patterns
+//
+// NOTE: BMB does not have threading primitives yet
+// This is a simplified single-threaded simulation
+//
+// Reference: Computer Language Benchmarks Game
+// https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/chameneosredux.html
+
+// Creature colors
+fn COLOR_BLUE() -> i64 = 0;
+fn COLOR_RED() -> i64 = 1;
+fn COLOR_YELLOW() -> i64 = 2;
+
+// Complement function for two colors meeting
+fn complement(c1: i64, c2: i64) -> i64 = {
+    if c1 == c2 { c1 }
+    else if c1 == COLOR_BLUE() {
+        if c2 == COLOR_RED() { COLOR_YELLOW() }
+        else { COLOR_RED() }
+    }
+    else if c1 == COLOR_RED() {
+        if c2 == COLOR_BLUE() { COLOR_YELLOW() }
+        else { COLOR_BLUE() }
+    }
+    else {
+        // c1 == YELLOW
+        if c2 == COLOR_BLUE() { COLOR_RED() }
+        else { COLOR_BLUE() }
+    }
+};
+
+// Creature structure: color, meetings, self_meetings
+fn creature_new(color: i64) -> i64 = {
+    let ptr = malloc(24);  // 8 bytes each for color, meetings, self_meetings
+    store_i64(ptr, color);
+    store_i64(ptr + 8, 0);     // meetings
+    store_i64(ptr + 16, 0);    // self_meetings
+    ptr
+};
+
+fn creature_get_color(ptr: i64) -> i64 = load_i64(ptr);
+fn creature_set_color(ptr: i64, color: i64) -> i64 = { store_i64(ptr, color); 0 };
+fn creature_get_meetings(ptr: i64) -> i64 = load_i64(ptr + 8);
+fn creature_inc_meetings(ptr: i64) -> i64 = {
+    let m = load_i64(ptr + 8);
+    store_i64(ptr + 8, m + 1);
+    0
+};
+fn creature_get_self_meetings(ptr: i64) -> i64 = load_i64(ptr + 16);
+fn creature_inc_self_meetings(ptr: i64) -> i64 = {
+    let s = load_i64(ptr + 16);
+    store_i64(ptr + 16, s + 1);
+    0
+};
+fn creature_free(ptr: i64) -> i64 = { free(ptr); 0 };
+
+// Meeting place simulation
+fn run_meetings(creatures: i64, num_creatures: i64, num_meetings: i64) -> i64 = {
+    let mut meetings_left: i64 = num_meetings;
+    let mut idx1: i64 = 0;
+    let mut idx2: i64 = 1;
+
+    while meetings_left > 0 {
+        // Get two creatures to meet
+        let c1 = load_i64(creatures + idx1 * 8);
+        let c2 = load_i64(creatures + idx2 * 8);
+
+        let color1 = creature_get_color(c1);
+        let color2 = creature_get_color(c2);
+
+        // Compute new color
+        let new_color = complement(color1, color2);
+
+        // Update both creatures
+        let _s1 = creature_set_color(c1, new_color);
+        let _s2 = creature_set_color(c2, new_color);
+        let _m1 = creature_inc_meetings(c1);
+        let _m2 = creature_inc_meetings(c2);
+
+        // Check if self-meeting (same creature index)
+        if idx1 == idx2 {
+            let _sm1 = creature_inc_self_meetings(c1);
+        };
+
+        // Move to next pair (round-robin)
+        { idx1 = (idx1 + 1) % num_creatures };
+        { idx2 = (idx2 + 1) % num_creatures };
+        if idx1 == idx2 {
+            { idx2 = (idx2 + 1) % num_creatures };
+        };
+
+        { meetings_left = meetings_left - 1 };
+    };
+
+    0
+};
+
+// Print color name
+fn print_color(color: i64) -> i64 = {
+    if color == COLOR_BLUE() {
+        let _p = print_str("blue");
+    } else if color == COLOR_RED() {
+        let _p = print_str("red");
+    } else {
+        let _p = print_str("yellow");
+    };
+    0
+};
+
+// First set of creatures: blue, red, yellow
+fn run_first_set(num_meetings: i64) -> i64 = {
+    let creatures = malloc(3 * 8);
+
+    // Create blue, red, yellow
+    store_i64(creatures, creature_new(COLOR_BLUE()));
+    store_i64(creatures + 8, creature_new(COLOR_RED()));
+    store_i64(creatures + 16, creature_new(COLOR_YELLOW()));
+
+    // Print initial colors
+    let _pb = print_color(COLOR_BLUE());
+    let _sp1 = print_str(" ");
+    let _pr = print_color(COLOR_RED());
+    let _sp2 = print_str(" ");
+    let _py = print_color(COLOR_YELLOW());
+    let _nl = print_str("\n");
+
+    // Run meetings
+    let _run = run_meetings(creatures, 3, num_meetings);
+
+    // Print results
+    let mut total: i64 = 0;
+    let mut i: i64 = 0;
+    while i < 3 {
+        let c = load_i64(creatures + i * 8);
+        let meetings = creature_get_meetings(c);
+        let self_meets = creature_get_self_meetings(c);
+        { total = total + meetings };
+
+        let _pm = print(meetings);
+        let _sp = print_str(" ");
+        let _ps = println(self_meets);
+
+        let _fc = creature_free(c);
+        { i = i + 1 };
+    };
+
+    let _pt = println(total);
+
+    free(creatures);
+    total
+};
+
+// Second set: blue, red, yellow, red, yellow, blue, red, yellow, red, blue
+fn run_second_set(num_meetings: i64) -> i64 = {
+    let creatures = malloc(10 * 8);
+    let colors = malloc(10 * 8);
+
+    // Set up colors: blue, red, yellow, red, yellow, blue, red, yellow, red, blue
+    store_i64(colors, COLOR_BLUE());
+    store_i64(colors + 8, COLOR_RED());
+    store_i64(colors + 16, COLOR_YELLOW());
+    store_i64(colors + 24, COLOR_RED());
+    store_i64(colors + 32, COLOR_YELLOW());
+    store_i64(colors + 40, COLOR_BLUE());
+    store_i64(colors + 48, COLOR_RED());
+    store_i64(colors + 56, COLOR_YELLOW());
+    store_i64(colors + 64, COLOR_RED());
+    store_i64(colors + 72, COLOR_BLUE());
+
+    let mut i: i64 = 0;
+    while i < 10 {
+        let color = load_i64(colors + i * 8);
+        store_i64(creatures + i * 8, creature_new(color));
+        let _pc = print_color(color);
+        let _sp = print_str(" ");
+        { i = i + 1 };
+    };
+    let _nl = print_str("\n");
+
+    // Run meetings
+    let _run = run_meetings(creatures, 10, num_meetings);
+
+    // Print results
+    let mut total: i64 = 0;
+    { i = 0 };
+    while i < 10 {
+        let c = load_i64(creatures + i * 8);
+        let meetings = creature_get_meetings(c);
+        let self_meets = creature_get_self_meetings(c);
+        { total = total + meetings };
+
+        let _pm = print(meetings);
+        let _sp = print_str(" ");
+        let _ps = println(self_meets);
+
+        let _fc = creature_free(c);
+        { i = i + 1 };
+    };
+
+    let _pt = println(total);
+
+    free(colors);
+    free(creatures);
+    total
+};
+
+fn main() -> i64 = {
+    let num_meetings: i64 = 600;  // Default from benchmark
+
+    // Print complement table
+    let _p1 = print_color(COLOR_BLUE());
+    let _sp1 = print_str(" + ");
+    let _p2 = print_color(COLOR_BLUE());
+    let _sp2 = print_str(" -> ");
+    let _p3 = print_color(complement(COLOR_BLUE(), COLOR_BLUE()));
+    let _nl1 = print_str("\n");
+
+    let _p4 = print_color(COLOR_BLUE());
+    let _sp3 = print_str(" + ");
+    let _p5 = print_color(COLOR_RED());
+    let _sp4 = print_str(" -> ");
+    let _p6 = print_color(complement(COLOR_BLUE(), COLOR_RED()));
+    let _nl2 = print_str("\n");
+
+    let _p7 = print_color(COLOR_BLUE());
+    let _sp5 = print_str(" + ");
+    let _p8 = print_color(COLOR_YELLOW());
+    let _sp6 = print_str(" -> ");
+    let _p9 = print_color(complement(COLOR_BLUE(), COLOR_YELLOW()));
+    let _nl3 = print_str("\n");
+
+    let _nl4 = print_str("\n");
+
+    // Run both sets
+    let _r1 = run_first_set(num_meetings);
+    let _nl5 = print_str("\n");
+    let _r2 = run_second_set(num_meetings);
+
+    0
+};

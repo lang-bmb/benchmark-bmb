@@ -202,7 +202,8 @@ fn run_benchmark(sizes: i64, acc: i64) -> i64 =
     };
 
 fn main() -> i64 = {
-    let result = run_benchmark(50, 0);
+    // v0.60: Increased from 50 to 200 for better measurement accuracy (~28ms)
+    let result = run_benchmark(200, 0);
     let _u = println(result);
     0
 };

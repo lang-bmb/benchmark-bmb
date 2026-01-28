@@ -1,0 +1,110 @@
+// Thread-Ring - Context switching benchmark
+// Measures: Thread creation, message passing, context switches
+//
+// NOTE: BMB does not have threading primitives yet
+// This is a simplified single-threaded simulation
+//
+// Reference: Computer Language Benchmarks Game
+// https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/threadring.html
+
+// Simulation of 503 "threads" passing a token around
+// Original benchmark creates 503 OS threads in a ring
+
+fn NUM_THREADS() -> i64 = 503;
+fn DEFAULT_PASSES() -> i64 = 50000000;
+
+// Simple thread state structure using malloc
+// Each "thread" has: id, next_thread_ptr
+fn thread_new(id: i64, next: i64) -> i64 = {
+    let ptr = malloc(16);  // 8 bytes for id, 8 bytes for next
+    store_i64(ptr, id);
+    store_i64(ptr + 8, next);
+    ptr
+};
+
+fn thread_get_id(ptr: i64) -> i64 = load_i64(ptr);
+fn thread_get_next(ptr: i64) -> i64 = load_i64(ptr + 8);
+fn thread_free(ptr: i64) -> i64 = { free(ptr); 0 };
+
+// Create a ring of threads
+fn create_ring(n: i64) -> i64 = {
+    // Allocate array of thread pointers
+    let ring = malloc(n * 8);
+    let mut i: i64 = 0;
+
+    // Create threads in reverse so we can link them
+    while i < n {
+        let next_idx = (i + 1) % n;
+        // We'll fix next pointers after all threads created
+        let thread = thread_new(i + 1, 0);  // id is 1-based
+        store_i64(ring + i * 8, thread);
+        { i = i + 1 };
+    };
+
+    // Link threads in a ring
+    { i = 0 };
+    while i < n {
+        let thread = load_i64(ring + i * 8);
+        let next_idx = (i + 1) % n;
+        let next_thread = load_i64(ring + next_idx * 8);
+        store_i64(thread + 8, next_thread);
+        { i = i + 1 };
+    };
+
+    ring
+};
+
+// Free the ring
+fn free_ring(ring: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let thread = load_i64(ring + i * 8);
+        let _f = thread_free(thread);
+        { i = i + 1 };
+    };
+    free(ring);
+    0
+};
+
+// Simulate passing token around the ring
+// Returns the ID of the thread that receives token when it hits 0
+fn pass_token(ring: i64, n: i64, passes: i64) -> i64 = {
+    let mut token: i64 = passes;
+    let first_thread = load_i64(ring);
+    let mut current = first_thread;
+
+    while token > 0 {
+        // Pass token to next thread
+        { token = token - 1 };
+
+        if token == 0 {
+            // Return current thread's ID
+            thread_get_id(current)
+        } else {
+            // Move to next thread
+            { current = thread_get_next(current) };
+            0  // Continue loop
+        }
+    };
+
+    thread_get_id(current)
+};
+
+fn main() -> i64 = {
+    let n = NUM_THREADS();
+    let passes = DEFAULT_PASSES();
+
+    // Create ring of threads
+    let ring = create_ring(n);
+
+    // Pass token around
+    let winner = pass_token(ring, n, passes);
+
+    // Print winning thread ID
+    let _p = println(winner);
+
+    // Cleanup
+    let _f = free_ring(ring, n);
+
+    0
+};

@@ -1,0 +1,141 @@
+// brainfuck - Esoteric language interpreter benchmark
+// v0.51.54: Bit-packed encoding for faster ptr/pc return
+// Uses (ptr << 32) | pc instead of ptr * 1000000000 + pc
+
+fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
+
+fn tape_size() -> i64 = 30000;
+fn tape_new() -> i64 = calloc(tape_size(), 8);
+fn tape_free(tape: i64) -> i64 = { free(tape); 0 };
+fn tape_get(tape: i64, ptr: i64) -> i64 = load_i64(tape + ptr * 8);
+fn tape_set(tape: i64, ptr: i64, val: i64) -> i64 = { store_i64(tape + ptr * 8, val); 0 };
+
+fn get_char(prog: String, pos: i64) -> i64 =
+    if pos >= prog.len() { 0 }
+    else { prog.byte_at(pos) };
+
+// Encoding mask for 32 bits
+fn mask32() -> i64 = 4294967295;  // 0xFFFFFFFF
+
+// Pack ptr and pc into single i64: (ptr << 32) | pc
+fn pack(ptr: i64, pc: i64) -> i64 = (ptr << 32) bor (pc band mask32());
+
+// Unpack ptr: result >> 32
+fn unpack_ptr(r: i64) -> i64 = r >> 32;
+
+// Unpack pc: result & 0xFFFFFFFF
+fn unpack_pc(r: i64) -> i64 = r band mask32();
+
+fn find_matching_close(prog: String, start_pc: i64) -> i64 = {
+    let mut pc: i64 = start_pc + 1;
+    let mut depth: i64 = 1;
+    while depth > 0 { {
+        let c = get_char(prog, pc);
+        { depth = if c == 91 { depth + 1 } else { if c == 93 { depth - 1 } else { depth } } };
+        { pc = pc + 1 };
+        ()
+    } };
+    pc - 1
+};
+
+fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
+    let mut pc: i64 = start_pc - 1;
+    let mut depth: i64 = 1;
+    while depth > 0 { {
+        let c = get_char(prog, pc);
+        { depth = if c == 93 { depth + 1 } else { if c == 91 { depth - 1 } else { depth } } };
+        { pc = pc - 1 };
+        ()
+    } };
+    pc + 1
+};
+
+fn do_right(ptr: i64, ts: i64) -> i64 = if ptr + 1 >= ts { 0 } else { ptr + 1 };
+fn do_left(ptr: i64, ts: i64) -> i64 = if ptr == 0 { ts - 1 } else { ptr - 1 };
+fn do_inc(val: i64) -> i64 = (val + 1) band 255;
+fn do_dec(val: i64) -> i64 = (val - 1) band 255;
+
+// Execute single instruction - returns bit-packed (ptr << 32) | new_pc
+fn exec_instr(tape: i64, ptr: i64, pc: i64, c: i64, prog: String) -> i64 = {
+    let ts = tape_size();
+
+    if c == 62 {            // '>' = 62
+        pack(do_right(ptr, ts), pc)
+    }
+    else { if c == 60 {     // '<' = 60
+        pack(do_left(ptr, ts), pc)
+    }
+    else { if c == 43 {     // '+' = 43
+        let val = tape_get(tape, ptr);
+        let _s = tape_set(tape, ptr, do_inc(val));
+        pack(ptr, pc)
+    }
+    else { if c == 45 {     // '-' = 45
+        let val = tape_get(tape, ptr);
+        let _s = tape_set(tape, ptr, do_dec(val));
+        pack(ptr, pc)
+    }
+    else { if c == 46 {     // '.' = 46 (output)
+        let val = tape_get(tape, ptr);
+        let _p = print_str(chr(val));
+        pack(ptr, pc)
+    }
+    else { if c == 44 {     // ',' = 44 (input - no-op)
+        pack(ptr, pc)
+    }
+    else { if c == 91 {     // '[' = 91
+        let val = tape_get(tape, ptr);
+        let new_pc = if val == 0 { find_matching_close(prog, pc) } else { pc };
+        pack(ptr, new_pc)
+    }
+    else { if c == 93 {     // ']' = 93
+        let val = tape_get(tape, ptr);
+        let new_pc = if val != 0 { find_matching_open(prog, pc) } else { pc };
+        pack(ptr, new_pc)
+    }
+    else { pack(ptr, pc) } } } } } } } }
+};
+
+// Main interpreter with bit-unpacking
+fn interpret(prog: String) -> i64 = {
+    let tape = tape_new();
+    let prog_len = prog.len();
+    let mut ptr: i64 = 0;
+    let mut pc: i64 = 0;
+
+    while pc < prog_len { {
+        let c = get_char(prog, pc);
+        let result = exec_instr(tape, ptr, pc, c, prog);
+        { ptr = unpack_ptr(result) };  // result >> 32
+        { pc = unpack_pc(result) };    // result & mask
+        { pc = pc + 1 };
+        ()
+    } };
+
+    tape_free(tape)
+};
+
+fn hello_world() -> String =
+    "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]" +
+    ">>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
+
+fn nested_loops() -> String =
+    "++++++++++[>++++++++++[>++++++++++[>+<-]<-]<-]" +
+    ">>>[-]++++++++[>+++++++++++<-]>.[-]++++++++++.";
+
+fn add_test() -> String = "++++++++[>++++++++<-]>.";
+
+fn main() -> i64 = {
+    let _u1 = printline("Brainfuck Interpreter Benchmark");
+    let _u2 = print_str("Hello World: ");
+    let _u3 = interpret(hello_world());
+    let _u4 = printline("");
+    let _u5 = print_str("Nested loops (1000 iterations): ");
+    let _u6 = interpret(nested_loops());
+    let _u7 = printline("");
+    let _u8 = print_str("Add test (8*8=@): ");
+    let _u9 = interpret(add_test());
+    let _u10 = printline("");
+    let _u11 = printline("Done.");
+    0
+};

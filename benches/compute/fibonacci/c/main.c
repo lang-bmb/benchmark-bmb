@@ -9,7 +9,8 @@ long long fibonacci(int n) {
 }
 
 int main() {
-    int n = 35;
+    // v0.60: Increased from 35 to 42 for reliable measurement (>1 second)
+    int n = 42;
     long long result = fibonacci(n);
     printf("fibonacci(%d) = %lld\n", n, result);
     return 0;

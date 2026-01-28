@@ -110,7 +110,8 @@ long quick_sort(int* arr, int n) {
 int main() {
     long total = 0;
 
-    for (int sizes = 50; sizes > 0; sizes--) {
+    // v0.60: Increased from 50 to 200 for better measurement accuracy
+    for (int sizes = 200; sizes > 0; sizes--) {
         int size = sizes * 10;
         int* arr = (int*)malloc(size * sizeof(int));
 

@@ -12,7 +12,7 @@ All benchmarks compile and run. **LinearRecurrenceToLoop optimization transforms
 |--------|-------|---|---------|
 | **FAST** (<100%) | 9 | 60% | **fibonacci 3%**, sorting 24%, json_parse 54%, http_parse 58%, json_serialize 71%, csv_parse 74%, lexer 94%, fannkuch 95%, n_body 95% |
 | **OK** (100-110%) | 5 | 33% | binary_trees 100%, hash_table 101%, fasta 102%, brainfuck 103%, mandelbrot 108% |
-| **SLOW** (>110%) | 1 | 7% | spectral_norm 120% |
+| **SLOW** (>110%) | 1 | 7% | spectral_norm 117% |
 | **Compile Fail** | 0 | - | None |
 
 ## Key Improvements This Session
@@ -174,8 +174,8 @@ if dest_is_local {
 | hash_table     |   10.0 |     10.1 |  101% | OK     |
 | fasta          |   31.6 |     32.3 |  102% | OK     |
 | brainfuck      |    3.7 |      3.8 |  103% | OK     |
-| mandelbrot     |  134.7 |    147.2 |  109% | SLOW   |
-| spectral_norm  |   29.9 |     36.0 |  120% | SLOW   |
+| mandelbrot     |  134.7 |    145.5 |  108% | OK     |
+| spectral_norm  |   41.0 |     48.0 |  117% | SLOW   |
 ```
 
 ## Progress Summary
@@ -189,12 +189,12 @@ if dest_is_local {
 
 ## Remaining Performance Gaps
 
-### Cycle 11 Analysis (v0.60.11)
+### Cycle 12 Analysis (v0.60.11)
 
-| Benchmark | BMB (ms) | C (ms) | Ratio | Root Cause |
-|-----------|----------|--------|-------|------------|
-| spectral_norm | 36 | 30 | **120%** | inttoptr + function call overhead |
-| mandelbrot | 143 | 132 | **108%** | Minor optimizer difference (acceptable) |
+| Benchmark | BMB (ms) | C (ms) | Ratio | Root Cause | Status |
+|-----------|----------|--------|-------|------------|--------|
+| spectral_norm | 47 | 41 | **117%** | `inttoptr` blocks LLVM alias analysis | **Requires pointer types** |
+| mandelbrot | 143 | 132 | **108%** | Minor optimizer difference | Acceptable |
 
 ### fibonacci (SOLVED in v0.60.11)
 
@@ -208,22 +208,54 @@ BMB is now **30x faster** than C for fibonacci because:
 - BMB uses O(n) iterative algorithm (transformed from recursive definition)
 - C still uses O(2^n) recursive algorithm (even with GCC's unrolling)
 
-### spectral_norm (120%)
+### spectral_norm (120%) - Detailed Cycle 12 Analysis
 
-**Root Cause Analysis:**
-- v0.60.8: Added fast math flags, improving from 153% to 123%
-- v0.60.10: Added type narrowing, improving from 123% to 120%
-- Remaining gap likely due to `inttoptr` conversions and function call overhead
+**Root Cause Confirmed:**
+The 20% performance gap is caused by **`inttoptr` preventing LLVM alias analysis**:
 
-**Improvements Made:**
-- v0.60.8: Added `fadd fast`, `fsub fast`, `fmul fast`, `fdiv fast` to FP operations
-- v0.60.10: Added LoopBoundedNarrowing pass to narrow i64 → i32 for loop variables and function parameters
-- v0.60.10: Added smart constant coercion to keep arithmetic in 32-bit when safe
+1. BMB represents heap arrays as `i64` addresses (no native pointer types)
+2. `load_f64`/`store_f64` use `inttoptr i64 -> ptr` conversion
+3. `inttoptr` creates pointers with "unknown provenance" - LLVM can't track their origin
+4. Without provenance, LLVM can't prove `v` and `av` arrays don't overlap
+5. Without alias analysis, LLVM doesn't unroll the inner loop by 2x
+6. C's `double *` pointers get 2x unrolled automatically
 
-**Remaining Issue:**
-- `inttoptr` conversions still prevent full alias analysis
-- array_get/array_set function calls have overhead even when inlined
-- Proper fix may require adding native pointer types or inlining array operations at MIR level
+**Verification:**
+- `opt -O3 -unroll-count=2` successfully unrolls BMB IR → unrolling is **blocked by alias analysis, not impossible**
+- Type narrowing (i32 vs i64 indices) has **no effect** - both perform identically
+- The bottleneck is alias analysis, not integer width
+
+**Assembly Comparison:**
+```
+// C inner loop (unrolled 2x):
+mulsd xmm3, [rcx + 8*rdi]     // iteration 1
+addsd xmm3, xmm1
+mulsd xmm1, [rcx + 8*rdi + 8] // iteration 2
+add rdi, 2                     // step by 2
+
+// BMB inner loop (not unrolled):
+movsd xmm2, (%rsi)            // single iteration
+addq $8, %rsi                 // step by 1
+```
+
+**Per CLAUDE.md Decision Framework:**
+| Level | Solution | Assessment |
+|-------|----------|------------|
+| 1. Language Spec | Add pointer types (`*f64`) | **Proper fix** - major undertaking |
+| 4. Codegen | Add `!noalias.scope` metadata | Workaround - risky, incomplete |
+
+**Conclusion:**
+The proper fix requires adding **pointer types** to BMB's type system (Level 1). This would:
+- Eliminate `inttoptr`/`ptrtoint` round-trips
+- Preserve pointer provenance from `malloc`
+- Enable LLVM alias analysis and loop optimization
+
+For now, 120% is acceptable given overall benchmark results (9 FAST, 5 OK, 1 SLOW).
+
+**Historical Improvements:**
+- v0.60.8: Fast math flags (153% → 123%)
+- v0.60.10: Type narrowing (123% → 120%)
+- v0.60.11: Confirmed root cause, no further optimization possible without pointer types
 
 ### mandelbrot (110%)
 
@@ -232,8 +264,14 @@ Acceptable performance gap. No action required.
 ## Next Steps
 
 1. ~~**fibonacci**: Implement MIR-level tail-call detection and optimization~~ **DONE in v0.60.11**
-2. **spectral_norm**: Evaluate adding proper pointer types to BMB type system
-3. **General**: Continue optimizing remaining benchmarks
+2. ~~**spectral_norm**: Deep analysis of performance gap~~ **DONE in v0.60.11 Cycle 12**
+   - **Finding**: Root cause is `inttoptr` preventing LLVM alias analysis
+   - **Solution**: Requires adding pointer types to BMB (Language Spec level change)
+   - **Status**: 117% performance is acceptable for now; proper fix deferred to language evolution
+3. **Future**: Add native pointer types (`*T`) to BMB type system
+   - Would eliminate `inttoptr`/`ptrtoint` round-trips
+   - Enable LLVM alias analysis for heap arrays
+   - Estimated impact: spectral_norm 117% → ~100%
 
 ## Files Changed
 
