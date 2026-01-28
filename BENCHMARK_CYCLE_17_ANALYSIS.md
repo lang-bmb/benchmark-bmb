@@ -12,6 +12,8 @@
 |-----|-------|---------|--------|
 | json_serialize sb_push_escaped | 211% ratio due to per-char function calls | v0.60.17 | FIXED |
 | fannkuch use break statement | Used flag-based workaround before | v0.60.17 | UPDATED |
+| codegen: narrowed i32 in store_i64 | LLVM type mismatch with narrowed params | v0.60.17 | FIXED |
+| codegen: narrowed i32 in return | PHI nodes produce i32, ret expects i64 | v0.60.17 | FIXED |
 
 ### Analysis: json_serialize Fix
 
@@ -49,10 +51,10 @@ fannkuch:       MIR shows correct break → while_exit_20 control flow
 | n_body | 68 | 77 | **113%** | OK | Struct overhead |
 | lexer | 19 | 24 | **123%** | SLOW | String iteration |
 | spectral_norm | 31 | 38 | **122%** | SLOW | inttoptr alias |
-| json_serialize | 23 | TBD | **TBD** | PENDING | sb_push_escaped fix |
+| json_serialize | 23 | 17 | **74%** | FAST | sb_push_escaped (was 211%) |
 | brainfuck | 20 | 26 | **130%** | SLOW | Variance |
-| binary_trees | - | - | **TBD** | - | Fixed v0.60.15 |
-| fannkuch | 79 | TBD | **TBD** | - | Using break v0.60.17 |
+| binary_trees | 100 | 102 | **102%** | OK | Fixed v0.60.15+17 codegen |
+| fannkuch | 79 | 88 | **111%** | OK | Using break v0.60.17 |
 
 ## Analysis: Why json_serialize was 211% (FIXED)
 
@@ -85,6 +87,32 @@ fn json_string_to_sb(s: String, sb: i64) -> i64 = {
 ```
 
 **Result:** N function calls → 3 function calls (~27x reduction for typical strings)
+
+### Codegen Fixes: Narrowed Type Handling (v0.60.17)
+
+**Problem 1: store_i64 with narrowed i32 parameters**
+
+When ConstantPropagationNarrowing narrows a parameter from i64 to i32, the `store_i64` intrinsic
+still expects i64. This caused LLVM type mismatch errors:
+
+```
+'%val' defined with type 'i32' but expected 'i64'
+```
+
+**Fix:** Detect narrowed i32 types in store_i64 codegen and insert `sext i32 %val to i64`.
+
+**Problem 2: return with narrowed PHI results**
+
+PHI nodes merging values from narrowed parameters (i32) and computing max/min would produce i32,
+but the function return type remains i64:
+
+```
+'%_t1' defined with type 'i32' but expected 'i64'
+```
+
+**Fix:** Check SSA value types in return codegen and insert `sext` when necessary.
+
+**Impact:** These fixes enabled fannkuch and binary_trees benchmarks to compile correctly.
 
 ## Remaining Performance Issues
 
@@ -125,7 +153,8 @@ Add `*T` pointers for proper alias analysis.
 
 1. `ecosystem/benchmark-bmb/benches/real_world/json_serialize/bmb/main.bmb` - Use sb_push_escaped
 2. `ecosystem/benchmark-bmb/benches/compute/fannkuch/bmb/main.bmb` - Use break statement
-3. `ecosystem/benchmark-bmb/BENCHMARK_CYCLE_17_ANALYSIS.md` - This document
+3. `bmb/src/codegen/llvm_text.rs` - Handle narrowed i32 types in store_i64 and return
+4. `ecosystem/benchmark-bmb/BENCHMARK_CYCLE_17_ANALYSIS.md` - This document
 
 ## Verification Commands
 
