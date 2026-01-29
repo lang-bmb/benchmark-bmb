@@ -23,8 +23,8 @@ struct Body {
 fn bodies_new() -> *Body = malloc(N_BODIES() * 56) as *Body;
 
 // Get pointer to body at index i
-fn body_at(bodies: *Body, i: i64) -> *Body =
-    (bodies as i64 + i * 56) as *Body;
+// v0.60.34: Use native pointer arithmetic for proper GEP codegen
+fn body_at(bodies: *Body, i: i64) -> *Body = bodies + i;
 
 // Null pointer
 fn null_body() -> *Body = 0 as *Body;
