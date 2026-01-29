@@ -1,5 +1,6 @@
-// N-Body simulation benchmark with typed pointers (v0.51.39)
-// Uses *Body typed pointer for proper LLVM struct GEP codegen
+// N-Body simulation benchmark - NATIVE POINTER VERSION (v0.60.19)
+// Uses native pointer arithmetic: bodies + i instead of (bodies as i64 + i * 56) as *Body
+// This enables LLVM's alias analysis for better optimization
 
 // Constants
 fn PI() -> f64 = 3.141592653589793;
@@ -22,9 +23,8 @@ struct Body {
 // Allocate bodies array (5 bodies * 56 bytes = 280 bytes)
 fn bodies_new() -> *Body = malloc(N_BODIES() * 56) as *Body;
 
-// Get pointer to body at index i
-fn body_at(bodies: *Body, i: i64) -> *Body =
-    (bodies as i64 + i * 56) as *Body;
+// Get pointer to body at index i - NOW USING NATIVE POINTER ARITHMETIC
+fn body_at(bodies: *Body, i: i64) -> *Body = bodies + i;
 
 // Null pointer
 fn null_body() -> *Body = 0 as *Body;
@@ -241,6 +241,6 @@ fn main() -> i64 = {
     let e2_scaled = f64_to_i64(e2 * 1e9);
     let _p2 = println(e2_scaled);
 
-    let _f = free(bodies);
+    let _f = free(bodies);  // v0.60.27: native pointer free
     0
 };

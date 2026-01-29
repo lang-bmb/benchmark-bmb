@@ -241,6 +241,6 @@ fn main() -> i64 = {
     let e2_scaled = f64_to_i64(e2 * 1e9);
     let _p2 = println(e2_scaled);
 
-    let _f = free(bodies as i64);
+    let _f = free(bodies);
     0
 };

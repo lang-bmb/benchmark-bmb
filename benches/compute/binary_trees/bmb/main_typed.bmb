@@ -46,10 +46,10 @@ fn free_tree(node: *Node) -> i64 = {
     if left != nil {
         let _l = free_tree(node.left);
         let _r = free_tree(node.right);
-        let _f = free(node as i64);
+        let _f = free(node);
         0
     } else {
-        let _f = free(node as i64);
+        let _f = free(node);
         0
     }
 };

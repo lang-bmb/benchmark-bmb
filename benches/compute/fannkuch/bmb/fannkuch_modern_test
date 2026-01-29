@@ -1,0 +1,171 @@
+fn max_val(a: i32, b: i32) -> i64 @alwaysinline @memory(none) {
+entry:
+  %_t0 = > %a, %b
+  branch %_t0, then_0, else_1
+then_0:
+  goto merge_2
+else_1:
+  goto merge_2
+merge_2:
+  %_t1 = phi [%a, then_0], [%b, else_1]
+  return %_t1
+}
+
+
+fn swap(arr: *i64, i: i32, j: i64) -> i64 @alwaysinline {
+entry:
+  %_t0 = index-load %arr[%i] : i64
+  %tmp = copy %_t0
+  %_t1 = index-load %arr[%j] : i64
+  %arr[%i] = %_t1 : i64
+  %arr[%j] = %tmp : i64
+  return I:0
+}
+
+
+fn fannkuch(n: i32) -> i64 @inlinehint {
+entry:
+  %_t0 = array-init [I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0]
+  %perm_arr = copy %_t0
+  %_t1 = array-init [I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0]
+  %perm1_arr = copy %_t1
+  %_t2 = array-init [I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0, I:0]
+  %count_arr = copy %_t2
+  %_t3 = cast %perm_arr [i64; 12] to *i64
+  %perm = copy %_t3
+  %_t4 = cast %perm1_arr [i64; 12] to *i64
+  %perm1 = copy %_t4
+  %_t5 = cast %count_arr [i64; 12] to *i64
+  %count = copy %_t5
+  %maxFlips = const I:0
+  %checksum = const I:0
+  %permCount = const I:0
+  %i = const I:0
+  goto for_cond_0
+for_cond_0:
+  %_t6 = < %i, %n
+  branch %_t6, for_body_1, for_exit_2
+for_body_1:
+  %perm1[%i] = %i : i64
+  %_t7 = + %i, I:1
+  %count[%i] = %_t7 : i64
+  %_t8 = + %i, I:1
+  %i = copy %_t8
+  goto for_cond_0
+for_exit_2:
+  %running = const I:1
+  goto while_cond_3
+while_cond_3:
+  %_t9 = != %running, I:0
+  branch %_t9, while_body_4, while_exit_5
+while_body_4:
+  %i = const I:0
+  goto for_cond_6
+for_cond_6:
+  %_t10 = < %i, %n
+  branch %_t10, for_body_7, for_exit_8
+for_body_7:
+  %_t11 = index-load %perm1[%i] : i64
+  %perm[%i] = %_t11 : i64
+  %_t12 = + %i, I:1
+  %i = copy %_t12
+  goto for_cond_6
+for_exit_8:
+  %flips = const I:0
+  %_t13 = index-load %perm[I:0] : i64
+  %first = copy %_t13
+  goto while_cond_9
+while_cond_9:
+  %_t14 = != %first, I:0
+  branch %_t14, while_body_10, while_exit_11
+while_body_10:
+  %lo = const I:0
+  %hi = copy %first
+  goto while_cond_12
+while_cond_12:
+  %_t15 = < %lo, %hi
+  branch %_t15, while_body_13, while_exit_14
+while_body_13:
+  %_t16 = call swap(%perm, %lo, %hi)
+  %_t17 = + %lo, I:1
+  %lo = copy %_t17
+  %_t18 = - %hi, I:1
+  %hi = copy %_t18
+  goto while_cond_12
+while_exit_14:
+  %_t19 = + %flips, I:1
+  %flips = copy %_t19
+  %_t20 = index-load %perm[I:0] : i64
+  %first = copy %_t20
+  goto while_cond_9
+while_exit_11:
+  %_t21 = call max_val(%maxFlips, %flips)
+  %maxFlips = copy %_t21
+  %_t22 = band %permCount, I:1
+  %_t23 = == %_t22, I:0
+  branch %_t23, then_15, else_16
+then_15:
+  goto merge_17
+else_16:
+  %_t25 = - I:0, %flips
+  goto merge_17
+merge_17:
+  %_t24 = phi [%flips, then_15], [%_t25, else_16]
+  %_t26 = + %checksum, %_t24
+  %checksum = copy %_t26
+  %running = const I:0
+  %i = const I:1
+  goto while_cond_18
+while_cond_18:
+  %_t27 = < %i, %n
+  branch %_t27, while_body_19, while_exit_20
+while_body_19:
+  %_t28 = index-load %perm1[I:0] : i64
+  %tmp = copy %_t28
+  %j = const I:0
+  goto while_cond_21
+while_cond_21:
+  %_t29 = < %j, %i
+  branch %_t29, while_body_22, while_exit_23
+while_body_22:
+  %_t30 = + %j, I:1
+  %_t31 = index-load %perm1[%_t30] : i64
+  %perm1[%j] = %_t31 : i64
+  %_t32 = + %j, I:1
+  %j = copy %_t32
+  goto while_cond_21
+while_exit_23:
+  %perm1[%i] = %tmp : i64
+  %_t33 = index-load %count[%i] : i64
+  %_t34 = - %_t33, I:1
+  %c = copy %_t34
+  %count[%i] = %c : i64
+  %_t35 = > %_t34, I:0
+  branch %_t35, then_24, else_25
+then_24:
+  %running = const I:1
+  %_t37 = + %permCount, I:1
+  %permCount = copy %_t37
+  goto while_exit_20
+else_25:
+  %_t38 = + %i, I:1
+  %count[%i] = %_t38 : i64
+  %_t39 = + %i, I:1
+  %i = copy %_t39
+  goto merge_26
+merge_26:
+  goto while_cond_18
+while_exit_20:
+  goto while_cond_3
+while_exit_5:
+  call println(%checksum)
+  return %maxFlips
+}
+
+
+fn main() -> i64 {
+entry:
+  %_t0 = call fannkuch(I:10)
+  call println(%_t0)
+  return I:0
+}

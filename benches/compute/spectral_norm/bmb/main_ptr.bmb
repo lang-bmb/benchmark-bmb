@@ -1,0 +1,139 @@
+// Spectral norm benchmark - NATIVE POINTER VERSION (v0.60.19)
+// Uses *f64 typed pointers with native indexing for optimal LLVM optimization
+// - N = 1000 (same as C)
+// - 10 iterations (same as C)
+// - Uses native pointer indexing: ptr[i] instead of load_f64(addr + i * 8)
+
+// Constants
+fn N() -> i64 = 1000;
+fn ITERATIONS() -> i64 = 10;
+
+// Array operations using typed pointers
+fn array_new(n: i64) -> *f64 = malloc(n * 8) as *f64;
+fn array_free(arr: *f64) -> i64 = { free(arr); 0 };
+
+// A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
+fn matrix_a(i: i64, j: i64) -> f64 = {
+    let sum = i + j;
+    let denom = (sum * (sum + 1)) / 2 + i + 1;
+    1.0 / i64_to_f64(denom)
+};
+
+// Initialize vector with 1.0
+fn init_ones(v: *f64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        set v[i] = 1.0;
+        { i = i + 1 };
+    };
+    0
+};
+
+// mult_Av: Av[i] = sum_j(A(i,j) * v[j])
+fn mult_av(v: *f64, av: *f64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let mut j: i64 = 0;
+        let mut sum: f64 = 0.0;
+        while j < n {
+            let a_ij = matrix_a(i, j);
+            let v_j = v[j];
+            { sum = sum + a_ij * v_j };
+            { j = j + 1 };
+        };
+        set av[i] = sum;
+        { i = i + 1 };
+    };
+    0
+};
+
+// mult_Atv: Atv[i] = sum_j(A(j,i) * v[j])
+fn mult_atv(v: *f64, atv: *f64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < n {
+        let mut j: i64 = 0;
+        let mut sum: f64 = 0.0;
+        while j < n {
+            let a_ji = matrix_a(j, i);  // Note: A(j,i) not A(i,j)
+            let v_j = v[j];
+            { sum = sum + a_ji * v_j };
+            { j = j + 1 };
+        };
+        set atv[i] = sum;
+        { i = i + 1 };
+    };
+    0
+};
+
+// mult_AtAv: computes A^T * A * v
+fn mult_atav(v: *f64, atav: *f64, temp: *f64, n: i64) -> i64 = {
+    let _m1 = mult_av(v, temp, n);
+    mult_atv(temp, atav, n)
+};
+
+// Run power iterations
+fn power_iterations(u: *f64, v: *f64, temp: *f64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < ITERATIONS() {
+        let _m1 = mult_atav(u, v, temp, n);
+        let _m2 = mult_atav(v, u, temp, n);
+        { i = i + 1 };
+    };
+    0
+};
+
+// Compute vBv = sum_i(u[i] * v[i])
+fn compute_vbv(u: *f64, v: *f64, n: i64) -> f64 = {
+    let mut i: i64 = 0;
+    let mut acc: f64 = 0.0;
+    while i < n {
+        let u_i = u[i];
+        let v_i = v[i];
+        { acc = acc + u_i * v_i };
+        { i = i + 1 };
+    };
+    acc
+};
+
+// Compute vv = sum_i(v[i] * v[i])
+fn compute_vv(v: *f64, n: i64) -> f64 = {
+    let mut i: i64 = 0;
+    let mut acc: f64 = 0.0;
+    while i < n {
+        let v_i = v[i];
+        { acc = acc + v_i * v_i };
+        { i = i + 1 };
+    };
+    acc
+};
+
+fn main() -> i64 = {
+    let n = N();
+
+    // Allocate vectors
+    let u = array_new(n);
+    let v = array_new(n);
+    let temp = array_new(n);
+
+    // Initialize u with 1.0
+    let _init = init_ones(u, n);
+
+    // Run power iterations
+    let _iter = power_iterations(u, v, temp, n);
+
+    // Compute result: sqrt(vBv / vv)
+    let vbv = compute_vbv(u, v, n);
+    let vv = compute_vv(v, n);
+    let result = sqrt(vbv / vv);
+
+    // Scale and print (9 decimal places scaled to integer)
+    let result_scaled = f64_to_i64(result * 1e9);
+    let _p = println(result_scaled);
+
+    // Free memory
+    let _f1 = array_free(u);
+    let _f2 = array_free(v);
+    let _f3 = array_free(temp);
+
+    0
+};
