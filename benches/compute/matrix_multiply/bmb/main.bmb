@@ -5,9 +5,12 @@
 fn matrix_new(n: i64) -> i64 = malloc(n * n * 8);
 fn matrix_free(m: i64) -> i64 = { let _f = free(m); 0 };
 
+// v0.60.45: Inline accessors for better inner loop performance
+@inline
 fn matrix_get(m: i64, n: i64, i: i64, j: i64) -> i64 =
     load_i64(m + (i * n + j) * 8);
 
+@inline
 fn matrix_set(m: i64, n: i64, i: i64, j: i64, v: i64) -> i64 =
     { let _s = store_i64(m + (i * n + j) * 8, v); 0 };
 
