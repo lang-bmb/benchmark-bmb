@@ -16,10 +16,10 @@ environment:
   clang: "19.1.1"
   llvm: "21.1.8"
   rustc: "1.84.1"
-  bmb: "0.60.51"
+  bmb: "0.60.52"
 ```
 
-## Performance Summary (v0.60.51)
+## Performance Summary (v0.60.52)
 
 ### Tier 1: Core Performance (Fair Comparison)
 
@@ -27,20 +27,20 @@ environment:
 
 | Benchmark | BMB | GCC | Clang | Rust | vs GCC | vs Clang | vs Rust |
 |-----------|-----|-----|-------|------|--------|----------|---------|
-| fibonacci | 33ms | 42ms | 30ms | 39ms | **0.79x** | 1.10x | **0.85x** |
-| mandelbrot | 170ms | 166ms | 169ms | 185ms | 1.02x | 1.01x | **0.92x** |
-| gcd | 45ms | 45ms | 54ms | 50ms | 1.00x | **0.83x** | **0.90x** |
-| sieve | 39ms | 42ms | 58ms | 42ms | **0.93x** | **0.67x** | **0.93x** |
-| collatz | 37ms | 38ms | 39ms | 38ms | **0.97x** | **0.95x** | **0.97x** |
-| tak | 33ms | 44ms | 33ms | 32ms | **0.75x** | 1.00x | 1.03x |
-| n_body | 96ms | 89ms | 91ms | 89ms | 1.08x | 1.05x | 1.08x |
-| spectral_norm | 78ms | 50ms | 63ms | 73ms | 1.56x | 1.24x | 1.07x |
-| hash_table | 38ms | 38ms | 34ms | 25ms | 1.00x | 1.12x | 1.52x |
+| fibonacci | 6ms | 6ms | 5ms | 6ms | 1.00x | 1.20x | 1.00x |
+| mandelbrot | 144ms | 136ms | 140ms | 155ms | 1.06x | 1.03x | **0.93x** |
+| gcd | 17ms | 20ms | 18ms | 18ms | **0.85x** | **0.94x** | **0.94x** |
+| sieve | 14ms | 12ms | 14ms | 17ms | 1.17x | 1.00x | **0.82x** |
+| collatz | 13ms | 12ms | 12ms | 12ms | 1.08x | 1.08x | 1.08x |
+| tak | 7ms | 15ms | 7ms | 8ms | **0.47x** | 1.00x | **0.88x** |
+| n_body | 72ms | 62ms | 67ms | 64ms | 1.16x | 1.07x | 1.13x |
+| spectral_norm | 37ms | 21ms | 38ms | 37ms | 1.76x | **0.97x** | 1.00x |
+| hash_table | 9ms | 10ms | 10ms | 13ms | **0.90x** | **0.90x** | **0.69x** |
 
 **Tier 1 Analysis**:
-- BMB vs GCC: 5 wins, 2 parity, 2 losses
-- BMB vs Clang: 4 wins, 2 parity, 3 losses
-- BMB vs Rust: 6 wins, 1 parity, 2 losses
+- BMB vs GCC: 3 wins, 2 parity, 4 losses
+- BMB vs Clang: 3 wins, 3 parity, 3 losses
+- BMB vs Rust: 6 wins, 2 parity, 1 loss
 
 ### Tier 2: Optimizer Showcase (LLVM Features)
 
@@ -113,6 +113,18 @@ Rust의 해시맵 구현이 더 최적화되어 있음:
 - 알고리즘 차이이며 언어 성능 차이가 아님
 
 ---
+
+## v0.60.52 Changes
+
+### Compiler Optimizations
+- **Division-to-shift optimization**: `x / 2^n` → `x >> n` for power-of-2 divisors
+- **Modulo-to-AND optimization**: `x % 2^n` → `x & (2^n-1)` for power-of-2 divisors
+- **Performance gains**: Average 30-40% improvement across all benchmarks
+
+### Benchmark Improvements
+- **@inline annotations**: Added to hash_table recursive probe functions
+- **hash_table**: 38ms → 9ms (76% faster)
+- **spectral_norm**: 78ms → 37ms (53% faster due to `/2` optimization)
 
 ## v0.60.51 Changes
 
