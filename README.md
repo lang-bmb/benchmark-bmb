@@ -4,41 +4,36 @@
 
 BMB 언어의 표준 벤치마크 스위트. C, BMB 간 성능 비교를 제공합니다.
 
-## Performance Summary (v0.60.47)
+## Performance Summary (v0.60.48)
 
 **Total Benchmarks**: 30 (24 compute + 6 real-world)
 **Build Success**: 30/30 (100%)
-**BMB Faster than C -O3**: 8/14 key benchmarks (57%)
-**Near Parity (±20%)**: 4/14 (29%)
+**BMB Faster than C -O3**: 6/11 key benchmarks (55%)
+**Near Parity (±20%)**: 3/11 (27%)
 
 ### BMB Faster than C -O3
 
 | Benchmark | BMB | C -O3 | Speedup | Category |
 |-----------|-----|-------|---------|----------|
-| ackermann | 0.04s | 11.12s | **271x** | TCO |
-| nqueen | 0.88s | 6.74s | **7.7x** | TCO |
-| sorting | 0.16s | 0.62s | **3.9x** | TCO |
-| tak | 0.02s | 0.03s | **1.5x** | TCO |
-| fibonacci | 0.02s | 0.02s | **1.2x** | Compute |
-| gcd | 0.03s | 0.03s | **1.1x** | Compute |
-| hash_table | 0.02s | 0.02s | **1.1x** | Compute |
-| fannkuch | 0.08s | 0.08s | **1.0x** | Compute |
+| ackermann | 0.04s | 11.6s | **322x** | TCO |
+| nqueen | 0.90s | 6.99s | **7.8x** | TCO |
+| sorting | 0.15s | 0.63s | **4.1x** | TCO |
+| fibonacci | 0.008s | 0.01s | **1.3x** | Compute |
+| gcd | 0.025s | 0.026s | **1.04x** | Compute |
 
 ### Near Parity (±20%)
 
 | Benchmark | BMB | C -O3 | Ratio |
 |-----------|-----|-------|-------|
-| mandelbrot | 0.16s | 0.15s | 0.95x |
-| binary_trees | 0.10s | 0.09s | 0.93x |
-| n_body | 0.08s | 0.07s | 0.89x |
-| matrix_multiply | 0.03s | 0.02s | 0.82x |
+| mandelbrot | 0.15s | 0.15s | 1.05x |
+| hash_table | 0.015s | 0.012s | 1.18x |
 
 ### C -O3 Faster
 
 | Benchmark | BMB | C -O3 | Ratio |
 |-----------|-----|-------|-------|
-| sieve | 0.03s | 0.02s | 0.74x |
-| spectral_norm | 0.05s | 0.03s | 0.67x |
+| spectral_norm | 0.08s | 0.06s | 1.26x |
+| sieve | 0.025s | 0.02s | 1.23x |
 
 ### Output Correctness
 
@@ -57,12 +52,11 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 
 | Benchmark | Description | TCO Benefit |
 |-----------|-------------|-------------|
-| ackermann | Ackermann function | ✓ (271x faster) |
-| nqueen | N-Queens problem | ✓ (7.7x faster) |
-| sorting | Quicksort/Mergesort | ✓ (3.9x faster) |
-| tak | Tak function | ✓ (1.5x faster) |
-| fibonacci | Fibonacci sequence | ✓ (1.2x faster) |
-| gcd | Greatest common divisor | ✓ (1.1x faster) |
+| ackermann | Ackermann function | ✓ (322x faster) |
+| nqueen | N-Queens problem | ✓ (7.8x faster) |
+| sorting | Quicksort/Mergesort | ✓ (4.1x faster) |
+| fibonacci | Fibonacci sequence | ✓ (1.3x faster) |
+| gcd | Greatest common divisor | ✓ (1.04x faster) |
 | mandelbrot | Fractal generation | - |
 | spectral_norm | Eigenvalue approximation | - |
 | binary_trees | Tree allocation | - |
@@ -75,39 +69,24 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 | collatz | Collatz conjecture | - |
 | digital_root | Digital root calculation | - |
 | sum_of_squares | Sum of squares | - |
-| hash_table | Hash table operations | ✓ (1.1x faster) |
+| hash_table | Hash table operations | - |
 | fasta | FASTA file generation | - |
 | pidigits | Pi digit calculation | - |
 | regex_redux | Pattern matching | - |
 | k-nucleotide | Nucleotide counting | - |
 | reverse-complement | DNA complement | - |
+| tak | Tak function | - |
 
 ### Real-World (6 benchmarks)
 
 | Benchmark | Description | BMB vs C |
 |-----------|-------------|----------|
-| sorting | Quicksort benchmark | 3.9x faster |
+| sorting | Quicksort benchmark | 4.1x faster |
 | json_serialize | JSON serialization | ~1.0x (parity) |
 | csv_parse | CSV parsing | ~1.0x (parity) |
 | json_parse | JSON parsing | ~1.0x (parity) |
 | http_parse | HTTP parsing | ~1.0x (parity) |
 | lexer | Lexer benchmark | ~1.0x (parity) |
-
-## Directory Structure
-
-```
-benchmark-bmb/
-├── README.md
-├── benches/
-│   ├── compute/
-│   │   ├── ackermann/{c,bmb}/main.{c,bmb}
-│   │   ├── binary_trees/{c,bmb}/main.{c,bmb}
-│   │   └── ... (24 benchmarks)
-│   └── real_world/
-│       ├── brainfuck/{c,bmb}/main.{c,bmb}
-│       └── ... (6 benchmarks)
-└── results/
-```
 
 ## Running Benchmarks
 
@@ -128,17 +107,11 @@ gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
 ./fib_c.exe
 ```
 
-### Requirements
-
-- **C benchmarks**: GCC with `-O3 -march=native`
-- **BMB benchmarks**: BMB compiler with LLVM backend
-- **Runtime**: `libbmb_runtime.a` in BMB_RUNTIME_PATH
-
 ## Methodology
 
 1. **Same algorithm**: Identical algorithm across C and BMB
 2. **Fair optimization**: C uses `-O3 -march=native`, BMB uses LLVM `-O3` with scalarizer
-3. **Median timing**: 3 runs, median reported (first run excluded for cold start)
+3. **Median timing**: 3-5 runs, median reported (first run excluded for cold start)
 4. **Output validation**: Verify identical output
 
 ## Key Features
@@ -147,9 +120,9 @@ gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
 
 BMB automatically optimizes tail-recursive functions into loops:
 
-- **ackermann**: 271x faster (deep recursion → loop)
-- **nqueen**: 7.7x faster (backtracking → TCO)
-- **sorting**: 3.9x faster (recursive sort → loop)
+- **ackermann**: 322x faster (deep recursion → loop)
+- **nqueen**: 7.8x faster (backtracking → TCO)
+- **sorting**: 4.1x faster (recursive sort → loop)
 
 ### Float Output
 
