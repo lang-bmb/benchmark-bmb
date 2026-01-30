@@ -1,0 +1,12 @@
+=== Benchmark Results (Cycle 24) ===
+
+| Benchmark | C -O3 (s) | BMB (s) | Ratio |
+|-----------|-----------|---------|-------|
+| fibonacci | 0.252 | 0.018 | N/A% |
+| mandelbrot | 0.151 | 0.161 | N/A% |
+| spectral_norm | 0.045 | 0.049 | N/A% |
+| fannkuch | 0.08 | 0.084 | N/A% |
+| binary_trees | 0.098 | 0.098 | N/A% |
+| fasta | 0.045 | 0.051 | N/A% |
+| n_body | 0.079 | 0.084 | N/A% |
+| sorting | 0.628 | 0.153 | N/A% |

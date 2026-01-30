@@ -10,13 +10,10 @@ struct Node {
 // Allocate a node
 fn node_new() -> *Node = malloc(16) as *Node;
 
-// Null pointer
-fn null_ptr() -> *Node = 0 as *Node;
-
+// v0.60.39: Use null keyword directly (eliminates function call overhead)
 // Create a tree of given depth (inherently recursive - tree structure)
 fn make_tree(depth: i64) -> *Node = {
     let node = node_new();
-    let nil = null_ptr();
     if depth > 0 {
         let _l = set node.left = make_tree(depth - 1);
         let _r = set node.right = make_tree(depth - 1);
@@ -31,8 +28,7 @@ fn make_tree(depth: i64) -> *Node = {
 // Count nodes in tree (inherently recursive - tree traversal)
 fn check_tree(node: *Node) -> i64 = {
     let left = node.left;
-    let nil = null_ptr();
-    if left == nil {
+    if left == null {
         1
     } else {
         1 + check_tree(node.left) + check_tree(node.right)
@@ -42,8 +38,7 @@ fn check_tree(node: *Node) -> i64 = {
 // Free tree recursively (inherently recursive - tree traversal)
 fn free_tree(node: *Node) -> i64 = {
     let left = node.left;
-    let nil = null_ptr();
-    if left != nil {
+    if left != null {
         let _l = free_tree(node.left);
         let _r = free_tree(node.right);
         let _f = free(node);

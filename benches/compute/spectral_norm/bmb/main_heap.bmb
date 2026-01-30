@@ -1,12 +1,19 @@
-// Spectral norm benchmark - STACK ARRAY VERSION
-// v0.60.23: Uses fixed-size stack arrays [f64; 1000] with array-to-pointer cast
-// - N = 1000 (compile-time constant)
+// Spectral norm benchmark - WHILE LOOP VERSION
+// v0.51.6: Rewritten with while loops for optimal LLVM vectorization
+// - N = 100 (same as C)
 // - 10 iterations (same as C)
-// - Stack-allocated arrays for better cache performance
-// - Native pointer syntax for array access
+// - Uses malloc-based f64 arrays
+// - while loops allow LLVM to unroll and vectorize
 
 // Constants
+fn N() -> i64 = 1000;
 fn ITERATIONS() -> i64 = 10;
+
+// Array operations using malloc
+fn array_new(n: i64) -> i64 = malloc(n * 8);
+fn array_get(arr: i64, i: i64) -> f64 = load_f64(arr + i * 8);
+fn array_set(arr: i64, i: i64, val: f64) -> i64 = { store_f64(arr + i * 8, val); 0 };
+fn array_free(arr: i64) -> i64 = { free(arr); 0 };
 
 // A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
 fn matrix_a(i: i64, j: i64) -> f64 = {
@@ -15,76 +22,76 @@ fn matrix_a(i: i64, j: i64) -> f64 = {
     1.0 / i64_to_f64(denom)
 };
 
-// Initialize vector with 1.0 using native pointer
-fn init_ones(v: *f64, n: i64) -> i64 = {
+// Initialize vector with 1.0
+fn init_ones(v: i64, n: i64) -> i64 = {
     let mut i: i64 = 0;
     while i < n {
-        set v[i] = 1.0;
+        array_set(v, i, 1.0);
         { i = i + 1 };
     };
     0
 };
 
 // mult_Av: Av[i] = sum_j(A(i,j) * v[j])
-fn mult_av(v: *f64, av: *f64, n: i64) -> i64 = {
+fn mult_av(v: i64, av: i64, n: i64) -> i64 = {
     let mut i: i64 = 0;
     while i < n {
         let mut j: i64 = 0;
         let mut sum: f64 = 0.0;
         while j < n {
             let a_ij = matrix_a(i, j);
-            let v_j = v[j];
+            let v_j = array_get(v, j);
             { sum = sum + a_ij * v_j };
             { j = j + 1 };
         };
-        set av[i] = sum;
+        array_set(av, i, sum);
         { i = i + 1 };
     };
     0
 };
 
 // mult_Atv: Atv[i] = sum_j(A(j,i) * v[j])
-fn mult_atv(v: *f64, atv: *f64, n: i64) -> i64 = {
+fn mult_atv(v: i64, atv: i64, n: i64) -> i64 = {
     let mut i: i64 = 0;
     while i < n {
         let mut j: i64 = 0;
         let mut sum: f64 = 0.0;
         while j < n {
             let a_ji = matrix_a(j, i);  // Note: A(j,i) not A(i,j)
-            let v_j = v[j];
+            let v_j = array_get(v, j);
             { sum = sum + a_ji * v_j };
             { j = j + 1 };
         };
-        set atv[i] = sum;
+        array_set(atv, i, sum);
         { i = i + 1 };
     };
     0
 };
 
 // mult_AtAv: computes A^T * A * v
-fn mult_atav(v: *f64, atav: *f64, temp: *f64, n: i64) -> i64 = {
-    let m1 = mult_av(v, temp, n);
+fn mult_atav(v: i64, atav: i64, temp: i64, n: i64) -> i64 = {
+    let _m1 = mult_av(v, temp, n);
     mult_atv(temp, atav, n)
 };
 
 // Run power iterations
-fn power_iterations(u: *f64, v: *f64, temp: *f64, n: i64) -> i64 = {
+fn power_iterations(u: i64, v: i64, temp: i64, n: i64) -> i64 = {
     let mut i: i64 = 0;
     while i < ITERATIONS() {
-        let m1 = mult_atav(u, v, temp, n);
-        let m2 = mult_atav(v, u, temp, n);
+        let _m1 = mult_atav(u, v, temp, n);
+        let _m2 = mult_atav(v, u, temp, n);
         { i = i + 1 };
     };
     0
 };
 
 // Compute vBv = sum_i(u[i] * v[i])
-fn compute_vbv(u: *f64, v: *f64, n: i64) -> f64 = {
+fn compute_vbv(u: i64, v: i64, n: i64) -> f64 = {
     let mut i: i64 = 0;
     let mut acc: f64 = 0.0;
     while i < n {
-        let u_i = u[i];
-        let v_i = v[i];
+        let u_i = array_get(u, i);
+        let v_i = array_get(v, i);
         { acc = acc + u_i * v_i };
         { i = i + 1 };
     };
@@ -92,11 +99,11 @@ fn compute_vbv(u: *f64, v: *f64, n: i64) -> f64 = {
 };
 
 // Compute vv = sum_i(v[i] * v[i])
-fn compute_vv(v: *f64, n: i64) -> f64 = {
+fn compute_vv(v: i64, n: i64) -> f64 = {
     let mut i: i64 = 0;
     let mut acc: f64 = 0.0;
     while i < n {
-        let v_i = v[i];
+        let v_i = array_get(v, i);
         { acc = acc + v_i * v_i };
         { i = i + 1 };
     };
@@ -104,33 +111,32 @@ fn compute_vv(v: *f64, n: i64) -> f64 = {
 };
 
 fn main() -> i64 = {
-    // Use compile-time constant for stack allocation
-    let n: i64 = 1000;
+    let n = N();
 
-    // Stack-allocated vectors using [val; N] repeat syntax
-    let u: [f64; 1000] = [0.0; 1000];
-    let v: [f64; 1000] = [0.0; 1000];
-    let temp: [f64; 1000] = [0.0; 1000];
-
-    // Cast arrays to pointers (v0.60.23: array decay)
-    let u_ptr = u as *f64;
-    let v_ptr = v as *f64;
-    let temp_ptr = temp as *f64;
+    // Allocate vectors
+    let u = array_new(n);
+    let v = array_new(n);
+    let temp = array_new(n);
 
     // Initialize u with 1.0
-    let init = init_ones(u_ptr, n);
+    let _init = init_ones(u, n);
 
     // Run power iterations
-    let iter = power_iterations(u_ptr, v_ptr, temp_ptr, n);
+    let _iter = power_iterations(u, v, temp, n);
 
     // Compute result: sqrt(vBv / vv)
-    let vbv = compute_vbv(u_ptr, v_ptr, n);
-    let vv = compute_vv(v_ptr, n);
+    let vbv = compute_vbv(u, v, n);
+    let vv = compute_vv(v, n);
     let result = sqrt(vbv / vv);
 
     // Scale and print (9 decimal places scaled to integer)
     let result_scaled = f64_to_i64(result * 1e9);
-    let p = println(result_scaled);
+    let _p = println(result_scaled);
+
+    // Free memory
+    let _f1 = array_free(u);
+    let _f2 = array_free(v);
+    let _f3 = array_free(temp);
 
     0
 };

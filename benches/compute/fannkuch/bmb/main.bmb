@@ -79,7 +79,8 @@ fn fannkuch(n: i64) -> i64 = {
 
         // Update results
         { maxFlips = max_val(maxFlips, flips) };
-        { delta = if (permCount - (permCount / 2) * 2) == 0 { flips } else { 0 - flips } };
+        // v0.60.29: Use efficient bitwise AND for parity check
+        { delta = if (permCount band 1) == 0 { flips } else { 0 - flips } };
         { checksum = checksum + delta };
 
         // Generate next permutation (Heap's algorithm variant)

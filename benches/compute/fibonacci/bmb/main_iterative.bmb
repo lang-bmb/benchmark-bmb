@@ -1,0 +1,31 @@
+// Fibonacci - FAIR iterative version
+// Both C and BMB use same O(n) iterative algorithm
+// This measures pure loop performance, not algorithmic optimization
+
+fn fibonacci_iter(n: i64) -> i64 = {
+    let mut a: i64 = 0;
+    let mut b: i64 = 1;
+    let mut i: i64 = 0;
+    let mut temp: i64 = 0;
+    while i < n { {
+        temp = a + b;
+        a = b;
+        b = temp;
+        i = i + 1;
+        ()
+    } };
+    a
+};
+
+fn main() -> i64 = {
+    // Run many iterations to get measurable time
+    let mut total: i64 = 0;
+    let mut j: i64 = 0;
+    while j < 10000000 { {
+        total = total + fibonacci_iter(42);
+        j = j + 1;
+        ()
+    } };
+    let _u = println(total);
+    0
+};

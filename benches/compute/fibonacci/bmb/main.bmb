@@ -1,15 +1,30 @@
-// Fibonacci - compute intensive benchmark
-// Measures: recursive function calls, integer arithmetic
+// Fibonacci - FAIR COMPARISON benchmark
+// Uses iterative O(n) algorithm matching the C version exactly.
+// For optimization demo (BMB O(2^n)->O(n) transformation), see main_optimization_demo.bmb
+// Measures: loop iteration, integer arithmetic, accumulator pattern
 
-fn fibonacci(n: i64) -> i64
-  pre  n >= 0
-  post ret >= 0
-=
-  if n <= 1 { n } else { fibonacci(n - 1) + fibonacci(n - 2) };
+fn fibonacci_iter(n: i64) -> i64 = {
+    let mut a: i64 = 0;
+    let mut b: i64 = 1;
+    let mut i: i64 = 0;
+    while i < n {
+        let temp = a + b;
+        { a = b };
+        { b = temp };
+        { i = i + 1 }
+    };
+    a
+};
 
 fn main() -> i64 = {
-    // v0.60: Increased from 35 to 42 for reliable measurement (>1 second)
-    let result = fibonacci(42);
+    // Run fibonacci(50) 100000 times for measurable runtime
+    let mut result: i64 = 0;
+    let mut i: i64 = 0;
+    while i < 100000 {
+        let fib = fibonacci_iter(50);
+        { result = result + fib };
+        { i = i + 1 }
+    };
     let _u = println(result);
     0
 };

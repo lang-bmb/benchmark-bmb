@@ -1,0 +1,19 @@
+// Fibonacci - OPTIMIZATION DEMO benchmark
+// NOTE: This is NOT a fair comparison!
+// BMB's LinearRecurrenceToLoop converts exponential O(2^n) recursion to O(n) loop.
+// C version remains exponential, hence ~40x slower.
+// For fair comparison, use main.bmb which uses identical O(n) iterative algorithms.
+// Measures: recursive function calls, integer arithmetic, algorithmic optimization
+
+fn fibonacci(n: i64) -> i64
+  pre  n >= 0
+  post ret >= 0
+=
+  if n <= 1 { n } else { fibonacci(n - 1) + fibonacci(n - 2) };
+
+fn main() -> i64 = {
+    // v0.60: Increased from 35 to 42 for reliable measurement (>1 second)
+    let result = fibonacci(42);
+    let _u = println(result);
+    0
+};

@@ -1,1 +1,5 @@
 benchmark,c_time_s,bmb_time_s,ratio_percent
+fibonacci,,,
+mandelbrot,,,
+spectral_norm,,,
+n_body,,,
