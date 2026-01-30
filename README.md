@@ -4,36 +4,40 @@
 
 BMB 언어의 표준 벤치마크 스위트. C, BMB 간 성능 비교를 제공합니다.
 
-## Performance Summary (v0.60.48)
+## Performance Summary (v0.60.49)
 
 **Total Benchmarks**: 30 (24 compute + 6 real-world)
 **Build Success**: 30/30 (100%)
 **BMB Faster than C -O3**: 6/11 key benchmarks (55%)
-**Near Parity (±20%)**: 3/11 (27%)
+**Near Parity (±20%)**: 4/11 (36%)
 
 ### BMB Faster than C -O3
 
 | Benchmark | BMB | C -O3 | Speedup | Category |
 |-----------|-----|-------|---------|----------|
-| ackermann | 0.04s | 11.6s | **322x** | TCO |
-| nqueen | 0.90s | 6.99s | **7.8x** | TCO |
-| sorting | 0.15s | 0.63s | **4.1x** | TCO |
-| fibonacci | 0.008s | 0.01s | **1.3x** | Compute |
-| gcd | 0.025s | 0.026s | **1.04x** | Compute |
+| ackermann | 0.04s | 11.6s | **261x** | TCO |
+| nqueen | 0.98s | 6.87s | **7x** | TCO |
+| sorting | 0.25s | 0.68s | **2.7x** | TCO |
+| fibonacci | 0.078s | 0.092s | **1.18x** | Compute |
+| gcd | 0.087s | 0.092s | **1.06x** | Compute |
 
 ### Near Parity (±20%)
 
 | Benchmark | BMB | C -O3 | Ratio |
 |-----------|-----|-------|-------|
-| mandelbrot | 0.15s | 0.15s | 1.05x |
+| mandelbrot | 0.16s | 0.16s | 1.04x |
+| sieve | 0.026s | 0.024s | 1.08x |
 | hash_table | 0.015s | 0.012s | 1.18x |
 
-### C -O3 Faster
+### C -O3 Faster (LLVM Limitation)
 
-| Benchmark | BMB | C -O3 | Ratio |
-|-----------|-----|-------|-------|
-| spectral_norm | 0.08s | 0.06s | 1.26x |
-| sieve | 0.025s | 0.02s | 1.23x |
+| Benchmark | BMB | C -O3 | C (Clang) | Ratio | Notes |
+|-----------|-----|-------|-----------|-------|-------|
+| spectral_norm | 0.05s | 0.035s | 0.05s | 1.43x | See below |
+
+**Note**: spectral_norm shows identical performance between BMB and Clang (both LLVM-based).
+The 43% gap vs GCC is due to GCC's superior loop strength reduction for `i + j` patterns
+in nested loops. This is an LLVM limitation, not BMB-specific.
 
 ### Output Correctness
 
@@ -41,8 +45,18 @@ BMB 언어의 표준 벤치마크 스위트. C, BMB 간 성능 비교를 제공�
 |-----------|--------|-------|
 | spectral_norm | ✓ | Float output: 1.274224148 |
 | n_body | ✓ | Float output: -0.169075164 |
-| hash_table | ✓ | Count: 95259, 100000, 46445 |
+| hash_table | ✓ | Hash operations verified |
 | All others | ✓ | Integer output matches C |
+
+## v0.60.49 Changes
+
+- **sieve**: Fixed to use byte arrays (`store_u8`/`load_u8`) instead of 64-bit arrays
+  - Memory usage: 8x reduction (800KB → 100KB)
+  - Performance: 1.23x → 1.08x (near parity)
+
+- **spectral_norm**: Documented as LLVM vs GCC difference
+  - BMB matches Clang performance exactly
+  - GCC applies strength reduction that LLVM doesn't
 
 ## Benchmark Categories
 
@@ -52,11 +66,11 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 
 | Benchmark | Description | TCO Benefit |
 |-----------|-------------|-------------|
-| ackermann | Ackermann function | ✓ (322x faster) |
-| nqueen | N-Queens problem | ✓ (7.8x faster) |
-| sorting | Quicksort/Mergesort | ✓ (4.1x faster) |
-| fibonacci | Fibonacci sequence | ✓ (1.3x faster) |
-| gcd | Greatest common divisor | ✓ (1.04x faster) |
+| ackermann | Ackermann function | ✓ (261x faster) |
+| nqueen | N-Queens problem | ✓ (7x faster) |
+| sorting | Quicksort/Mergesort | ✓ (2.7x faster) |
+| fibonacci | Fibonacci sequence | ✓ (1.18x faster) |
+| gcd | Greatest common divisor | ✓ (1.06x faster) |
 | mandelbrot | Fractal generation | - |
 | spectral_norm | Eigenvalue approximation | - |
 | binary_trees | Tree allocation | - |
@@ -81,7 +95,7 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 
 | Benchmark | Description | BMB vs C |
 |-----------|-------------|----------|
-| sorting | Quicksort benchmark | 4.1x faster |
+| sorting | Quicksort benchmark | 2.7x faster |
 | json_serialize | JSON serialization | ~1.0x (parity) |
 | csv_parse | CSV parsing | ~1.0x (parity) |
 | json_parse | JSON parsing | ~1.0x (parity) |
@@ -120,9 +134,9 @@ gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
 
 BMB automatically optimizes tail-recursive functions into loops:
 
-- **ackermann**: 322x faster (deep recursion → loop)
-- **nqueen**: 7.8x faster (backtracking → TCO)
-- **sorting**: 4.1x faster (recursive sort → loop)
+- **ackermann**: 261x faster (deep recursion → loop)
+- **nqueen**: 7x faster (backtracking → TCO)
+- **sorting**: 2.7x faster (recursive sort → loop)
 
 ### Float Output
 
