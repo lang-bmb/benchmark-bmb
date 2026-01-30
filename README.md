@@ -15,10 +15,10 @@ environment:
   gcc: "13.2.0"
   clang: "17.0.1"
   llvm: "21.1.8"
-  bmb: "0.60.49"
+  bmb: "0.60.50"
 ```
 
-## Performance Summary (v0.60.49)
+## Performance Summary (v0.60.50)
 
 ### Category A: Pure Compute Performance
 
@@ -33,26 +33,31 @@ environment:
 
 **분석**: BMB는 Clang(동일 LLVM 백엔드)과 거의 동등한 성능. GCC 대비 차이는 LLVM vs GCC 컴파일러 차이.
 
-### Category B: Language Feature Optimizations
+### Category B: LLVM Optimization Showcase
 
-**BMB의 자동 최적화 vs C의 재귀 구현**
+**LLVM의 자동 최적화 효과 - 동일 최적화 수동 적용 시 동등 성능**
 
-| Benchmark | BMB | C (Recursive) | C (Optimized) | vs Recursive | Optimization Type |
-|-----------|-----|---------------|---------------|--------------|-------------------|
+| Benchmark | BMB | C (Loop) | C (LICM) | vs Loop | Optimization |
+|-----------|-----|----------|----------|---------|--------------|
 | ackermann | 0.04s | 11.6s | 0.03s | **261x** | LICM + Strength Reduction |
-| nqueen | 0.98s | 6.87s | 1.0s* | **7x** | TCO |
-| sorting | 0.25s | 0.68s | 0.08s | **2.7x** | TCO |
+| nqueen | 0.89s | 6.8s | 0.73s | **7.6x** | LICM |
 | fibonacci | 0.078s | 0.092s | 0.008s | **1.18x** | LinearRecurrence |
-| tak | 0.05s | 0.35s | 0.05s* | **7x** | TCO |
+| tak | 0.02s | 0.03s | 0.02s | **~1x** | LICM (GCC also applies) |
+| sorting | 0.25s | 0.68s | 0.08s | **2.7x** | TCO (tail recursion) |
 
-*추정값
+**분석 (v0.60.50 검증)**:
 
-**분석**:
-- **ackermann 261x**: LICM(Loop-Invariant Code Motion) 최적화. LLVM이 상수 인자 호출을 루프 밖으로 이동하고 곱셈으로 변환. C에서 수동 적용 시 동등 성능.
-- **nqueen, tak, sorting**: 실제 TCO(Tail Call Optimization). 깊은 재귀를 루프로 변환.
-- **fibonacci**: LinearRecurrenceToLoop. O(2^n) → O(n) 알고리즘 변환.
+- **ackermann 261x**: LICM(Loop-Invariant Code Motion). `ackermann(3,10)`을 1000회 반복하는 루프에서 상수 호출을 밖으로 이동 후 곱셈으로 변환. **TCO가 아님**.
 
-**핵심 메시지**: BMB의 이점은 단순한 TCO가 아닌 **여러 최적화 패스의 조합**. C에서 동일 최적화 수동 적용 시 동등 성능 달성.
+- **nqueen 7.6x**: LICM. `solve()`는 결과를 누적(`count +=`)하므로 꼬리 재귀가 **아님**. 10회 반복 루프의 상수 호출을 밖으로 이동. C 수동 LICM (0.73s)이 BMB (0.89s)보다 22% 빠름 - 개선 필요.
+
+- **tak ~1x**: LICM이지만 GCC도 동일 최적화 적용. 실측 결과 C와 BMB 모두 ~0.02s로 **차이 없음**. 이전 "7x" 주장은 C -O0 빌드와 비교한 것으로 부정확.
+
+- **fibonacci 1.18x**: LinearRecurrenceToLoop. O(2^n) → O(n) 알고리즘 변환.
+
+- **sorting 2.7x**: 실제 TCO(Tail Call Optimization). 꼬리 재귀를 루프로 변환.
+
+**핵심 메시지**: 대부분의 극적인 속도 향상은 LICM(상수 호출 호이스팅)에서 비롯됨. C에서 동일 최적화 수동 적용 시 동등하거나 더 나은 성능 달성. 실제 TCO 효과는 sorting에서만 확인됨.
 
 ### Category C: Real-World Workloads
 
@@ -90,11 +95,11 @@ GCC와의 성능 차이 중 일부는 LLVM 자체의 특성입니다. 공정한 
 
 | # | Benchmark | BMB | C -O3 | Status | Category |
 |---|-----------|-----|-------|--------|----------|
-| 1 | ackermann | 0.04s | 11.6s | ✓ 261x | TCO |
-| 2 | nqueen | 0.98s | 6.87s | ✓ 7x | TCO |
-| 3 | tak | 0.05s | 0.35s | ✓ 7x | TCO |
+| 1 | ackermann | 0.04s | 11.6s | ✓ 261x | LICM |
+| 2 | nqueen | 0.89s | 6.8s | ✓ 7.6x | LICM |
+| 3 | tak | 0.02s | 0.03s | ✓ ~1x | LICM (parity) |
 | 4 | sorting | 0.25s | 0.68s | ✓ 2.7x | TCO |
-| 5 | fibonacci | 0.078s | 0.092s | ✓ 1.18x | TCO |
+| 5 | fibonacci | 0.078s | 0.092s | ✓ 1.18x | LinearRecurrence |
 | 6 | gcd | 0.087s | 0.092s | ✓ 1.06x | Pure |
 | 7 | collatz | 0.03s | 0.03s | ✓ ~1.0x | Pure |
 | 8 | digital_root | 0.02s | 0.02s | ✓ ~1.0x | Pure |
@@ -124,7 +129,7 @@ GCC와의 성능 차이 중 일부는 LLVM 자체의 특성입니다. 공정한 
 | 27 | http_parse | 0.03s | 0.03s | ✓ ~1.0x | Parsing |
 | 28 | csv_parse | 0.12s | 0.08s | ○ 1.5x slower | String |
 | 29 | lexer | 0.09s | 0.06s | ○ 1.5x slower | String |
-| 30 | sorting | 0.25s | 0.68s | ✓ 2.7x | TCO |
+| 30 | sorting | 0.25s | 0.68s | ✓ 2.7x | TCO (verified) |
 
 **Legend**: ✓ = BMB faster or parity, ○ = C faster
 
@@ -138,12 +143,14 @@ Runnable:             22 (73%)
 Build-only/Error:      8 (27%)
 
 Of runnable benchmarks:
-  BMB Faster:         14 (64%)
-  Near Parity (±20%): 4 (18%)
+  BMB Faster:         13 (59%)
+  Near Parity (±20%): 5 (23%)
   C Faster:           4 (18%)
 
-By Category:
-  TCO benchmarks:     5/5 BMB faster (language feature)
+By Optimization Type:
+  LICM benchmarks:    3 (ackermann, nqueen, tak) - LLVM hoists constant calls
+  TCO benchmark:      1 (sorting) - tail recursion to loop
+  LinearRecurrence:   1 (fibonacci) - O(2^n) to O(n)
   Pure compute:       9/13 BMB faster or parity
   Real-world:         4/6 BMB faster or parity
 ```
@@ -166,7 +173,23 @@ csv_parse, lexer에서 BMB가 느린 이유:
 - BMB의 String 라이브러리 최적화 필요
 - 향후 개선 예정
 
+### Sorting Benchmark Data Type
+
+sorting에서 BMB가 C보다 3x 느린 이유:
+- C: 32-bit `int` 배열 사용
+- BMB: 64-bit `i64` 배열 사용 (2x 메모리 대역폭)
+- 동일 타입 비교 시 격차 감소 예상
+
 ---
+
+## v0.60.50 Changes
+
+- **TCO 검증 완료**: ackermann, nqueen, tak은 LICM이며 TCO가 아님 확인
+  - nqueen: `solve()`는 결과 누적으로 꼬리 재귀가 아님
+  - tak: GCC도 LICM 적용하여 실제로 차이 없음 (기존 7x → ~1x)
+  - sorting만 실제 TCO 적용
+- **측정값 갱신**: 최신 실측 데이터로 업데이트
+- **C LICM 비교 추가**: 수동 최적화 C 코드와 비교
 
 ## v0.60.49 Changes
 
