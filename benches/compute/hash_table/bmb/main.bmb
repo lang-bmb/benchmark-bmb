@@ -163,6 +163,5 @@ fn main() -> i64 = {
     let _p3 = println(len2);
 
     let _f = hm_free(m);
-    let _u = println(len2);
     0
 };

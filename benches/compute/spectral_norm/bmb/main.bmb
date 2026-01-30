@@ -128,9 +128,8 @@ fn main() -> i64 = {
     let vv = compute_vv(v_ptr, n);
     let result = sqrt(vbv / vv);
 
-    // Scale and print (9 decimal places scaled to integer)
-    let result_scaled = f64_to_i64(result * 1e9);
-    let p = println(result_scaled);
+    // v0.60.44: Use println_f64 for proper float output
+    let p = println_f64(result);
 
     0
 };

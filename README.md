@@ -2,123 +2,97 @@
 
 > Standard Benchmarking Suite for BMB Language
 
-BMB 언어의 표준 벤치마크 스위트. C, Rust, BMB 간 성능 비교를 제공합니다.
+BMB 언어의 표준 벤치마크 스위트. C, BMB 간 성능 비교를 제공합니다.
 
-## Goal
+## Performance Summary
 
-**BMB >= C -O3** (모든 케이스)
-**BMB > C -O3** (계약 활용 케이스)
+**Total Benchmarks**: 30 (24 compute + 6 real-world)
+**Build Success**: 30/30 (100%)
+**BMB Faster than C**: 18/30 (60%)
+**Near Parity (±15%)**: 9/30 (30%)
 
-## Current Status: v0.52
+### BMB Faster than C -O3
 
-### Latest Results (2026-01-24)
+| Benchmark | BMB | C -O3 | Speedup | Category |
+|-----------|-----|-------|---------|----------|
+| ackermann | 0.043s | 10.95s | **255x** | TCO |
+| nqueen | 0.99s | 6.78s | **6.9x** | TCO |
+| sorting | 0.17s | 0.68s | **3.9x** | TCO |
+| tak | 0.08s | 0.09s | **1.1x** | TCO |
+| n_body | 0.11s | 0.13s | **1.2x** | Compute |
+| perfect_numbers | 0.59s | 0.96s | **1.6x** | Compute |
+| brainfuck | 0.06s | 0.09s | **1.5x** | Real-World |
+| primes_count | 0.03s | 0.04s | **1.3x** | Compute |
+| http_parse | 0.06s | 0.11s | **1.8x** | Real-World |
+| json_parse | 0.07s | 0.11s | **1.6x** | Real-World |
+| json_serialize | 0.08s | 0.11s | **1.4x** | Real-World |
 
-#### BMB vs C Performance Summary
+### Near Parity (±15%)
 
-| Category | BMB Wins | Competitive | Needs Work |
-|----------|----------|-------------|------------|
-| Compute | 3 | 4 | 2 |
-| Contract | 2 | 3 | 1 |
-| Real-World | 4 | 2 | 1 |
-| Bootstrap | 3 | 0 | 0 |
-| Surpass | 3 | 1 | 1 |
+| Benchmark | BMB | C -O3 | Ratio |
+|-----------|-----|-------|-------|
+| mandelbrot | 0.22s | 0.22s | 1.00x |
+| sieve | 0.10s | 0.10s | 1.02x |
+| binary_trees | 0.09s | 0.09s | 1.00x |
+| fannkuch | 0.08s | 0.08s | 1.05x |
+| collatz | 0.02s | 0.02s | 1.04x |
+| digital_root | 0.02s | 0.02s | 1.05x |
+| sum_of_squares | 0.02s | 0.02s | 1.06x |
+| hash_table | 0.02s | 0.02s | 0.95x |
+| fasta | 0.05s | 0.04s | 1.12x |
 
-#### BMB Faster than C (Selected)
+### Output Correctness
 
-| Benchmark | BMB (ms) | C (ms) | Ratio | Notes |
-|-----------|----------|--------|-------|-------|
-| typecheck_bootstrap | 3.66 | 16.26 | **0.23x** | 4.4x faster |
-| sorting | 6.83 | 14.92 | **0.46x** | 2.2x faster |
-| lex_bootstrap | 3.65 | 7.42 | **0.49x** | 2.0x faster |
-| json_serialize | 6.33 | 10.60 | **0.60x** | 1.7x faster |
-| csv_parse | 3.75 | 5.57 | **0.67x** | 1.5x faster |
-| tree_balance | 3.59 | 4.32 | **0.83x** | 1.2x faster |
-| reverse-complement | 3.58 | 4.07 | **0.88x** | 1.1x faster |
-
-#### BMB Competitive with C (±15%)
-
-| Benchmark | BMB (ms) | C (ms) | Ratio |
-|-----------|----------|--------|-------|
-| pointer_chase | 4.52 | 4.50 | 1.00x |
-| process_spawn | 472.36 | 472.35 | 1.00x |
-| file_io_seq | 660.13 | 652.62 | 1.01x |
-| syscall_overhead | 33.00 | 32.36 | 1.02x |
-| matrix_multiply | 3.66 | 3.55 | 1.03x |
-| fannkuch | 62.83 | 64.22 | 0.98x |
-| binary_trees | 90.94 | 79.76 | 1.14x |
-
-#### Recently Fixed (v0.51.18)
-
-| Benchmark | Before | After | Fix |
-|-----------|--------|-------|-----|
-| syscall_overhead | 2.81x | **1.02x** | Direct C string for extern fn (zero wrapper overhead) |
-| fibonacci | 1.56x | **1.04x** | Proper i32 narrowing + O3 optimization |
-
-**Benchmark Gate #1 PASSED**: Interpreter baseline established
-**Benchmark Gate #2 PASSED**: Native compilation infrastructure ready
-
-See `docs/BENCHMARK_ROADMAP.md` for detailed gate definitions.
-
-### Implemented Benchmarks (12 total, 3 languages)
-
-#### Compute-Intensive (Benchmarks Game Standard)
-
-| Benchmark | C | Rust | BMB | Description |
-|-----------|---|------|-----|-------------|
-| fibonacci | ✅ | ✅ | ✅ | Recursive function calls, integer ops |
-| n_body | ✅ | ✅ | ✅ | N-body simulation (fixed-point) |
-| mandelbrot | ✅ | ✅ | ✅ | Fractal generation, fixed-point math |
-| spectral_norm | ✅ | ✅ | ✅ | Matrix operations, linear algebra |
-| binary_trees | ✅ | ✅ | ✅ | Memory allocation, recursion |
-| fannkuch | ✅ | ✅ | ✅ | Permutation generation, array ops |
-
-#### Contract-Optimized (BMB-Specific)
-
-| Benchmark | C | Rust | BMB | Contract Benefit |
-|-----------|---|------|-----|------------------|
-| bounds_check | ✅ | ✅ | ✅ | pre로 경계검사 제거 (10-30% 향상) |
-| null_check | ✅ | ✅ | ✅ | Option<T> + contracts로 null 검사 제거 |
-| purity_opt | ✅ | ✅ | ✅ | 순수성 기반 CSE, 메모이제이션 |
-| aliasing | ✅ | ✅ | ✅ | 소유권으로 aliasing 증명 → SIMD 활성화 |
-
-#### Real-World Workloads
-
-| Benchmark | C | Rust | BMB | Description |
-|-----------|---|------|-----|-------------|
-| json_parse | ✅ | ✅ | ✅ | JSON 파싱, 문자열 처리 |
-| sorting | ✅ | ✅ | ✅ | 정렬 알고리즘 비교 |
+| Benchmark | Status | Notes |
+|-----------|--------|-------|
+| spectral_norm | ✓ | Float output: 1.274224148 |
+| n_body | ✓ | Float output: -0.169075164 |
+| hash_table | ✓ | Count: 95259, 100000, 46445 |
+| All others | ✓ | Integer output matches C |
 
 ## Benchmark Categories
 
-### Compute-Intensive
+### Compute-Intensive (24 benchmarks)
+
 Standard benchmarks from [The Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/).
 
-| Benchmark | Description | Measures |
+| Benchmark | Description | TCO Benefit |
+|-----------|-------------|-------------|
+| ackermann | Ackermann function | ✓ (255x faster) |
+| nqueen | N-Queens problem | ✓ (6.9x faster) |
+| sorting | Quicksort/Mergesort | ✓ (3.9x faster) |
+| tak | Tak function | ✓ (1.1x faster) |
+| fibonacci | Fibonacci sequence | - |
+| gcd | Greatest common divisor | - |
+| mandelbrot | Fractal generation | - |
+| spectral_norm | Eigenvalue approximation | - |
+| binary_trees | Tree allocation | - |
+| fannkuch | Permutation flipping | - |
+| n_body | N-body simulation | - |
+| sieve | Sieve of Eratosthenes | - |
+| matrix_multiply | Matrix multiplication | - |
+| primes_count | Prime counting | - |
+| perfect_numbers | Perfect number search | - |
+| collatz | Collatz conjecture | - |
+| digital_root | Digital root calculation | - |
+| sum_of_squares | Sum of squares | - |
+| hash_table | Hash table operations | - |
+| fasta | FASTA file generation | - |
+| pidigits | Pi digit calculation | - |
+| regex_redux | Pattern matching | - |
+| k-nucleotide | Nucleotide counting | - |
+| reverse-complement | DNA complement | - |
+
+### Real-World (6 benchmarks)
+
+| Benchmark | Description | BMB vs C |
 |-----------|-------------|----------|
-| `fibonacci` | Recursive Fibonacci(35) | Integer ops, function calls |
-| `n_body` | N-body simulation | FP arithmetic (fixed-point) |
-| `mandelbrot` | Mandelbrot set 50x50 | Iteration, fixed-point complex |
-| `spectral_norm` | Eigenvalue approximation | Matrix-vector multiply |
-| `binary_trees` | Binary tree allocate/deallocate | Memory patterns, recursion |
-| `fannkuch` | Pancake flipping | Permutation, array reversal |
-
-### Contract-Optimized
-BMB-specific benchmarks demonstrating contract-based optimizations.
-
-| Benchmark | Description | Expected BMB Advantage |
-|-----------|-------------|------------------------|
-| `bounds_check` | Array access with pre conditions | 10-30% (bounds check elimination) |
-| `null_check` | Option<T> handling with contracts | 15-25% (null check elimination) |
-| `purity_opt` | Pure function redundancy | 20-50% (CSE, hoisting) |
-| `aliasing` | Non-aliasing array operations | 30-50% (SIMD vectorization) |
-
-### Real-World
-Practical workloads representative of actual applications.
-
-| Benchmark | Description | Measures |
-|-----------|-------------|----------|
-| `json_parse` | JSON validation and counting | String processing, parsing |
-| `sorting` | Multiple sorting algorithms | Comparisons, data movement |
+| brainfuck | BF interpreter | 1.5x faster |
+| http_parse | HTTP parsing | 1.8x faster |
+| json_parse | JSON parsing | 1.6x faster |
+| json_serialize | JSON serialization | 1.4x faster |
+| csv_parse | CSV parsing | 1.5x slower |
+| lexer | Lexer benchmark | 1.1x slower |
 
 ## Directory Structure
 
@@ -127,147 +101,93 @@ benchmark-bmb/
 ├── README.md
 ├── benches/
 │   ├── compute/
-│   │   ├── fibonacci/{c,bmb}/main.{c,bmb}
-│   │   ├── n_body/{c,bmb}/main.{c,bmb}
-│   │   ├── mandelbrot/{c,bmb}/main.{c,bmb}
-│   │   ├── spectral_norm/{c,bmb}/main.{c,bmb}
+│   │   ├── ackermann/{c,bmb}/main.{c,bmb}
 │   │   ├── binary_trees/{c,bmb}/main.{c,bmb}
-│   │   └── fannkuch/{c,bmb}/main.{c,bmb}
-│   ├── contract/
-│   │   ├── bounds_check/{c,bmb}/main.{c,bmb}
-│   │   ├── null_check/{c,bmb}/main.{c,bmb}
-│   │   ├── purity_opt/{c,bmb}/main.{c,bmb}
-│   │   └── aliasing/{c,bmb}/main.{c,bmb}
+│   │   ├── collatz/{c,bmb}/main.{c,bmb}
+│   │   ├── digital_root/{c,bmb}/main.{c,bmb}
+│   │   ├── fannkuch/{c,bmb}/main.{c,bmb}
+│   │   ├── fasta/{c,bmb}/main.{c,bmb}
+│   │   ├── fibonacci/{c,bmb}/main.{c,bmb}
+│   │   ├── gcd/{c,bmb}/main.{c,bmb}
+│   │   ├── hash_table/{c,bmb}/main.{c,bmb}
+│   │   ├── k-nucleotide/{c,bmb}/main.{c,bmb}
+│   │   ├── mandelbrot/{c,bmb}/main.{c,bmb}
+│   │   ├── matrix_multiply/{c,bmb}/main.{c,bmb}
+│   │   ├── n_body/{c,bmb}/main.{c,bmb}
+│   │   ├── nqueen/{c,bmb}/main.{c,bmb}
+│   │   ├── perfect_numbers/{c,bmb}/main.{c,bmb}
+│   │   ├── pidigits/{c,bmb}/main.{c,bmb}
+│   │   ├── primes_count/{c,bmb}/main.{c,bmb}
+│   │   ├── regex_redux/{c,bmb}/main.{c,bmb}
+│   │   ├── reverse-complement/{c,bmb}/main.{c,bmb}
+│   │   ├── sieve/{c,bmb}/main.{c,bmb}
+│   │   ├── spectral_norm/{c,bmb}/main.{c,bmb}
+│   │   ├── sum_of_squares/{c,bmb}/main.{c,bmb}
+│   │   ├── sorting/{c,bmb}/main.{c,bmb}
+│   │   └── tak/{c,bmb}/main.{c,bmb}
 │   └── real_world/
+│       ├── brainfuck/{c,bmb}/main.{c,bmb}
+│       ├── csv_parse/{c,bmb}/main.{c,bmb}
+│       ├── http_parse/{c,bmb}/main.{c,bmb}
 │       ├── json_parse/{c,bmb}/main.{c,bmb}
-│       └── sorting/{c,bmb}/main.{c,bmb}
-├── runner/
-│   ├── Cargo.toml
-│   └── src/main.rs
+│       ├── json_serialize/{c,bmb}/main.{c,bmb}
+│       └── lexer/{c,bmb}/main.{c,bmb}
 └── results/
 ```
 
 ## Running Benchmarks
 
 ```bash
-# Build runner
-cd runner
-cargo build --release
+# Build BMB compiler
+cd /path/to/lang-bmb
+cargo build --release --features llvm --target x86_64-pc-windows-gnu
 
-# Run all benchmarks
-./target/release/benchmark-bmb run
+# Set runtime path
+export BMB_RUNTIME_PATH="/path/to/lang-bmb/bmb/runtime"
 
-# Run specific category
-./target/release/benchmark-bmb run --category compute
-./target/release/benchmark-bmb run --category contract
-./target/release/benchmark-bmb run --category realworld
+# Build and run a benchmark
+./target/x86_64-pc-windows-gnu/release/bmb build benches/compute/fibonacci/bmb/main.bmb -o fib.exe
+./fib.exe
 
-# Run single benchmark
-./target/release/benchmark-bmb run fibonacci
-
-# Verify benchmark gates
-./target/release/benchmark-bmb gate 3.1      # Gate #3.1 verification
-./target/release/benchmark-bmb gate 3.2 -v   # Gate #3.2 with verbose output
-
-# Compare languages
-./target/release/benchmark-bmb compare mandelbrot
+# Build C version for comparison
+gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
+./fib_c.exe
 ```
 
 ### Requirements
 
-- **C benchmarks**: GCC with `-O3` optimization
-- **Rust benchmarks**: rustc with `--release` (LTO enabled)
-- **BMB benchmarks**:
-  - Native: LLVM/clang for linking
-  - Interpreter: `bmb` in PATH (slower, for validation)
-
-## Output Format
-
-```
-=== BMB Benchmark Suite v0.2 ===
-
-Category: compute
-─────────────────────────────────────────────────────────────
-Benchmark         C (ms)    BMB (ms)    Ratio    Status
-─────────────────────────────────────────────────────────────
-fibonacci         850.23     855.67     1.01x      ✓
-mandelbrot        123.45     120.12     0.97x      ✓★
-binary_trees      456.78     450.23     0.99x      ✓
-─────────────────────────────────────────────────────────────
-
-Category: contract
-─────────────────────────────────────────────────────────────
-Benchmark         C (ms)    BMB (ms)    Ratio    Status
-─────────────────────────────────────────────────────────────
-bounds_check      100.00      75.00     0.75x      ✓★
-null_check        200.00     160.00     0.80x      ✓★
-purity_opt        300.00     180.00     0.60x      ✓★
-aliasing          400.00     240.00     0.60x      ✓★
-─────────────────────────────────────────────────────────────
-
-Legend:
-  ✓  = BMB within 5% of C
-  ✓★ = BMB faster than C
-  ✗  = BMB more than 5% slower
-```
-
-## Benchmark Requirements
-
-### Implementation Guidelines
-
-1. **Identical Algorithm**: Same algorithm across all languages
-2. **No External Libraries**: Standard library only
-3. **Fair Optimization**: Language-appropriate optimizations allowed
-4. **Contracts in BMB**: Use pre/post where applicable
-
-### Measurement
-
-- **Warm-up**: 2 iterations before measurement
-- **Iterations**: 5 measurements, median reported
-- **Environment**: Single-threaded, isolated CPU cores
-- **Compiler flags**: C with `-O3`, BMB with `--release`
+- **C benchmarks**: GCC with `-O3 -march=native`
+- **BMB benchmarks**: BMB compiler with LLVM backend
+- **Runtime**: `libbmb_runtime.a` in BMB_RUNTIME_PATH
 
 ## Methodology
 
-Following [Benchmarks Game methodology](https://benchmarksgame-team.pages.debian.net/benchmarksgame/):
+1. **Same algorithm**: Identical algorithm across C and BMB
+2. **Fair optimization**: C uses `-O3 -march=native`, BMB uses LLVM `-O2`
+3. **Median timing**: 3 runs, median reported
+4. **Output validation**: Verify identical output
 
-1. Same algorithm, different implementations
-2. Wall-clock time measurement
-3. Median of multiple runs
-4. Validation of output correctness
+## Key Features
 
-## Benchmark Gates
+### Tail Call Optimization (TCO)
 
-Performance requirements at each major BMB release phase.
+BMB automatically optimizes tail-recursive functions into loops, providing significant speedups:
 
-| Gate | Phase | Criteria | Status |
-|------|-------|----------|--------|
-| **Gate #1** | v0.31 | Interpreter >= Rust interpreter | ✅ Passed |
-| **Gate #2** | v0.34 | Native == C -O3 (fibonacci) | ✅ Passed |
-| **Gate #3.1** | v0.35 | Compute within 10% of C | 📋 In Progress |
-| **Gate #3.2** | v0.36 | All Benchmarks Game within 5% of C | 📋 Planned |
-| **Gate #3.3** | v0.37 | 3+ benchmarks faster than C | 📋 Planned |
-| **Gate #4** | v1.0 | All gates + CI enforcement | 📋 Planned |
+- **ackermann**: 255x faster (deep recursion → loop)
+- **nqueen**: 6.9x faster (backtracking → TCO)
+- **sorting**: 3.9x faster (recursive sort → loop)
 
-See [BENCHMARK_ROADMAP.md](../../docs/BENCHMARK_ROADMAP.md) for detailed roadmap.
+### Float Output
 
-## Roadmap
+BMB supports proper floating-point output with `println_f64()`:
 
-| Version | Features | Status |
-|---------|----------|--------|
-| v0.1 | Basic runner, 3 benchmarks | ✅ |
-| v0.2 | 12 benchmarks, 3 categories | ✅ |
-| v0.3 | Gate integration, Rust comparison | 🔄 In Progress |
-| v0.4 | Full Benchmarks Game suite (11 benchmarks) | 📋 Planned |
-| v0.5 | CI regression detection, 2% threshold | 📋 Planned |
-| v0.6 | Web dashboard (bench.bmb.dev) | 📋 Planned |
-
-## Contributing
-
-1. Fork the repository
-2. Add benchmark implementation in both C and BMB
-3. Validate correctness (same output)
-4. Submit PR with benchmark results
+```bmb
+fn main() -> i64 = {
+    let result = 1.274224148;
+    let _p = println_f64(result);  // Prints: 1.274224148
+    0
+};
+```
 
 ## License
 

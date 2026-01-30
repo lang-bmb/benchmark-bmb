@@ -10,12 +10,6 @@
 // Spigot algorithm constants
 fn DIGITS() -> i64 = 1000;  // Number of digits to compute
 
-// Simple digit extraction using Bailey-Borwein-Plouffe-like approach
-// This is a simplified approximation - real pidigits uses GMP BigInt
-
-// Precomputed pi digits for validation (first 100)
-// 3.14159265358979323846264338327950288419716939937510...
-
 // Integer-only approximation using scaled arithmetic
 // We compute pi * 10^precision and extract digits
 
@@ -47,7 +41,6 @@ fn consume(q: i64, r: i64, t: i64, k: i64) -> i64 = {
 };
 
 // Simplified pi digit generator using Machin's formula approximation
-// pi/4 = 4*arctan(1/5) - arctan(1/239)
 // This gives us digits through scaled integer arithmetic
 
 fn compute_pi_digit(pos: i64) -> i64 = {
@@ -72,27 +65,25 @@ fn compute_pi_digit(pos: i64) -> i64 = {
     }
 };
 
-fn print_digits(count: i64) -> i64 = {
-    let mut i: i64 = 0;
-    let mut line_count: i64 = 0;
-
-    while i < count {
+// Print digits using tail recursion (idiomatic BMB style)
+fn print_digits_loop(count: i64, i: i64, line_count: i64) -> i64 =
+    if i >= count { count }
+    else {
         let digit = compute_pi_digit(i);
         let _p = print(digit);
 
-        { line_count = line_count + 1 };
+        let new_line_count = line_count + 1;
 
         // Print newline every 10 digits
-        if line_count == 10 {
+        let final_line_count = if new_line_count == 10 {
             let _nl = println(0);  // Placeholder for newline
-            { line_count = 0 };
-        };
+            0
+        } else { new_line_count };
 
-        { i = i + 1 };
+        print_digits_loop(count, i + 1, final_line_count)
     };
 
-    count
-};
+fn print_digits(count: i64) -> i64 = print_digits_loop(count, 0, 0);
 
 fn main() -> i64 = {
     let n = DIGITS();

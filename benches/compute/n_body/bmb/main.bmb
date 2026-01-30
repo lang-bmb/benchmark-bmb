@@ -228,18 +228,16 @@ fn main() -> i64 = {
     let _init = init_bodies(bodies);
     let _offset = offset_momentum(bodies);
 
-    // Print initial energy
+    // Print initial energy (v0.60.44: use println_f64 for proper float output)
     let e1 = energy(bodies);
-    let e1_scaled = f64_to_i64(e1 * 1e9);
-    let _p1 = println(e1_scaled);
+    let _p1 = println_f64(e1);
 
     // Run simulation
     let _run = run_simulation(bodies, N_STEPS());
 
     // Print final energy
     let e2 = energy(bodies);
-    let e2_scaled = f64_to_i64(e2 * 1e9);
-    let _p2 = println(e2_scaled);
+    let _p2 = println_f64(e2);
 
     let _f = free(bodies);
     0
