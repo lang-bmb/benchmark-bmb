@@ -33,21 +33,26 @@ environment:
 
 **분석**: BMB는 Clang(동일 LLVM 백엔드)과 거의 동등한 성능. GCC 대비 차이는 LLVM vs GCC 컴파일러 차이.
 
-### Category B: TCO Language Feature
+### Category B: Language Feature Optimizations
 
-**BMB의 자동 Tail Call Optimization vs C의 재귀 구현**
+**BMB의 자동 최적화 vs C의 재귀 구현**
 
-| Benchmark | BMB (TCO) | C (Recursive) | C (Iterative) | vs Recursive | vs Iterative |
-|-----------|-----------|---------------|---------------|--------------|--------------|
-| ackermann | 0.04s | 11.6s | 0.04s* | **261x** | ~1.0x |
-| nqueen | 0.98s | 6.87s | 1.0s* | **7x** | ~1.0x |
-| sorting | 0.25s | 0.68s | 0.08s | **2.7x** | 3.1x slower |
-| fibonacci | 0.078s | 0.092s | 0.008s | **1.18x** | 9.7x slower |
-| tak | 0.05s | 0.35s | 0.05s* | **7x** | ~1.0x |
+| Benchmark | BMB | C (Recursive) | C (Optimized) | vs Recursive | Optimization Type |
+|-----------|-----|---------------|---------------|--------------|-------------------|
+| ackermann | 0.04s | 11.6s | 0.03s | **261x** | LICM + Strength Reduction |
+| nqueen | 0.98s | 6.87s | 1.0s* | **7x** | TCO |
+| sorting | 0.25s | 0.68s | 0.08s | **2.7x** | TCO |
+| fibonacci | 0.078s | 0.092s | 0.008s | **1.18x** | LinearRecurrence |
+| tak | 0.05s | 0.35s | 0.05s* | **7x** | TCO |
 
-*추정값 (iterative C 미구현)
+*추정값
 
-**핵심 메시지**: TCO는 **언어 기능**이지 성능 승리가 아님. 동일한 iterative 알고리즘 대비 BMB는 동등 성능.
+**분석**:
+- **ackermann 261x**: LICM(Loop-Invariant Code Motion) 최적화. LLVM이 상수 인자 호출을 루프 밖으로 이동하고 곱셈으로 변환. C에서 수동 적용 시 동등 성능.
+- **nqueen, tak, sorting**: 실제 TCO(Tail Call Optimization). 깊은 재귀를 루프로 변환.
+- **fibonacci**: LinearRecurrenceToLoop. O(2^n) → O(n) 알고리즘 변환.
+
+**핵심 메시지**: BMB의 이점은 단순한 TCO가 아닌 **여러 최적화 패스의 조합**. C에서 동일 최적화 수동 적용 시 동등 성능 달성.
 
 ### Category C: Real-World Workloads
 
