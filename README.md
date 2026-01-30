@@ -4,42 +4,52 @@
 
 BMB 언어의 표준 벤치마크 스위트. C, BMB 간 성능 비교를 제공합니다.
 
-## Performance Summary
+## Performance Summary (v0.60.46)
 
 **Total Benchmarks**: 30 (24 compute + 6 real-world)
 **Build Success**: 30/30 (100%)
-**BMB Faster than C**: 18/30 (60%)
-**Near Parity (±15%)**: 9/30 (30%)
+**BMB Faster than C -O3**: 14/30 (47%)
+**Near Parity (±20%)**: 12/30 (40%)
 
 ### BMB Faster than C -O3
 
 | Benchmark | BMB | C -O3 | Speedup | Category |
 |-----------|-----|-------|---------|----------|
-| ackermann | 0.043s | 10.95s | **255x** | TCO |
-| nqueen | 0.99s | 6.78s | **6.9x** | TCO |
-| sorting | 0.17s | 0.68s | **3.9x** | TCO |
-| tak | 0.08s | 0.09s | **1.1x** | TCO |
-| n_body | 0.11s | 0.13s | **1.2x** | Compute |
-| perfect_numbers | 0.59s | 0.96s | **1.6x** | Compute |
-| brainfuck | 0.06s | 0.09s | **1.5x** | Real-World |
-| primes_count | 0.03s | 0.04s | **1.3x** | Compute |
-| http_parse | 0.06s | 0.11s | **1.8x** | Real-World |
-| json_parse | 0.07s | 0.11s | **1.6x** | Real-World |
-| json_serialize | 0.08s | 0.11s | **1.4x** | Real-World |
+| ackermann | 0.04s | 11.01s | **275x** | TCO |
+| nqueen | 0.87s | 6.74s | **7.7x** | TCO |
+| sorting | 0.16s | 0.62s | **3.9x** | TCO |
+| tak | 0.01s | 0.02s | **2.0x** | TCO |
+| hash_table | 0.01s | 0.02s | **2.0x** | Compute |
+| json_serialize | 0.01s | 0.02s | **2.0x** | Real-World |
+| csv_parse | 0.01s | 0.02s | **2.0x** | Real-World |
+| perfect_numbers | 0.59s | 0.97s | **1.6x** | Compute |
+| gcd | 0.02s | 0.03s | **1.5x** | Compute |
 
-### Near Parity (±15%)
+### Near Parity (±20%)
 
 | Benchmark | BMB | C -O3 | Ratio |
 |-----------|-----|-------|-------|
-| mandelbrot | 0.22s | 0.22s | 1.00x |
-| sieve | 0.10s | 0.10s | 1.02x |
+| n_body | 0.07s | 0.07s | 1.00x |
 | binary_trees | 0.09s | 0.09s | 1.00x |
-| fannkuch | 0.08s | 0.08s | 1.05x |
-| collatz | 0.02s | 0.02s | 1.04x |
-| digital_root | 0.02s | 0.02s | 1.05x |
-| sum_of_squares | 0.02s | 0.02s | 1.06x |
-| hash_table | 0.02s | 0.02s | 0.95x |
-| fasta | 0.05s | 0.04s | 1.12x |
+| fibonacci | 0.01s | 0.01s | 1.00x |
+| matrix_multiply | 0.02s | 0.02s | 1.00x |
+| collatz | 0.02s | 0.02s | 1.00x |
+| digital_root | 0.02s | 0.02s | 1.00x |
+| primes_count | 0.03s | 0.03s | 1.00x |
+| json_parse | 0.01s | 0.01s | 1.00x |
+| http_parse | 0.01s | 0.01s | 1.00x |
+| lexer | 0.01s | 0.01s | 1.00x |
+| fannkuch | 0.08s | 0.07s | 0.88x |
+| fasta | 0.05s | 0.04s | 0.80x |
+
+### C Faster
+
+| Benchmark | BMB | C -O3 | Ratio |
+|-----------|-----|-------|-------|
+| spectral_norm | 0.04s | 0.03s | 0.75x |
+| sieve | 0.03s | 0.02s | 0.67x |
+| sum_of_squares | 0.02s | 0.01s | 0.50x |
+| mandelbrot | 0.36s | 0.14s | 0.39x |
 
 ### Output Correctness
 
@@ -58,12 +68,12 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 
 | Benchmark | Description | TCO Benefit |
 |-----------|-------------|-------------|
-| ackermann | Ackermann function | ✓ (255x faster) |
-| nqueen | N-Queens problem | ✓ (6.9x faster) |
+| ackermann | Ackermann function | ✓ (275x faster) |
+| nqueen | N-Queens problem | ✓ (7.7x faster) |
 | sorting | Quicksort/Mergesort | ✓ (3.9x faster) |
-| tak | Tak function | ✓ (1.1x faster) |
+| tak | Tak function | ✓ (2.0x faster) |
 | fibonacci | Fibonacci sequence | - |
-| gcd | Greatest common divisor | - |
+| gcd | Greatest common divisor | ✓ (1.5x faster) |
 | mandelbrot | Fractal generation | - |
 | spectral_norm | Eigenvalue approximation | - |
 | binary_trees | Tree allocation | - |
@@ -72,11 +82,11 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 | sieve | Sieve of Eratosthenes | - |
 | matrix_multiply | Matrix multiplication | - |
 | primes_count | Prime counting | - |
-| perfect_numbers | Perfect number search | - |
+| perfect_numbers | Perfect number search | ✓ (1.6x faster) |
 | collatz | Collatz conjecture | - |
 | digital_root | Digital root calculation | - |
 | sum_of_squares | Sum of squares | - |
-| hash_table | Hash table operations | - |
+| hash_table | Hash table operations | ✓ (2.0x faster) |
 | fasta | FASTA file generation | - |
 | pidigits | Pi digit calculation | - |
 | regex_redux | Pattern matching | - |
@@ -87,12 +97,12 @@ Standard benchmarks from [The Computer Language Benchmarks Game](https://benchma
 
 | Benchmark | Description | BMB vs C |
 |-----------|-------------|----------|
-| brainfuck | BF interpreter | 1.5x faster |
-| http_parse | HTTP parsing | 1.8x faster |
-| json_parse | JSON parsing | 1.6x faster |
-| json_serialize | JSON serialization | 1.4x faster |
-| csv_parse | CSV parsing | 1.5x slower |
-| lexer | Lexer benchmark | 1.1x slower |
+| sorting | Quicksort benchmark | 3.9x faster |
+| json_serialize | JSON serialization | 2.0x faster |
+| csv_parse | CSV parsing | 2.0x faster |
+| json_parse | JSON parsing | 1.0x (parity) |
+| http_parse | HTTP parsing | 1.0x (parity) |
+| lexer | Lexer benchmark | 1.0x (parity) |
 
 ## Directory Structure
 
@@ -123,7 +133,6 @@ benchmark-bmb/
 │   │   ├── sieve/{c,bmb}/main.{c,bmb}
 │   │   ├── spectral_norm/{c,bmb}/main.{c,bmb}
 │   │   ├── sum_of_squares/{c,bmb}/main.{c,bmb}
-│   │   ├── sorting/{c,bmb}/main.{c,bmb}
 │   │   └── tak/{c,bmb}/main.{c,bmb}
 │   └── real_world/
 │       ├── brainfuck/{c,bmb}/main.{c,bmb}
@@ -131,7 +140,8 @@ benchmark-bmb/
 │       ├── http_parse/{c,bmb}/main.{c,bmb}
 │       ├── json_parse/{c,bmb}/main.{c,bmb}
 │       ├── json_serialize/{c,bmb}/main.{c,bmb}
-│       └── lexer/{c,bmb}/main.{c,bmb}
+│       ├── lexer/{c,bmb}/main.{c,bmb}
+│       └── sorting/{c,bmb}/main.{c,bmb}
 └── results/
 ```
 
@@ -163,7 +173,7 @@ gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
 ## Methodology
 
 1. **Same algorithm**: Identical algorithm across C and BMB
-2. **Fair optimization**: C uses `-O3 -march=native`, BMB uses LLVM `-O2`
+2. **Fair optimization**: C uses `-O3 -march=native`, BMB uses LLVM `-O3`
 3. **Median timing**: 3 runs, median reported
 4. **Output validation**: Verify identical output
 
@@ -173,8 +183,8 @@ gcc -O3 -march=native -o fib_c.exe benches/compute/fibonacci/c/main.c -lm
 
 BMB automatically optimizes tail-recursive functions into loops, providing significant speedups:
 
-- **ackermann**: 255x faster (deep recursion → loop)
-- **nqueen**: 6.9x faster (backtracking → TCO)
+- **ackermann**: 275x faster (deep recursion → loop)
+- **nqueen**: 7.7x faster (backtracking → TCO)
 - **sorting**: 3.9x faster (recursive sort → loop)
 
 ### Float Output
