@@ -1,0 +1,99 @@
+// Matrix Multiplication Benchmark
+// Measures: nested loops, memory access patterns, cache behavior
+// Multiplies two NxN matrices
+
+fn matrix_new(n: i64) -> i64 = malloc(n * n * 8);
+fn matrix_free(m: i64) -> i64 = { let _f = free(m); 0 };
+
+fn matrix_get(m: i64, n: i64, i: i64, j: i64) -> i64 =
+    load_i64(m + (i * n + j) * 8);
+
+fn matrix_set(m: i64, n: i64, i: i64, j: i64, v: i64) -> i64 =
+    { let _s = store_i64(m + (i * n + j) * 8, v); 0 };
+
+// Initialize matrix with simple pattern
+fn matrix_init(m: i64, n: i64, seed: i64) -> i64 =
+    init_row(m, n, seed, 0);
+
+fn init_row(m: i64, n: i64, seed: i64, i: i64) -> i64 =
+    if i >= n { 0 }
+    else {
+        let _row = init_col(m, n, seed, i, 0);
+        init_row(m, n, seed, i + 1)
+    };
+
+fn init_col(m: i64, n: i64, seed: i64, i: i64, j: i64) -> i64 =
+    if j >= n { 0 }
+    else {
+        let val = (i * n + j + seed) % 100;
+        let _s = matrix_set(m, n, i, j, val);
+        init_col(m, n, seed, i, j + 1)
+    };
+
+// Matrix multiplication C = A * B
+fn matrix_multiply(a: i64, b: i64, c: i64, n: i64) -> i64 =
+    mul_row(a, b, c, n, 0);
+
+fn mul_row(a: i64, b: i64, c: i64, n: i64, i: i64) -> i64 =
+    if i >= n { 0 }
+    else {
+        let _row = mul_col(a, b, c, n, i, 0);
+        mul_row(a, b, c, n, i + 1)
+    };
+
+fn mul_col(a: i64, b: i64, c: i64, n: i64, i: i64, j: i64) -> i64 =
+    if j >= n { 0 }
+    else {
+        let sum = dot_product(a, b, n, i, j, 0, 0);
+        let _s = matrix_set(c, n, i, j, sum);
+        mul_col(a, b, c, n, i, j + 1)
+    };
+
+fn dot_product(a: i64, b: i64, n: i64, i: i64, j: i64, k: i64, sum: i64) -> i64 =
+    if k >= n { sum }
+    else {
+        let av = matrix_get(a, n, i, k);
+        let bv = matrix_get(b, n, k, j);
+        dot_product(a, b, n, i, j, k + 1, sum + av * bv)
+    };
+
+// Sum all elements for verification
+fn matrix_sum(m: i64, n: i64) -> i64 =
+    sum_row(m, n, 0, 0);
+
+fn sum_row(m: i64, n: i64, i: i64, acc: i64) -> i64 =
+    if i >= n { acc }
+    else {
+        let row_sum = sum_col(m, n, i, 0, 0);
+        sum_row(m, n, i + 1, acc + row_sum)
+    };
+
+fn sum_col(m: i64, n: i64, i: i64, j: i64, acc: i64) -> i64 =
+    if j >= n { acc }
+    else {
+        let v = matrix_get(m, n, i, j);
+        sum_col(m, n, i, j + 1, acc + v)
+    };
+
+fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let a = matrix_new(n);
+        let b = matrix_new(n);
+        let c = matrix_new(n);
+        let _ia = matrix_init(a, n, 1);
+        let _ib = matrix_init(b, n, 2);
+        let _mul = matrix_multiply(a, b, c, n);
+        let sum = matrix_sum(c, n);
+        let _fa = matrix_free(a);
+        let _fb = matrix_free(b);
+        let _fc = matrix_free(c);
+        run_benchmark(n, iterations, acc + sum, i + 1)
+    };
+
+fn main() -> i64 = {
+    // 128x128 matrix multiplication, 10 iterations
+    let result = run_benchmark(128, 10, 0, 0);
+    let _p = println(result);
+    0
+};

@@ -1,0 +1,24 @@
+// Sum of Squares Benchmark
+// Measures: arithmetic operations, loop performance
+// Computes sum of squares from 1 to N
+
+fn sum_squares(n: i64) -> i64 =
+    sum_squares_acc(n, 1, 0);
+
+fn sum_squares_acc(n: i64, i: i64, acc: i64) -> i64 =
+    if i > n { acc }
+    else { sum_squares_acc(n, i + 1, acc + i * i) };
+
+fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let result = sum_squares(n);
+        run_benchmark(n, iterations, acc + result, i + 1)
+    };
+
+fn main() -> i64 = {
+    // Sum squares from 1 to 100000, 1000 iterations
+    let result = run_benchmark(100000, 1000, 0, 0);
+    let _p = println(result);
+    0
+};

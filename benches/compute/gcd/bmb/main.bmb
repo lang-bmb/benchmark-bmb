@@ -1,0 +1,29 @@
+// GCD (Greatest Common Divisor) Benchmark
+// Measures: recursion, modulo operations, integer arithmetic
+// Computes GCD for many pairs of numbers
+
+fn gcd(a: i64, b: i64) -> i64 =
+    if b == 0 { a }
+    else { gcd(b, a % b) };
+
+fn sum_gcds(n: i64, acc: i64, i: i64, j: i64) -> i64 =
+    if i > n { acc }
+    else if j > n { sum_gcds(n, acc, i + 1, 1) }
+    else {
+        let g = gcd(i, j);
+        sum_gcds(n, acc + g, i, j + 1)
+    };
+
+fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let result = sum_gcds(n, 0, 1, 1);
+        run_benchmark(n, iterations, acc + result, i + 1)
+    };
+
+fn main() -> i64 = {
+    // Compute GCD for all pairs up to 300x300, 10 iterations
+    let result = run_benchmark(300, 10, 0, 0);
+    let _p = println(result);
+    0
+};

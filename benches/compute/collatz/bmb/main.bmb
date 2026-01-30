@@ -1,0 +1,32 @@
+// Collatz Conjecture Benchmark
+// Measures: branching, integer operations, loop performance
+// Counts steps to reach 1 for numbers from 1 to N
+
+fn collatz_length(n: i64) -> i64 =
+    collatz_step(n, 0);
+
+fn collatz_step(n: i64, steps: i64) -> i64 =
+    if n <= 1 { steps }
+    else if n % 2 == 0 { collatz_step(n / 2, steps + 1) }
+    else { collatz_step(3 * n + 1, steps + 1) };
+
+fn sum_collatz_lengths(start: i64, end: i64, acc: i64) -> i64 =
+    if start > end { acc }
+    else {
+        let len = collatz_length(start);
+        sum_collatz_lengths(start + 1, end, acc + len)
+    };
+
+fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let result = sum_collatz_lengths(1, n, 0);
+        run_benchmark(n, iterations, acc + result, i + 1)
+    };
+
+fn main() -> i64 = {
+    // Sum collatz lengths for 1..10000, 10 iterations
+    let result = run_benchmark(10000, 10, 0, 0);
+    let _p = println(result);
+    0
+};

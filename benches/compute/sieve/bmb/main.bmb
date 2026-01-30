@@ -1,0 +1,70 @@
+// Sieve of Eratosthenes - Prime number benchmark
+// Measures: array operations, bit manipulation, loop performance
+// Finds all primes up to N and counts them
+
+fn sieve(n: i64) -> i64 = {
+    // Allocate array of booleans (1 = prime candidate, 0 = composite)
+    let arr = malloc((n + 1) * 8);
+
+    // Initialize all to 1 (potential primes)
+    let _init = init_array(arr, n + 1, 0);
+
+    // Mark 0 and 1 as not prime
+    let _m0 = store_i64(arr, 0);
+    let _m1 = store_i64(arr + 8, 0);
+
+    // Sieve
+    let _sieve = sieve_loop(arr, n, 2);
+
+    // Count primes
+    let count = count_primes(arr, n, 2, 0);
+
+    let _f = free(arr);
+    count
+};
+
+fn init_array(arr: i64, n: i64, i: i64) -> i64 =
+    if i >= n { 0 }
+    else {
+        let _s = store_i64(arr + i * 8, 1);
+        init_array(arr, n, i + 1)
+    };
+
+fn sieve_loop(arr: i64, n: i64, i: i64) -> i64 =
+    if i * i > n { 0 }
+    else {
+        let is_prime = load_i64(arr + i * 8);
+        let _mark = if is_prime == 1 {
+            mark_multiples(arr, n, i, i * i)
+        } else { 0 };
+        sieve_loop(arr, n, i + 1)
+    };
+
+fn mark_multiples(arr: i64, n: i64, p: i64, j: i64) -> i64 =
+    if j > n { 0 }
+    else {
+        let _s = store_i64(arr + j * 8, 0);
+        mark_multiples(arr, n, p, j + p)
+    };
+
+fn count_primes(arr: i64, n: i64, i: i64, count: i64) -> i64 =
+    if i > n { count }
+    else {
+        let is_prime = load_i64(arr + i * 8);
+        let new_count = if is_prime == 1 { count + 1 } else { count };
+        count_primes(arr, n, i + 1, new_count)
+    };
+
+fn run_benchmark(iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let count = sieve(100000);
+        run_benchmark(iterations, acc + count, i + 1)
+    };
+
+fn main() -> i64 = {
+    // Run sieve(100000) 100 times
+    let result = run_benchmark(100, 0, 0);
+    let _p = println(result);
+    0
+};
