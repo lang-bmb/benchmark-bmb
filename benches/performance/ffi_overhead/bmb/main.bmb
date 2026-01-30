@@ -1,0 +1,80 @@
+// FFI Overhead Benchmark
+// Measures: Cost of calling C library functions from BMB
+//
+// BMB uses FFI to call C library functions (malloc, free, etc.)
+// This benchmark measures the overhead of these FFI calls vs direct C calls
+
+// Test 1: Memory allocation cycles
+fn test_malloc_cycles(iterations: i64, i: i64, sum: i64) -> i64 =
+    if i >= iterations { sum }
+    else {
+        let ptr = malloc(1024);  // 1KB allocation
+        let _f = free(ptr);
+        test_malloc_cycles(iterations, i + 1, sum + 1)
+    };
+
+// Test 2: Memory read/write cycles
+fn test_memory_ops(iterations: i64, i: i64, sum: i64) -> i64 =
+    if i >= iterations { sum }
+    else {
+        let ptr = malloc(64);
+        // Write 8 values
+        let _s0 = store_i64(ptr, i);
+        let _s1 = store_i64(ptr + 8, i + 1);
+        let _s2 = store_i64(ptr + 16, i + 2);
+        let _s3 = store_i64(ptr + 24, i + 3);
+        let _s4 = store_i64(ptr + 32, i + 4);
+        let _s5 = store_i64(ptr + 40, i + 5);
+        let _s6 = store_i64(ptr + 48, i + 6);
+        let _s7 = store_i64(ptr + 56, i + 7);
+        // Read them back
+        let v0 = load_i64(ptr);
+        let v1 = load_i64(ptr + 8);
+        let v2 = load_i64(ptr + 16);
+        let v3 = load_i64(ptr + 24);
+        let v4 = load_i64(ptr + 32);
+        let v5 = load_i64(ptr + 40);
+        let v6 = load_i64(ptr + 48);
+        let v7 = load_i64(ptr + 56);
+        let _f = free(ptr);
+        test_memory_ops(iterations, i + 1, sum + v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7)
+    };
+
+// Test 3: Mixed operations (realistic workload)
+fn test_mixed(iterations: i64, i: i64, sum: i64) -> i64 =
+    if i >= iterations { sum }
+    else {
+        // Allocate different sizes
+        let p1 = malloc(32);
+        let p2 = malloc(64);
+        let p3 = malloc(128);
+        // Compute and store
+        let val = i * i;
+        let _s1 = store_i64(p1, val);
+        let _s2 = store_i64(p2, val + 1);
+        let _s3 = store_i64(p3, val + 2);
+        // Read back
+        let r1 = load_i64(p1);
+        let r2 = load_i64(p2);
+        let r3 = load_i64(p3);
+        // Free
+        let _f1 = free(p1);
+        let _f2 = free(p2);
+        let _f3 = free(p3);
+        test_mixed(iterations, i + 1, sum + r1 + r2 + r3)
+    };
+
+fn main() -> i64 = {
+    // Run each test with sufficient iterations for stable measurement
+    // Target: ~50ms per test, ~150ms total
+    let malloc_result = test_malloc_cycles(1000000, 0, 0);
+    let memory_result = test_memory_ops(500000, 0, 0);
+    let mixed_result = test_mixed(500000, 0, 0);
+
+    // Output verification
+    let _p1 = println(malloc_result);
+    let _p2 = println(memory_result);
+    let _p3 = println(mixed_result);
+
+    0
+};

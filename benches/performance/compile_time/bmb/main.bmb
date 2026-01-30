@@ -1,0 +1,123 @@
+// Compile Time Benchmark
+// Measures: Compilation speed for a representative codebase
+//
+// This benchmark is run differently than others:
+// - We measure how long `bmb build main.bmb` takes
+// - Contains multiple functions, types, and control flow for realistic workload
+
+// Utility functions
+fn my_abs(x: i64) -> i64 = if x < 0 { 0 - x } else { x };
+
+fn my_min(a: i64, b: i64) -> i64 = if a < b { a } else { b };
+
+fn my_max(a: i64, b: i64) -> i64 = if a > b { a } else { b };
+
+fn my_clamp(x: i64, lo: i64, hi: i64) -> i64 = my_min(my_max(x, lo), hi);
+
+// Recursive algorithms
+fn gcd(a: i64, b: i64) -> i64 =
+    if b == 0 { a } else { gcd(b, a % b) };
+
+fn fib_iter(n: i64, a: i64, b: i64) -> i64 =
+    if n <= 0 { a } else { fib_iter(n - 1, b, a + b) };
+
+fn fibonacci(n: i64) -> i64 = fib_iter(n, 0, 1);
+
+fn factorial_iter(n: i64, acc: i64) -> i64 =
+    if n <= 1 { acc } else { factorial_iter(n - 1, n * acc) };
+
+fn factorial(n: i64) -> i64 = factorial_iter(n, 1);
+
+// Memory operations
+fn array_sum_loop(arr: i64, n: i64, i: i64, acc: i64) -> i64 =
+    if i >= n { acc }
+    else { array_sum_loop(arr, n, i + 1, acc + load_i64(arr + i * 8)) };
+
+fn array_sum(arr: i64, n: i64) -> i64 = array_sum_loop(arr, n, 0, 0);
+
+fn fill_array_loop(arr: i64, n: i64, i: i64) -> i64 =
+    if i >= n { 0 }
+    else {
+        let _s = store_i64(arr + i * 8, i * i);
+        fill_array_loop(arr, n, i + 1)
+    };
+
+fn fill_array(arr: i64, n: i64) -> i64 = fill_array_loop(arr, n, 0);
+
+// Search algorithm
+fn binary_search_loop(arr: i64, target: i64, lo: i64, hi: i64) -> i64 =
+    if lo > hi { 0 - 1 }
+    else {
+        let mid = lo + (hi - lo) / 2;
+        let mid_val = load_i64(arr + mid * 8);
+        if mid_val == target { mid }
+        else if mid_val < target { binary_search_loop(arr, target, mid + 1, hi) }
+        else { binary_search_loop(arr, target, lo, mid - 1) }
+    };
+
+fn binary_search(arr: i64, n: i64, target: i64) -> i64 =
+    binary_search_loop(arr, target, 0, n - 1);
+
+// Sorting (bubble sort for simplicity)
+fn bubble_pass(arr: i64, n: i64, i: i64, swapped: i64) -> i64 =
+    if i >= n - 1 { swapped }
+    else {
+        let a = load_i64(arr + i * 8);
+        let b = load_i64(arr + (i + 1) * 8);
+        if a > b {
+            let _sa = store_i64(arr + i * 8, b);
+            let _sb = store_i64(arr + (i + 1) * 8, a);
+            bubble_pass(arr, n, i + 1, 1)
+        } else {
+            bubble_pass(arr, n, i + 1, swapped)
+        }
+    };
+
+fn bubble_sort_loop(arr: i64, n: i64) -> i64 = {
+    let swapped = bubble_pass(arr, n, 0, 0);
+    if swapped == 0 { 0 } else { bubble_sort_loop(arr, n) }
+};
+
+fn bubble_sort(arr: i64, n: i64) -> i64 = bubble_sort_loop(arr, n);
+
+// Prime checking
+fn is_prime_check(n: i64, d: i64) -> bool =
+    if d * d > n { true }
+    else if n % d == 0 { false }
+    else { is_prime_check(n, d + 2) };
+
+fn is_prime(n: i64) -> bool =
+    if n < 2 { false }
+    else if n == 2 { true }
+    else if n % 2 == 0 { false }
+    else { is_prime_check(n, 3) };
+
+fn count_primes_loop(n: i64, i: i64, count: i64) -> i64 =
+    if i > n { count }
+    else if is_prime(i) { count_primes_loop(n, i + 1, count + 1) }
+    else { count_primes_loop(n, i + 1, count) };
+
+fn count_primes(n: i64) -> i64 = count_primes_loop(n, 2, 0);
+
+// Main: Run all functions to verify correctness
+fn main() -> i64 = {
+    let g = gcd(48, 18);
+    let f = fibonacci(20);
+    let fact = factorial(10);
+    let primes = count_primes(100);
+
+    // Array operations
+    let arr = malloc(80);  // 10 elements
+    let _fill = fill_array(arr, 10);
+    let sum = array_sum(arr, 10);
+    let _sort = bubble_sort(arr, 10);
+    let found = binary_search(arr, 10, 16);
+    let _free = free(arr);
+
+    // Verify results
+    let ok = g == 6 and f == 6765 and fact == 3628800 and primes == 25 and sum == 285 and found != (0 - 1);
+
+    let result = if ok { 1 } else { 0 };
+    let _p = println(result);
+    0
+};
