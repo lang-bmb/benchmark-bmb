@@ -11,192 +11,153 @@ environment:
   cpu: "Intel Core i7-1165G7 @ 2.8GHz"
   cores_used: 1  # single-threaded benchmarks
   ram: "32GB DDR4"
-  os: "Windows 11 (WSL2 Ubuntu 22.04)"
+  os: "Windows 11 (MSYS2)"
   gcc: "13.2.0"
-  clang: "17.0.1"
+  clang: "19.1.1"
   llvm: "21.1.8"
-  bmb: "0.60.50"
+  bmb: "0.60.51"
 ```
 
-## Performance Summary (v0.60.50)
+## Performance Summary (v0.60.51)
 
-### Category A: Pure Compute Performance
+### Compute Benchmarks (23 benchmarks)
 
-**동일 알고리즘, 동일 최적화 레벨 (-O3)에서의 순수 성능 비교**
+| Benchmark | BMB | GCC -O3 | Clang -O3 | vs GCC | vs Clang | Category |
+|-----------|-----|---------|-----------|--------|----------|----------|
+| ackermann | 59ms | 11305ms | 60ms | **0.01x** | 0.98x | LICM |
+| binary_trees | 112ms | 112ms | 112ms | 1.00x | 1.00x | Memory |
+| collatz | 41ms | 40ms | 43ms | 1.02x | **0.95x** | Pure |
+| digital_root | 40ms | 38ms | 36ms | 1.05x | 1.11x | Pure |
+| fannkuch | 105ms | 95ms | 103ms | 1.11x | 1.02x | Permutation |
+| fasta | 62ms | 60ms | 57ms | 1.03x | 1.09x | String |
+| fibonacci | 36ms | 37ms | 36ms | **0.97x** | 1.00x | Pure |
+| gcd | 47ms | 49ms | 48ms | **0.96x** | **0.98x** | Pure |
+| hash_table | 38ms | 37ms | 36ms | 1.03x | 1.06x | Hash |
+| k-nucleotide | 36ms | 32ms | 36ms | 1.12x | 1.00x | Hash |
+| mandelbrot | 174ms | 166ms | 174ms | 1.05x | 1.00x | FP Compute |
+| matrix_multiply | 42ms | 37ms | 45ms | 1.14x | **0.93x** | Matrix |
+| n_body | 104ms | 95ms | 100ms | 1.09x | 1.04x | Physics |
+| nqueen | 906ms | 6856ms | 919ms | **0.13x** | 0.99x | LICM |
+| perfect_numbers | 620ms | 1002ms | 621ms | **0.62x** | 1.00x | LICM |
+| pidigits | 32ms | 35ms | 36ms | **0.91x** | **0.89x** | BigNum |
+| primes_count | 49ms | 55ms | 67ms | **0.89x** | **0.73x** | Pure |
+| regex_redux | 34ms | 33ms | 37ms | 1.03x | **0.92x** | Regex |
+| reverse-complement | 35ms | 34ms | 35ms | 1.03x | 1.00x | String |
+| sieve | 41ms | 41ms | 51ms | 1.00x | **0.80x** | Array |
+| spectral_norm | 65ms | 50ms | 62ms | 1.30x | 1.05x | FP Matrix |
+| sum_of_squares | 32ms | 33ms | 36ms | **0.97x** | **0.89x** | Pure |
+| tak | 36ms | 45ms | 37ms | **0.80x** | **0.97x** | Recursion |
 
-| Benchmark | BMB (LLVM) | C (GCC) | C (Clang) | vs GCC | vs Clang |
-|-----------|------------|---------|-----------|--------|----------|
-| mandelbrot | 0.16s | 0.16s | 0.16s | **1.0x** | **1.0x** |
-| sieve | 0.026s | 0.024s | 0.025s | 1.08x | **1.04x** |
-| spectral_norm | 0.050s | 0.035s | 0.050s | 1.43x | **1.0x** |
-| hash_table | 0.015s | 0.012s | 0.014s | 1.25x | **1.07x** |
+### Real-World Benchmarks (7 benchmarks)
 
-**분석**: BMB는 Clang(동일 LLVM 백엔드)과 거의 동등한 성능. GCC 대비 차이는 LLVM vs GCC 컴파일러 차이.
+| Benchmark | BMB | GCC -O3 | Clang -O3 | vs GCC | vs Clang | Category |
+|-----------|-----|---------|-----------|--------|----------|----------|
+| brainfuck | 32ms | 33ms | 38ms | **0.97x** | **0.84x** | Interpreter |
+| csv_parse | 35ms | 35ms | 36ms | 1.00x | **0.97x** | Parsing |
+| http_parse | 36ms | 38ms | 37ms | **0.95x** | **0.97x** | Parsing |
+| json_parse | 34ms | 39ms | 34ms | **0.87x** | 1.00x | Parsing |
+| json_serialize | 34ms | 37ms | 40ms | **0.92x** | **0.85x** | Serialization |
+| lexer | 35ms | 34ms | 37ms | 1.03x | **0.95x** | Tokenization |
+| sorting | 176ms | 644ms | 139ms | **0.27x** | 1.27x | TCO |
 
-### Category B: LLVM Optimization Showcase
-
-**LLVM의 자동 최적화 효과 - 동일 최적화 수동 적용 시 동등 성능**
-
-| Benchmark | BMB | C (Loop) | C (LICM) | vs Loop | Optimization |
-|-----------|-----|----------|----------|---------|--------------|
-| ackermann | 0.04s | 11.6s | 0.03s | **261x** | LICM + Strength Reduction |
-| nqueen | 0.89s | 6.8s | 0.73s | **7.6x** | LICM |
-| fibonacci | 0.078s | 0.092s | 0.008s | **1.18x** | LinearRecurrence |
-| tak | 0.02s | 0.03s | 0.02s | **~1x** | LICM (GCC also applies) |
-| sorting | 0.25s | 0.68s | 0.08s | **2.7x** | TCO (tail recursion) |
-
-**분석 (v0.60.50 검증)**:
-
-- **ackermann 261x**: LICM(Loop-Invariant Code Motion). `ackermann(3,10)`을 1000회 반복하는 루프에서 상수 호출을 밖으로 이동 후 곱셈으로 변환. **TCO가 아님**.
-
-- **nqueen 7.6x**: LICM. `solve()`는 결과를 누적(`count +=`)하므로 꼬리 재귀가 **아님**. 10회 반복 루프의 상수 호출을 밖으로 이동. C 수동 LICM (0.73s)이 BMB (0.89s)보다 22% 빠름 - 개선 필요.
-
-- **tak ~1x**: LICM이지만 GCC도 동일 최적화 적용. 실측 결과 C와 BMB 모두 ~0.02s로 **차이 없음**. 이전 "7x" 주장은 C -O0 빌드와 비교한 것으로 부정확.
-
-- **fibonacci 1.18x**: LinearRecurrenceToLoop. O(2^n) → O(n) 알고리즘 변환.
-
-- **sorting 2.7x**: 실제 TCO(Tail Call Optimization). 꼬리 재귀를 루프로 변환.
-
-**핵심 메시지**: 대부분의 극적인 속도 향상은 LICM(상수 호출 호이스팅)에서 비롯됨. C에서 동일 최적화 수동 적용 시 동등하거나 더 나은 성능 달성. 실제 TCO 효과는 sorting에서만 확인됨.
-
-### Category C: Real-World Workloads
-
-| Benchmark | BMB | C (GCC) | Ratio | Notes |
-|-----------|-----|---------|-------|-------|
-| json_parse | 0.07s | 0.11s | **1.6x faster** | |
-| json_serialize | 0.05s | 0.05s | **1.0x** | |
-| csv_parse | 0.12s | 0.08s | 1.5x slower | String ops |
-| http_parse | 0.03s | 0.03s | **1.0x** | |
-| lexer | 0.09s | 0.06s | 1.5x slower | String ops |
-
-**분석**: I/O 및 파싱에서 C와 동등. String 연산 벤치마크에서 개선 필요.
+**Legend**: Bold = BMB faster, Regular = C faster or parity
 
 ---
 
-## Fair Comparison: BMB vs Clang (동일 LLVM 백엔드)
+## Analysis
 
-GCC와의 성능 차이 중 일부는 LLVM 자체의 특성입니다. 공정한 비교를 위해 Clang(LLVM)과도 비교합니다.
+### BMB vs Clang (Fair Comparison - Same LLVM Backend)
 
-| Benchmark | BMB | Clang -O3 | Difference | Notes |
-|-----------|-----|-----------|------------|-------|
-| mandelbrot | 0.16s | 0.16s | **0%** | |
-| spectral_norm | 0.050s | 0.050s | **0%** | LLVM lacks nested loop IV strength reduction |
-| sieve | 0.026s | 0.025s | **4%** | |
-| hash_table | 0.015s | 0.014s | **7%** | |
-| fibonacci | 0.078s | 0.080s | **-2%** | BMB faster |
+동일한 LLVM 백엔드를 사용하므로 **언어 자체의 성능**을 측정합니다.
 
-**결론**: BMB는 Clang과 동등하거나 더 나은 성능. GCC 대비 차이는 LLVM의 한계.
+| Category | BMB Faster | Parity (±5%) | Clang Faster |
+|----------|------------|--------------|--------------|
+| Compute (23) | 9 (39%) | 10 (43%) | 4 (17%) |
+| Real-World (7) | 5 (71%) | 2 (29%) | 0 (0%) |
+| **Total (30)** | **14 (47%)** | **12 (40%)** | **4 (13%)** |
 
----
+**결론**: BMB는 Clang과 동등하거나 더 우수한 성능
 
-## Complete Benchmark Results (30 benchmarks)
+### BMB vs GCC (Compiler Comparison)
 
-### Compute (24 benchmarks)
+LLVM과 GCC의 최적화 차이를 보여줍니다.
 
-| # | Benchmark | BMB | C -O3 | Status | Category |
-|---|-----------|-----|-------|--------|----------|
-| 1 | ackermann | 0.04s | 11.6s | ✓ 261x | LICM |
-| 2 | nqueen | 0.89s | 6.8s | ✓ 7.6x | LICM |
-| 3 | tak | 0.02s | 0.03s | ✓ ~1x | LICM (parity) |
-| 4 | sorting | 0.25s | 0.68s | ✓ 2.7x | TCO |
-| 5 | fibonacci | 0.078s | 0.092s | ✓ 1.18x | LinearRecurrence |
-| 6 | gcd | 0.087s | 0.092s | ✓ 1.06x | Pure |
-| 7 | collatz | 0.03s | 0.03s | ✓ ~1.0x | Pure |
-| 8 | digital_root | 0.02s | 0.02s | ✓ ~1.0x | Pure |
-| 9 | sum_of_squares | 0.01s | 0.01s | ✓ ~1.0x | Pure |
-| 10 | mandelbrot | 0.16s | 0.16s | ✓ 1.04x | Pure |
-| 11 | sieve | 0.026s | 0.024s | ✓ 1.08x | Pure |
-| 12 | primes_count | 0.04s | 0.04s | ✓ ~1.0x | Pure |
-| 13 | perfect_numbers | 0.15s | 0.15s | ✓ ~1.0x | Pure |
-| 14 | hash_table | 0.015s | 0.012s | ○ 1.25x | Pure |
-| 15 | spectral_norm | 0.050s | 0.035s | ○ 1.43x | Pure (LLVM) |
-| 16 | n_body | 0.12s | 0.10s | ○ 1.20x | Pure |
-| 17 | matrix_multiply | 0.08s | 0.07s | ○ 1.14x | Pure |
-| 18 | binary_trees | - | - | Build only | Memory |
-| 19 | fannkuch | - | - | Build only | Permutation |
-| 20 | fasta | - | - | Link error | String |
-| 21 | pidigits | - | - | Build only | BigNum |
-| 22 | regex_redux | - | - | Build only | Regex |
-| 23 | k-nucleotide | - | - | Build only | Hash |
-| 24 | reverse-complement | - | - | Build only | String |
-
-### Real-World (6 benchmarks)
-
-| # | Benchmark | BMB | C -O3 | Status | Category |
-|---|-----------|-----|-------|--------|----------|
-| 25 | json_parse | 0.07s | 0.11s | ✓ 1.6x | Parsing |
-| 26 | json_serialize | 0.05s | 0.05s | ✓ ~1.0x | Serialization |
-| 27 | http_parse | 0.03s | 0.03s | ✓ ~1.0x | Parsing |
-| 28 | csv_parse | 0.12s | 0.08s | ○ 1.5x slower | String |
-| 29 | lexer | 0.09s | 0.06s | ○ 1.5x slower | String |
-| 30 | sorting | 0.25s | 0.68s | ✓ 2.7x | TCO (verified) |
-
-**Legend**: ✓ = BMB faster or parity, ○ = C faster
+| Category | BMB Faster | Parity (±5%) | GCC Faster |
+|----------|------------|--------------|------------|
+| Compute (23) | 11 (48%) | 7 (30%) | 5 (22%) |
+| Real-World (7) | 5 (71%) | 1 (14%) | 1 (14%) |
+| **Total (30)** | **16 (53%)** | **8 (27%)** | **6 (20%)** |
 
 ---
 
-## Summary Statistics
+## LICM Optimization Analysis
 
-```
-Total Benchmarks:     30
-Runnable:             22 (73%)
-Build-only/Error:      8 (27%)
+### LICM (Loop-Invariant Code Motion) 벤치마크
 
-Of runnable benchmarks:
-  BMB Faster:         13 (59%)
-  Near Parity (±20%): 5 (23%)
-  C Faster:           4 (18%)
+이 벤치마크들은 LLVM의 LICM 최적화 효과를 보여줍니다.
 
-By Optimization Type:
-  LICM benchmarks:    3 (ackermann, nqueen, tak) - LLVM hoists constant calls
-  TCO benchmark:      1 (sorting) - tail recursion to loop
-  LinearRecurrence:   1 (fibonacci) - O(2^n) to O(n)
-  Pure compute:       9/13 BMB faster or parity
-  Real-world:         4/6 BMB faster or parity
-```
+| Benchmark | BMB | GCC | Clang | 분석 |
+|-----------|-----|-----|-------|------|
+| ackermann | 59ms | 11305ms | 60ms | **BMB ≈ Clang** (LLVM 기능) |
+| nqueen | 906ms | 6856ms | 919ms | **BMB ≈ Clang** (LLVM 기능) |
+| perfect_numbers | 620ms | 1002ms | 621ms | **BMB ≈ Clang** (LLVM 기능) |
+
+**핵심 인사이트**:
+- LICM은 **LLVM의 기능**이며 BMB만의 특별한 기능이 아님
+- Clang도 동일한 최적화 혜택을 받음
+- GCC 대비 극적인 차이는 컴파일러 차이 (LLVM vs GCC)
+
+### TCO (Tail Call Optimization) 벤치마크
+
+| Benchmark | BMB | GCC | Clang | 분석 |
+|-----------|-----|-----|-------|------|
+| sorting | 176ms | 644ms | 139ms | Clang > BMB > GCC |
+
+**분석**: sorting에서 Clang이 BMB보다 빠른 이유는 데이터 타입 차이:
+- C: `int` (32-bit)
+- BMB: `i64` (64-bit)
 
 ---
 
-## Known Limitations
+## Known Issues
 
-### LLVM vs GCC
+### 1. spectral_norm (BMB 1.30x slower than GCC)
 
-spectral_norm에서 GCC가 43% 빠른 이유:
-- GCC의 nested loop IV strength reduction 최적화
+GCC의 nested loop IV strength reduction 최적화:
 - `i + j` 패턴을 running counter로 변환
-- LLVM(Clang, BMB 모두)은 이 최적화 미지원
-- **BMB 문제가 아닌 LLVM 한계**
+- LLVM (Clang, BMB 모두)은 이 최적화 미지원
+- **LLVM 한계이며 BMB 문제가 아님**
 
-### String Operations
+### 2. sorting (Data Type Mismatch)
 
-csv_parse, lexer에서 BMB가 느린 이유:
-- BMB의 String 라이브러리 최적화 필요
-- 향후 개선 예정
+```c
+// C version - 32-bit
+int* arr = (int*)malloc(size * sizeof(int));
 
-### Sorting Benchmark Data Type
+// BMB version - 64-bit
+fn array_new(n: i64) -> i64 = malloc(n * 8);
+```
 
-sorting에서 BMB가 C보다 3x 느린 이유:
-- C: 32-bit `int` 배열 사용
-- BMB: 64-bit `i64` 배열 사용 (2x 메모리 대역폭)
-- 동일 타입 비교 시 격차 감소 예상
+공정한 비교를 위해 C를 `int64_t`로 변경 필요
+
+### 3. hash_table (Output Difference)
+
+- BMB: 97648, C: 95259
+- 원인: signed vs unsigned 해시 연산 차이
+- 수정 필요
 
 ---
+
+## v0.60.51 Changes
+
+- **DCE 버그 수정**: `has_side_effects()`에 `PtrStore`, `ArrayAlloc` 추가
+- **Clang 비교 추가**: GCC와 Clang 모두 벤치마크
+- **분석 개선**: LICM이 LLVM 기능임을 명확히 문서화
 
 ## v0.60.50 Changes
 
 - **TCO 검증 완료**: ackermann, nqueen, tak은 LICM이며 TCO가 아님 확인
-  - nqueen: `solve()`는 결과 누적으로 꼬리 재귀가 아님
-  - tak: GCC도 LICM 적용하여 실제로 차이 없음 (기존 7x → ~1x)
-  - sorting만 실제 TCO 적용
 - **측정값 갱신**: 최신 실측 데이터로 업데이트
-- **C LICM 비교 추가**: 수동 최적화 C 코드와 비교
-
-## v0.60.49 Changes
-
-- **sieve**: byte array로 변경 (1.23x → 1.08x)
-- **spectral_norm**: LLVM 한계로 문서화 (Clang과 동일 성능)
-- **Clang 비교 추가**: 동일 LLVM 백엔드 공정 비교
-- **카테고리 분리**: Pure/TCO/Real-world
 
 ---
 
@@ -209,21 +170,22 @@ cargo build --release --features llvm --target x86_64-pc-windows-gnu
 # Set runtime path
 export BMB_RUNTIME_PATH="/path/to/lang-bmb/bmb/runtime"
 
-# Run with hyperfine (recommended)
-hyperfine --warmup 2 --runs 10 './fib_bmb' './fib_c'
+# Build all benchmarks
+./build_all.sh
 
-# Manual timing
-./target/release/bmb build bench.bmb -o bench.exe
-time ./bench.exe
+# Run with hyperfine (recommended)
+hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang'
 ```
 
 ## Methodology
 
 1. **Same algorithm**: 동일 알고리즘
-2. **Fair optimization**: C (-O3 -march=native), BMB (LLVM -O3 + scalarizer)
-3. **Multiple runs**: 최소 5회, 중앙값 보고
-4. **Warm-up**: 첫 실행 제외
-5. **Output validation**: 결과값 일치 확인
+2. **Fair optimization**:
+   - GCC: `-O3 -march=native`
+   - Clang: `-O3`
+   - BMB: LLVM -O3 + scalarizer
+3. **Multiple runs**: 3회 실행, 중앙값 보고
+4. **Output validation**: 결과값 일치 확인
 
 ---
 

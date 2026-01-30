@@ -1,148 +1,117 @@
 #!/bin/bash
-# BMB Benchmark Suite v0.100
-# Compares BMB native compilation (via LLVM) against C (-O3)
+# BMB Benchmark Runner
+# Builds and runs all benchmarks, collecting timing data
 
-set -e
+BMB="D:/data/lang-bmb/target/x86_64-pc-windows-gnu/release/bmb.exe"
+RESULTS_DIR="benchmark_results"
+mkdir -p "$RESULTS_DIR"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BMB="$PROJECT_ROOT/target/release/bmb"
-RUNTIME="$PROJECT_ROOT/bmb/runtime/libbmb_runtime.a"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Output directories
-RESULTS_DIR="$SCRIPT_DIR/results"
-BUILD_DIR="$SCRIPT_DIR/build"
-mkdir -p "$RESULTS_DIR" "$BUILD_DIR"
+echo "=============================================="
+echo "BMB Benchmark Suite v0.60.51"
+echo "=============================================="
+echo ""
 
-# Benchmark categories
-COMPUTE_BENCHMARKS=(
-    "fibonacci"
-    "mandelbrot"
-    "spectral_norm"
-    "n_body"
-)
-
-# Check prerequisites
-check_prereqs() {
-    if [[ ! -f "$BMB" ]]; then
-        echo "Error: BMB compiler not found at $BMB"
-        echo "Build with: cargo build --release --features llvm"
-        exit 1
-    fi
-
-    if [[ ! -f "$RUNTIME" ]]; then
-        echo "Error: BMB runtime not found at $RUNTIME"
-        echo "Build with: cd bmb/runtime && clang -c bmb_runtime.c -o bmb_runtime.o && ar rcs libbmb_runtime.a bmb_runtime.o"
-        exit 1
-    fi
-
-    if ! command -v clang &> /dev/null; then
-        echo "Error: clang not found"
-        exit 1
-    fi
+# Function to time a command (returns milliseconds)
+time_cmd() {
+    local start=$(date +%s%N)
+    "$@" > /dev/null 2>&1
+    local end=$(date +%s%N)
+    echo $(( (end - start) / 1000000 ))
 }
 
-# Run a single benchmark and measure time
+# Function to run benchmark multiple times and get median
 run_benchmark() {
-    local name="$1"
-    local exe="$2"
-    local iterations="${3:-3}"
+    local exe=$1
+    local runs=5
+    local times=()
 
-    local total_time=0
-    for ((i=1; i<=iterations; i++)); do
-        local start=$(date +%s.%N)
-        "$exe" > /dev/null 2>&1 || true
-        local end=$(date +%s.%N)
-        local elapsed=$(echo "$end - $start" | bc)
-        total_time=$(echo "$total_time + $elapsed" | bc)
+    for ((i=1; i<=runs; i++)); do
+        local t=$(time_cmd "$exe")
+        times+=($t)
     done
 
-    # Average time
-    echo "scale=3; $total_time / $iterations" | bc
+    # Sort and get median
+    IFS=$'\n' sorted=($(sort -n <<<"${times[*]}")); unset IFS
+    local median=${sorted[$((runs/2))]}
+    echo $median
 }
 
-# Compile and benchmark a single test
-benchmark_one() {
-    local category="$1"
-    local name="$2"
-    local bench_dir="$SCRIPT_DIR/benches/$category/$name"
+# Build and benchmark function
+benchmark() {
+    local name=$1
+    local category=$2
+    local bmb_src="benches/$category/$name/bmb/main.bmb"
+    local c_src="benches/$category/$name/c/main.c"
+    local bmb_exe="$RESULTS_DIR/${name}_bmb.exe"
+    local c_exe="$RESULTS_DIR/${name}_c.exe"
 
-    if [[ ! -d "$bench_dir" ]]; then
-        echo "SKIP: $name (not found)"
-        return
+    printf "%-20s " "$name"
+
+    # Build BMB
+    if [ -f "$bmb_src" ]; then
+        if $BMB build "$bmb_src" -o "$bmb_exe" > /dev/null 2>&1; then
+            bmb_time=$(run_benchmark "$bmb_exe")
+            printf "BMB: %6dms  " "$bmb_time"
+        else
+            printf "BMB: ${RED}BUILD FAIL${NC}  "
+            bmb_time="FAIL"
+        fi
+    else
+        printf "BMB: ${YELLOW}NO SRC${NC}     "
+        bmb_time="N/A"
     fi
 
-    local bmb_src="$bench_dir/bmb/main.bmb"
-    local c_src="$bench_dir/c/main.c"
-
-    if [[ ! -f "$bmb_src" ]] || [[ ! -f "$c_src" ]]; then
-        echo "SKIP: $name (missing source)"
-        return
+    # Build C
+    if [ -f "$c_src" ]; then
+        if gcc -O3 -march=native -o "$c_exe" "$c_src" -lm 2>/dev/null; then
+            c_time=$(run_benchmark "$c_exe")
+            printf "C: %6dms  " "$c_time"
+        else
+            printf "C: ${RED}BUILD FAIL${NC}  "
+            c_time="FAIL"
+        fi
+    else
+        printf "C: ${YELLOW}NO SRC${NC}     "
+        c_time="N/A"
     fi
-
-    echo "Benchmarking: $name"
-
-    # Compile C version
-    local c_exe="$BUILD_DIR/${name}_c"
-    clang -O3 "$c_src" -o "$c_exe" -lm 2>/dev/null || {
-        echo "  C compile failed"
-        return
-    }
-
-    # Compile BMB version (emit IR + clang -O3 for best performance)
-    local bmb_ir="$BUILD_DIR/${name}_bmb.ll"
-    local bmb_exe="$BUILD_DIR/${name}_bmb"
-
-    export BMB_RUNTIME_PATH="$RUNTIME"
-    "$BMB" build "$bmb_src" --emit-ir -o "$bmb_ir" 2>/dev/null || {
-        echo "  BMB compile failed"
-        return
-    }
-    clang -O3 "$bmb_ir" "$RUNTIME" -o "$bmb_exe" -lm -no-pie 2>/dev/null || {
-        echo "  BMB link failed"
-        return
-    }
-
-    # Run benchmarks
-    local c_time=$(run_benchmark "$name" "$c_exe" 3)
-    local bmb_time=$(run_benchmark "$name" "$bmb_exe" 3)
 
     # Calculate ratio
-    local ratio=$(echo "scale=2; $bmb_time / $c_time * 100" | bc)
+    if [[ "$bmb_time" =~ ^[0-9]+$ ]] && [[ "$c_time" =~ ^[0-9]+$ ]] && [ "$c_time" -gt 0 ]; then
+        ratio=$(echo "scale=2; $bmb_time / $c_time" | bc)
+        if (( $(echo "$ratio <= 1.1" | bc -l) )); then
+            printf "${GREEN}Ratio: ${ratio}x${NC}"
+        elif (( $(echo "$ratio <= 1.5" | bc -l) )); then
+            printf "${YELLOW}Ratio: ${ratio}x${NC}"
+        else
+            printf "${RED}Ratio: ${ratio}x${NC}"
+        fi
+    fi
 
-    echo "  C (-O3):   ${c_time}s"
-    echo "  BMB:       ${bmb_time}s (${ratio}% of C)"
-
-    # Save to results
-    echo "$name,$c_time,$bmb_time,$ratio" >> "$RESULTS_DIR/benchmark_results.csv"
+    echo ""
 }
 
-# Main benchmark run
-main() {
-    check_prereqs
+echo "=== COMPUTE BENCHMARKS ==="
+echo ""
 
-    echo "============================================"
-    echo "BMB Benchmark Suite v0.100"
-    echo "============================================"
-    echo ""
-    echo "BMB Compiler: $BMB"
-    echo "Runtime:      $RUNTIME"
-    echo "Output:       $RESULTS_DIR"
-    echo ""
+for dir in benches/compute/*/; do
+    name=$(basename "$dir")
+    benchmark "$name" "compute"
+done
 
-    # Initialize results file
-    echo "benchmark,c_time_s,bmb_time_s,ratio_percent" > "$RESULTS_DIR/benchmark_results.csv"
+echo ""
+echo "=== REAL-WORLD BENCHMARKS ==="
+echo ""
 
-    echo "Running compute benchmarks..."
-    echo "--------------------------------------------"
-    for bench in "${COMPUTE_BENCHMARKS[@]}"; do
-        benchmark_one "compute" "$bench"
-    done
+for dir in benches/real_world/*/; do
+    name=$(basename "$dir")
+    benchmark "$name" "real_world"
+done
 
-    echo ""
-    echo "============================================"
-    echo "Results saved to: $RESULTS_DIR/benchmark_results.csv"
-    echo "============================================"
-}
-
-main "$@"
+echo ""
+echo "Done! Results in $RESULTS_DIR/"
