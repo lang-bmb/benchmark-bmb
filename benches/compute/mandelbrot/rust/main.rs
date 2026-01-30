@@ -1,32 +1,53 @@
-// Mandelbrot set benchmark
-// Measures: complex arithmetic, iteration, bit manipulation
+// Mandelbrot set computation benchmark
+// Measures: floating-point arithmetic (fixed-point), loops
+// Uses fixed-point arithmetic to match C/BMB versions
+
+const SCALE: i64 = 10000;
+
+fn mul_fp(a: i64, b: i64) -> i64 {
+    (a * b) / SCALE
+}
+
+fn square_fp(x: i64) -> i64 {
+    mul_fp(x, x)
+}
+
+fn iterate(cr: i64, ci: i64, mut zr: i64, mut zi: i64, mut iter: i64, max_iter: i64) -> i64 {
+    while iter < max_iter {
+        let zr2 = square_fp(zr);
+        let zi2 = square_fp(zi);
+        let mag = zr2 + zi2;
+        if mag > 4 * SCALE * SCALE {
+            return iter;
+        }
+        let new_zr = zr2 - zi2 + cr;
+        let new_zi = 2 * mul_fp(zr, zi) + ci;
+        zr = new_zr;
+        zi = new_zi;
+        iter += 1;
+    }
+    max_iter
+}
+
+fn mandelbrot_point(x: i64, y: i64, width: i64, height: i64, max_iter: i64) -> i64 {
+    let cr = (x * 4 * SCALE / width) - 2 * SCALE;
+    let ci = (y * 4 * SCALE / height) - 2 * SCALE;
+    iterate(cr, ci, 0, 0, 0, max_iter)
+}
 
 fn main() {
-    let size = 200;
-    let max_iter = 50;
-    let mut sum = 0i64;
+    let size: i64 = 2000;
+    let max_iter: i64 = 100;
+    let mut count: i64 = 0;
 
-    for py in 0..size {
-        for px in 0..size {
-            let x0 = (px as f64) * 4.0 / (size as f64) - 2.0;
-            let y0 = (py as f64) * 4.0 / (size as f64) - 2.0;
-
-            let mut x = 0.0f64;
-            let mut y = 0.0f64;
-            let mut iteration = 0;
-
-            while x * x + y * y <= 4.0 && iteration < max_iter {
-                let xtemp = x * x - y * y + x0;
-                y = 2.0 * x * y + y0;
-                x = xtemp;
-                iteration += 1;
-            }
-
-            if iteration == max_iter {
-                sum += 1;
+    for y in 0..size {
+        for x in 0..size {
+            let result = mandelbrot_point(x, y, size, size, max_iter);
+            if result < max_iter {
+                count += 1;
             }
         }
     }
 
-    println!("{}", sum);
+    println!("{}", count);
 }

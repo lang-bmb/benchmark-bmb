@@ -26,9 +26,13 @@ int64_t random_next(int64_t seed) {
     return (seed * 1103515245 + 12345) % 2147483648;
 }
 
+// v0.60.51: Match BMB's hash behavior exactly
+// - Unsigned multiplication (wrapping semantics)
+// - Signed shift (arithmetic right shift)
 int64_t hash_i64(int64_t key) {
-    uint64_t h = (uint64_t)key * 0x517cc1b727220a95ULL;
-    return (int64_t)(h ^ (h >> 32));
+    uint64_t mul = (uint64_t)key * 0x517cc1b727220a95ULL;
+    int64_t h = (int64_t)mul;
+    return h ^ (h >> 32);
 }
 
 HashMap* hashmap_new(void) {
