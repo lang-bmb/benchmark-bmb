@@ -22,8 +22,9 @@ fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
     };
 
 fn main() -> i64 = {
-    // Compute GCD for all pairs up to 300x300, 10 iterations
-    let result = run_benchmark(300, 10, 0, 0);
+    // Compute GCD for all pairs up to 300x300, 100 iterations for stable measurement (target: ~130ms)
+    // v0.60.52: Increased to reduce measurement noise (min 100ms target)
+    let result = run_benchmark(300, 100, 0, 0);
     let _p = println(result);
     0
 };

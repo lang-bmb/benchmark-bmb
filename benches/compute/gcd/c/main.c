@@ -24,8 +24,9 @@ int64_t sum_gcds(int64_t n) {
 }
 
 int main() {
+    // 100 iterations for stable measurement (target: ~130ms)
     int64_t result = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 100; i++) {
         result += sum_gcds(300);
     }
     printf("%lld\n", (long long)result);

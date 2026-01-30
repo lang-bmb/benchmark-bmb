@@ -36,8 +36,9 @@ int64_t sieve(int64_t n) {
 }
 
 int main() {
+    // 1500 iterations for stable measurement (target: ~140ms)
     int64_t result = 0;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1500; i++) {
         result += sieve(100000);
     }
     printf("%lld\n", (long long)result);

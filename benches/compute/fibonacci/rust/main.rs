@@ -14,9 +14,9 @@ fn fibonacci_iter(n: i64) -> i64 {
 }
 
 fn main() {
-    // Run fibonacci(50) 100000 times for measurable runtime
+    // Run fibonacci(50) 1000000000 times for stable measurement (target: ~120ms after LICM)
     let mut result: i64 = 0;
-    for _ in 0..100000 {
+    for _ in 0..1000000000 {
         result += fibonacci_iter(50);
     }
     println!("{}", result);

@@ -144,7 +144,18 @@ int64_t benchmark_delete(HashMap* m, int64_t n, int64_t seed) {
 
 int main(void) {
     int64_t seed = 42;
+    int64_t total_found = 0;
 
+    // 30 iterations for stable measurement (target: ~125ms)
+    for (int iter = 0; iter < 30; iter++) {
+        HashMap* m = hashmap_new();
+        benchmark_insert(m, N, seed);
+        total_found += benchmark_lookup(m, N, seed);
+        benchmark_delete(m, N / 2, random_next(seed));
+        hashmap_free(m);
+    }
+
+    // Print final results (from one more iteration)
     HashMap* m = hashmap_new();
 
     // Phase 1: Insert operations

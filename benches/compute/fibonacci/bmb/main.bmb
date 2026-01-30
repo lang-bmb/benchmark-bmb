@@ -17,10 +17,11 @@ fn fibonacci_iter(n: i64) -> i64 = {
 };
 
 fn main() -> i64 = {
-    // Run fibonacci(50) 100000 times for measurable runtime
+    // Run fibonacci(50) 1000000000 times for stable measurement (target: ~120ms after LICM)
+    // v0.60.52: Extreme LLVM optimization requires many iterations for stable timing
     let mut result: i64 = 0;
     let mut i: i64 = 0;
-    while i < 100000 {
+    while i < 1000000000 {
         let fib = fibonacci_iter(50);
         { result = result + fib };
         { i = i + 1 }

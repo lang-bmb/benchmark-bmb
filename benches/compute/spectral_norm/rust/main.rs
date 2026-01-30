@@ -36,7 +36,8 @@ fn main() {
     let mut v = [0.0f64; N];
     let mut tmp = [0.0f64; N];
 
-    for _ in 0..10 {
+    // 30 iterations for stable measurement (target: ~111ms)
+    for _ in 0..30 {
         mult_atav(&u, &mut v, n, &mut tmp);
         mult_atav(&v, &mut u, n, &mut tmp);
     }

@@ -14,8 +14,9 @@ int64_t tak(int64_t x, int64_t y, int64_t z) {
 }
 
 int main() {
+    // 50000 iterations for stable measurement (target: ~150ms after LICM)
     int64_t result = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 50000; i++) {
         result += tak(24, 16, 8);
     }
     printf("%lld\n", (long long)result);

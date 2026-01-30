@@ -40,7 +40,8 @@ int main() {
 
     for (int i = 0; i < n; i++) u[i] = 1.0;
 
-    for (int i = 0; i < 10; i++) {
+    // 30 iterations for stable measurement (target: ~111ms)
+    for (int i = 0; i < 30; i++) {
         mult_AtAv(u, v, n);
         mult_AtAv(v, u, n);
     }

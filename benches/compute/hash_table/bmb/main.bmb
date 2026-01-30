@@ -150,20 +150,36 @@ fn benchmark_delete(m: i64, n: i64, seed: i64) -> i64 = {
     deleted
 };
 
+// v0.60.52: Run benchmark multiple times for stable measurement
+fn run_iteration(n: i64, seed: i64, iter: i64, total_found: i64) -> i64 =
+    if iter >= 30 { total_found }  -- 30 iterations for ~125ms target
+    else {
+        let m = hm_new();
+        let _seed1 = benchmark_insert(m, n, seed);
+        let found = benchmark_lookup(m, n, seed);
+        let _deleted = benchmark_delete(m, n / 2, random_next(seed));
+        let _f = hm_free(m);
+        run_iteration(n, seed, iter + 1, total_found + found)
+    };
+
 fn main() -> i64 = {
     let n = get_n();
     let seed = 42;
-    let m = hm_new();
 
+    // Run 30 iterations for stable measurement (target: ~125ms)
+    let total_found = run_iteration(n, seed, 0, 0);
+
+    // Print final results (from last iteration's state)
+    let m = hm_new();
     let _seed1 = benchmark_insert(m, n, seed);
-    let len1 = load_i64(m);  -- O(1) count access (inlined)
+    let len1 = load_i64(m);
     let _p1 = println(len1);
 
     let found = benchmark_lookup(m, n, seed);
     let _p2 = println(found);
 
     let _deleted = benchmark_delete(m, n / 2, random_next(seed));
-    let len2 = load_i64(m);  -- O(1) count access (inlined)
+    let len2 = load_i64(m);
     let _p3 = println(len2);
 
     let _f = hm_free(m);

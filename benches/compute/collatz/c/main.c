@@ -26,8 +26,9 @@ int64_t sum_collatz_lengths(int64_t start, int64_t end) {
 }
 
 int main() {
+    // 200 iterations for stable measurement (target: ~116ms)
     int64_t result = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 200; i++) {
         result += sum_collatz_lengths(1, 10000);
     }
     printf("%lld\n", (long long)result);

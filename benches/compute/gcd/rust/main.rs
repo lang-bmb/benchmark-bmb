@@ -21,8 +21,9 @@ fn sum_gcds(n: i64) -> i64 {
 }
 
 fn main() {
+    // 100 iterations for stable measurement (target: ~130ms)
     let mut result: i64 = 0;
-    for _ in 0..10 {
+    for _ in 0..100 {
         result += sum_gcds(300);
     }
     println!("{}", result);

@@ -65,8 +65,9 @@ fn run_benchmark(iterations: i64, acc: i64, i: i64) -> i64 =
     };
 
 fn main() -> i64 = {
-    // Run sieve(100000) 100 times
-    let result = run_benchmark(100, 0, 0);
+    // Run sieve(100000) 1500 times for stable measurement (target: ~140ms)
+    // v0.60.52: Increased to reduce measurement noise (min 100ms target)
+    let result = run_benchmark(1500, 0, 0);
     let _p = println(result);
     0
 };

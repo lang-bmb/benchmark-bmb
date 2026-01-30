@@ -6,7 +6,8 @@
 // - Native pointer syntax for array access
 
 // Constants
-fn ITERATIONS() -> i64 = 10;
+// v0.60.52: Increased from 10 to 30 for stable measurement (target: ~111ms)
+fn ITERATIONS() -> i64 = 30;
 
 // A(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1)
 // v0.60.45: Inline for better loop performance

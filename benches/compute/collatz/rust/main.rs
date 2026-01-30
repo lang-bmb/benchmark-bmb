@@ -23,8 +23,9 @@ fn sum_collatz_lengths(start: i64, end: i64) -> i64 {
 }
 
 fn main() {
+    // 200 iterations for stable measurement (target: ~116ms)
     let mut result: i64 = 0;
-    for _ in 0..10 {
+    for _ in 0..200 {
         result += sum_collatz_lengths(1, 10000);
     }
     println!("{}", result);

@@ -20,8 +20,9 @@ fn run_benchmark(iterations: i64, acc: i64, i: i64) -> i64 =
     };
 
 fn main() -> i64 = {
-    // Run tak(24, 16, 8) 10 times
-    let result = run_benchmark(10, 0, 0);
+    // Run tak(24, 16, 8) 50000 times for stable measurement (target: ~150ms after LICM)
+    // v0.60.52: Extreme LLVM optimization requires many iterations for stable timing
+    let result = run_benchmark(50000, 0, 0);
     let _p = println(result);
     0
 };

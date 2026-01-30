@@ -32,8 +32,9 @@ fn sieve(n: usize) -> i64 {
 }
 
 fn main() {
+    // 1500 iterations for stable measurement (target: ~140ms)
     let mut result: i64 = 0;
-    for _ in 0..100 {
+    for _ in 0..1500 {
         result += sieve(100000);
     }
     println!("{}", result);
