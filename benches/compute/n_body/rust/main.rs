@@ -1,5 +1,5 @@
-// N-body simulation benchmark
-// Measures: floating-point arithmetic, array operations
+// N-Body simulation benchmark
+// Measures: FP arithmetic, SIMD potential
 
 const PI: f64 = 3.141592653589793;
 const SOLAR_MASS: f64 = 4.0 * PI * PI;
@@ -16,16 +16,15 @@ struct Body {
     mass: f64,
 }
 
-fn advance(bodies: &mut [Body], dt: f64) {
-    let n = bodies.len();
-    for i in 0..n {
-        for j in (i + 1)..n {
+fn advance(bodies: &mut [Body; 5], dt: f64) {
+    for i in 0..5 {
+        for j in (i + 1)..5 {
             let dx = bodies[i].x - bodies[j].x;
             let dy = bodies[i].y - bodies[j].y;
             let dz = bodies[i].z - bodies[j].z;
 
-            let d2 = dx * dx + dy * dy + dz * dz;
-            let mag = dt / (d2 * d2.sqrt());
+            let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+            let mag = dt / (dist * dist * dist);
 
             bodies[i].vx -= dx * bodies[j].mass * mag;
             bodies[i].vy -= dy * bodies[j].mass * mag;
@@ -37,43 +36,42 @@ fn advance(bodies: &mut [Body], dt: f64) {
         }
     }
 
-    for body in bodies.iter_mut() {
-        body.x += dt * body.vx;
-        body.y += dt * body.vy;
-        body.z += dt * body.vz;
+    for i in 0..5 {
+        bodies[i].x += dt * bodies[i].vx;
+        bodies[i].y += dt * bodies[i].vy;
+        bodies[i].z += dt * bodies[i].vz;
     }
 }
 
-fn energy(bodies: &[Body]) -> f64 {
+fn energy(bodies: &[Body; 5]) -> f64 {
     let mut e = 0.0;
-    let n = bodies.len();
 
-    for i in 0..n {
+    for i in 0..5 {
         e += 0.5 * bodies[i].mass
             * (bodies[i].vx * bodies[i].vx
                 + bodies[i].vy * bodies[i].vy
                 + bodies[i].vz * bodies[i].vz);
 
-        for j in (i + 1)..n {
+        for j in (i + 1)..5 {
             let dx = bodies[i].x - bodies[j].x;
             let dy = bodies[i].y - bodies[j].y;
             let dz = bodies[i].z - bodies[j].z;
             let dist = (dx * dx + dy * dy + dz * dz).sqrt();
-            e -= bodies[i].mass * bodies[j].mass / dist;
+            e -= (bodies[i].mass * bodies[j].mass) / dist;
         }
     }
     e
 }
 
-fn offset_momentum(bodies: &mut [Body]) {
+fn offset_momentum(bodies: &mut [Body; 5]) {
     let mut px = 0.0;
     let mut py = 0.0;
     let mut pz = 0.0;
 
-    for body in bodies.iter() {
-        px += body.vx * body.mass;
-        py += body.vy * body.mass;
-        pz += body.vz * body.mass;
+    for i in 0..5 {
+        px += bodies[i].vx * bodies[i].mass;
+        py += bodies[i].vy * bodies[i].mass;
+        pz += bodies[i].vz * bodies[i].mass;
     }
 
     bodies[0].vx = -px / SOLAR_MASS;
@@ -85,8 +83,12 @@ fn main() {
     let mut bodies = [
         // Sun
         Body {
-            x: 0.0, y: 0.0, z: 0.0,
-            vx: 0.0, vy: 0.0, vz: 0.0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            vx: 0.0,
+            vy: 0.0,
+            vz: 0.0,
             mass: SOLAR_MASS,
         },
         // Jupiter
@@ -131,9 +133,11 @@ fn main() {
         },
     ];
 
-    offset_momentum(&mut bodies);
+    let n = 2000000;
 
-    let n = 1000;
+    offset_momentum(&mut bodies);
+    println!("{:.9}", energy(&bodies));
+
     for _ in 0..n {
         advance(&mut bodies, 0.01);
     }

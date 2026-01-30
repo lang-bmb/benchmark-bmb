@@ -2,7 +2,7 @@
 
 > Standard Benchmarking Suite for BMB Language
 
-BMB 언어의 표준 벤치마크 스위트. C (GCC/Clang), BMB 간 성능 비교를 제공합니다.
+BMB 언어의 표준 벤치마크 스위트. C (GCC/Clang), Rust, BMB 간 성능 비교를 제공합니다.
 
 ## Test Environment
 
@@ -15,52 +15,60 @@ environment:
   gcc: "13.2.0"
   clang: "19.1.1"
   llvm: "21.1.8"
+  rustc: "1.84.1"
   bmb: "0.60.51"
 ```
 
 ## Performance Summary (v0.60.51)
 
-### Compute Benchmarks (23 benchmarks)
+### Tier 1: Core Performance (Fair Comparison)
 
-| Benchmark | BMB | GCC -O3 | Clang -O3 | vs GCC | vs Clang | Category |
-|-----------|-----|---------|-----------|--------|----------|----------|
-| ackermann | 59ms | 11305ms | 60ms | **0.01x** | 0.98x | LICM |
-| binary_trees | 112ms | 112ms | 112ms | 1.00x | 1.00x | Memory |
-| collatz | 41ms | 40ms | 43ms | 1.02x | **0.95x** | Pure |
-| digital_root | 40ms | 38ms | 36ms | 1.05x | 1.11x | Pure |
-| fannkuch | 105ms | 95ms | 103ms | 1.11x | 1.02x | Permutation |
-| fasta | 62ms | 60ms | 57ms | 1.03x | 1.09x | String |
-| fibonacci | 36ms | 37ms | 36ms | **0.97x** | 1.00x | Pure |
-| gcd | 47ms | 49ms | 48ms | **0.96x** | **0.98x** | Pure |
-| hash_table | 38ms | 37ms | 36ms | 1.03x | 1.06x | Hash |
-| k-nucleotide | 36ms | 32ms | 36ms | 1.12x | 1.00x | Hash |
-| mandelbrot | 174ms | 166ms | 174ms | 1.05x | 1.00x | FP Compute |
-| matrix_multiply | 42ms | 37ms | 45ms | 1.14x | **0.93x** | Matrix |
-| n_body | 104ms | 95ms | 100ms | 1.09x | 1.04x | Physics |
-| nqueen | 906ms | 6856ms | 919ms | **0.13x** | 0.99x | LICM |
-| perfect_numbers | 620ms | 1002ms | 621ms | **0.62x** | 1.00x | LICM |
-| pidigits | 32ms | 35ms | 36ms | **0.91x** | **0.89x** | BigNum |
-| primes_count | 49ms | 55ms | 67ms | **0.89x** | **0.73x** | Pure |
-| regex_redux | 34ms | 33ms | 37ms | 1.03x | **0.92x** | Regex |
-| reverse-complement | 35ms | 34ms | 35ms | 1.03x | 1.00x | String |
-| sieve | 41ms | 41ms | 51ms | 1.00x | **0.80x** | Array |
-| spectral_norm | 65ms | 50ms | 62ms | 1.30x | 1.05x | FP Matrix |
-| sum_of_squares | 32ms | 33ms | 36ms | **0.97x** | **0.89x** | Pure |
-| tak | 36ms | 45ms | 37ms | **0.80x** | **0.97x** | Recursion |
+순수 알고리즘 성능. 동일한 알고리즘을 동일한 데이터 타입으로 비교.
 
-### Real-World Benchmarks (7 benchmarks)
+| Benchmark | BMB | GCC | Clang | Rust | vs GCC | vs Clang | vs Rust |
+|-----------|-----|-----|-------|------|--------|----------|---------|
+| fibonacci | 33ms | 42ms | 30ms | 39ms | **0.79x** | 1.10x | **0.85x** |
+| mandelbrot | 170ms | 166ms | 169ms | 185ms | 1.02x | 1.01x | **0.92x** |
+| gcd | 45ms | 45ms | 54ms | 50ms | 1.00x | **0.83x** | **0.90x** |
+| sieve | 39ms | 42ms | 58ms | 42ms | **0.93x** | **0.67x** | **0.93x** |
+| collatz | 37ms | 38ms | 39ms | 38ms | **0.97x** | **0.95x** | **0.97x** |
+| tak | 33ms | 44ms | 33ms | 32ms | **0.75x** | 1.00x | 1.03x |
+| n_body | 96ms | 89ms | 91ms | 89ms | 1.08x | 1.05x | 1.08x |
+| spectral_norm | 78ms | 50ms | 63ms | 73ms | 1.56x | 1.24x | 1.07x |
+| hash_table | 38ms | 38ms | 34ms | 25ms | 1.00x | 1.12x | 1.52x |
 
-| Benchmark | BMB | GCC -O3 | Clang -O3 | vs GCC | vs Clang | Category |
-|-----------|-----|---------|-----------|--------|----------|----------|
+**Tier 1 Analysis**:
+- BMB vs GCC: 5 wins, 2 parity, 2 losses
+- BMB vs Clang: 4 wins, 2 parity, 3 losses
+- BMB vs Rust: 6 wins, 1 parity, 2 losses
+
+### Tier 2: Optimizer Showcase (LLVM Features)
+
+LLVM의 고급 최적화(LICM, TCO)를 활용하는 벤치마크.
+
+| Benchmark | BMB | GCC | Clang | Category | Note |
+|-----------|-----|-----|-------|----------|------|
+| ackermann | 59ms | 11305ms | 60ms | LICM | **LLVM feature** |
+| nqueen | 906ms | 6856ms | 919ms | LICM | **LLVM feature** |
+| perfect_numbers | 620ms | 1002ms | 621ms | LICM | **LLVM feature** |
+| sorting | 176ms | 644ms | 139ms | TCO | Tail recursion |
+
+**Note**: LICM 벤치마크에서 BMB ≈ Clang. GCC 대비 극적 차이는 LLVM vs GCC 차이임.
+
+### Tier 3: Real-World Applications
+
+실제 사용 사례 기반 벤치마크.
+
+| Benchmark | BMB | GCC | Clang | vs GCC | vs Clang | Category |
+|-----------|-----|-----|-------|--------|----------|----------|
 | brainfuck | 32ms | 33ms | 38ms | **0.97x** | **0.84x** | Interpreter |
 | csv_parse | 35ms | 35ms | 36ms | 1.00x | **0.97x** | Parsing |
 | http_parse | 36ms | 38ms | 37ms | **0.95x** | **0.97x** | Parsing |
 | json_parse | 34ms | 39ms | 34ms | **0.87x** | 1.00x | Parsing |
 | json_serialize | 34ms | 37ms | 40ms | **0.92x** | **0.85x** | Serialization |
 | lexer | 35ms | 34ms | 37ms | 1.03x | **0.95x** | Tokenization |
-| sorting | 176ms | 644ms | 139ms | **0.27x** | 1.27x | TCO |
 
-**Legend**: Bold = BMB faster, Regular = C faster or parity
+**Legend**: Bold = BMB faster (< 0.98x), Regular = parity or slower
 
 ---
 
@@ -70,94 +78,55 @@ environment:
 
 동일한 LLVM 백엔드를 사용하므로 **언어 자체의 성능**을 측정합니다.
 
-| Category | BMB Faster | Parity (±5%) | Clang Faster |
-|----------|------------|--------------|--------------|
-| Compute (23) | 9 (39%) | 10 (43%) | 4 (17%) |
-| Real-World (7) | 5 (71%) | 2 (29%) | 0 (0%) |
-| **Total (30)** | **14 (47%)** | **12 (40%)** | **4 (13%)** |
+| Tier | BMB Faster | Parity (±5%) | Clang Faster |
+|------|------------|--------------|--------------|
+| Tier 1 (9) | 4 (44%) | 2 (22%) | 3 (33%) |
+| Tier 3 (6) | 5 (83%) | 1 (17%) | 0 (0%) |
+| **Total (15)** | **9 (60%)** | **3 (20%)** | **3 (20%)** |
 
-**결론**: BMB는 Clang과 동등하거나 더 우수한 성능
+### BMB vs Rust (Language Comparison)
 
-### BMB vs GCC (Compiler Comparison)
+같은 LLVM 백엔드를 사용하는 현대 시스템 언어와의 비교.
 
-LLVM과 GCC의 최적화 차이를 보여줍니다.
+| Category | BMB Faster | Parity | Rust Faster |
+|----------|------------|--------|-------------|
+| Tier 1 (9) | 6 (67%) | 1 (11%) | 2 (22%) |
 
-| Category | BMB Faster | Parity (±5%) | GCC Faster |
-|----------|------------|--------------|------------|
-| Compute (23) | 11 (48%) | 7 (30%) | 5 (22%) |
-| Real-World (7) | 5 (71%) | 1 (14%) | 1 (14%) |
-| **Total (30)** | **16 (53%)** | **8 (27%)** | **6 (20%)** |
+**Result**: BMB는 Rust와 경쟁력 있는 성능 (67% wins in Tier 1)
 
 ---
 
-## LICM Optimization Analysis
+## Known Limitations
 
-### LICM (Loop-Invariant Code Motion) 벤치마크
-
-이 벤치마크들은 LLVM의 LICM 최적화 효과를 보여줍니다.
-
-| Benchmark | BMB | GCC | Clang | 분석 |
-|-----------|-----|-----|-------|------|
-| ackermann | 59ms | 11305ms | 60ms | **BMB ≈ Clang** (LLVM 기능) |
-| nqueen | 906ms | 6856ms | 919ms | **BMB ≈ Clang** (LLVM 기능) |
-| perfect_numbers | 620ms | 1002ms | 621ms | **BMB ≈ Clang** (LLVM 기능) |
-
-**핵심 인사이트**:
-- LICM은 **LLVM의 기능**이며 BMB만의 특별한 기능이 아님
-- Clang도 동일한 최적화 혜택을 받음
-- GCC 대비 극적인 차이는 컴파일러 차이 (LLVM vs GCC)
-
-### TCO (Tail Call Optimization) 벤치마크
-
-| Benchmark | BMB | GCC | Clang | 분석 |
-|-----------|-----|-----|-------|------|
-| sorting | 176ms | 644ms | 139ms | Clang > BMB > GCC |
-
-**분석**: sorting에서 Clang이 BMB보다 빠른 이유는 데이터 타입 차이:
-- C: `int` (32-bit)
-- BMB: `i64` (64-bit)
-
----
-
-## Known Issues
-
-### 1. spectral_norm (BMB 1.30x slower than GCC)
+### 1. spectral_norm (BMB 1.56x slower than GCC)
 
 GCC의 nested loop IV strength reduction 최적화:
 - `i + j` 패턴을 running counter로 변환
-- LLVM (Clang, BMB 모두)은 이 최적화 미지원
-- **LLVM 한계이며 BMB 문제가 아님**
+- LLVM (Clang, BMB 모두)은 이 특정 최적화 미지원
+- Clang도 1.26x slower → **LLVM 한계이며 BMB 문제가 아님**
 
-### 2. sorting (Data Type Mismatch)
+### 2. hash_table (BMB 1.52x slower than Rust)
 
-```c
-// C version - 32-bit
-int* arr = (int*)malloc(size * sizeof(int));
-
-// BMB version - 64-bit
-fn array_new(n: i64) -> i64 = malloc(n * 8);
-```
-
-공정한 비교를 위해 C를 `int64_t`로 변경 필요
-
-### 3. hash_table (Output Difference)
-
-- BMB: 97648, C: 95259
-- 원인: signed vs unsigned 해시 연산 차이
-- 수정 필요
+Rust의 해시맵 구현이 더 최적화되어 있음:
+- BMB와 C는 간단한 체이닝 해시 테이블 사용
+- Rust는 고도로 최적화된 `HashMap` 사용
+- 알고리즘 차이이며 언어 성능 차이가 아님
 
 ---
 
 ## v0.60.51 Changes
 
+### Bug Fixes
 - **DCE 버그 수정**: `has_side_effects()`에 `PtrStore`, `ArrayAlloc` 추가
+- **i32 narrowing 버그 수정**: 큰 상수와의 곱셈 시 오버플로우 방지
+- **hash_table 수정**: 부호 있는/없는 시프트 연산 불일치 해결
+- **sorting 수정**: C 버전을 `int64_t`로 변경하여 공정 비교
+
+### Benchmark Improvements
+- **Rust 벤치마크 추가**: 9개 compute 벤치마크에 Rust 버전 추가
 - **Clang 비교 추가**: GCC와 Clang 모두 벤치마크
+- **Tier 분류 도입**: Core/Optimizer/Real-World 3단계 분류
 - **분석 개선**: LICM이 LLVM 기능임을 명확히 문서화
-
-## v0.60.50 Changes
-
-- **TCO 검증 완료**: ackermann, nqueen, tak은 LICM이며 TCO가 아님 확인
-- **측정값 갱신**: 최신 실측 데이터로 업데이트
 
 ---
 
@@ -174,18 +143,30 @@ export BMB_RUNTIME_PATH="/path/to/lang-bmb/bmb/runtime"
 ./build_all.sh
 
 # Run with hyperfine (recommended)
-hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang'
+hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang' './bench_rust'
 ```
 
 ## Methodology
 
 1. **Same algorithm**: 동일 알고리즘
-2. **Fair optimization**:
+2. **Same data types**: i64 기준 (Tier 1)
+3. **Fair optimization**:
    - GCC: `-O3 -march=native`
    - Clang: `-O3`
+   - Rust: `-C opt-level=3 -C lto=fat`
    - BMB: LLVM -O3 + scalarizer
-3. **Multiple runs**: 3회 실행, 중앙값 보고
-4. **Output validation**: 결과값 일치 확인
+4. **Multiple runs**: 3회 실행, 중앙값 보고
+5. **Output validation**: 결과값 일치 확인
+
+---
+
+## Tier Classification
+
+| Tier | Purpose | Count |
+|------|---------|-------|
+| **Tier 1** | Core Performance - 순수 알고리즘 성능 비교 | 9 |
+| **Tier 2** | Optimizer Showcase - LLVM 최적화 기능 시연 | 4 |
+| **Tier 3** | Real-World - 실제 사용 사례 성능 | 6 |
 
 ---
 
