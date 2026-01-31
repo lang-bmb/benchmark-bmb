@@ -1,73 +1,68 @@
-// Sieve of Eratosthenes - Prime number benchmark
-// Measures: array operations, bit manipulation, loop performance
-// Finds all primes up to N and counts them
-// v0.60.49: Use byte arrays (store_u8/load_u8) for cache efficiency
+// Sieve of Eratosthenes - Prime number benchmark v0.60.62
+// v0.60.62: Use while loops instead of recursion for better performance
+
+// Initialize array with 1s
+fn init_array_loop(arr: i64, n: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i <= n {
+        let _s = store_u8(arr + i, 1);
+        { i = i + 1 }
+    };
+    0
+};
+
+// Mark multiples of p as composite
+fn mark_multiples_loop(arr: i64, n: i64, p: i64) -> i64 = {
+    let mut j: i64 = p * p;
+    while j <= n {
+        let _s = store_u8(arr + j, 0);
+        { j = j + p }
+    };
+    0
+};
+
+// Main sieve loop
+fn sieve_loop(arr: i64, n: i64) -> i64 = {
+    let mut p: i64 = 2;
+    while p * p <= n {
+        let is_prime = load_u8(arr + p);
+        let _mark = if is_prime == 1 { mark_multiples_loop(arr, n, p) } else { 0 };
+        { p = p + 1 }
+    };
+    0
+};
+
+// Count primes
+fn count_primes_loop(arr: i64, n: i64) -> i64 = {
+    let mut count: i64 = 0;
+    let mut k: i64 = 2;
+    while k <= n {
+        let is_prime = load_u8(arr + k);
+        { count = count + is_prime as i64 };
+        { k = k + 1 }
+    };
+    count
+};
 
 fn sieve(n: i64) -> i64 = {
-    // Allocate array of bytes (1 = prime candidate, 0 = composite)
-    // v0.60.49: Use 1 byte per element like C version for fair comparison
     let arr = malloc(n + 1);
-
-    // Initialize all to 1 (potential primes)
-    let _init = init_array(arr, n + 1, 0);
-
-    // Mark 0 and 1 as not prime
+    let _init = init_array_loop(arr, n);
     let _m0 = store_u8(arr, 0);
     let _m1 = store_u8(arr + 1, 0);
-
-    // Sieve
-    let _sieve = sieve_loop(arr, n, 2);
-
-    // Count primes
-    let count = count_primes(arr, n, 2, 0);
-
+    let _sieve = sieve_loop(arr, n);
+    let count = count_primes_loop(arr, n);
     let _f = free(arr);
     count
 };
 
-fn init_array(arr: i64, n: i64, i: i64) -> i64 =
-    if i >= n { 0 }
-    else {
-        let _s = store_u8(arr + i, 1);
-        init_array(arr, n, i + 1)
-    };
-
-fn sieve_loop(arr: i64, n: i64, i: i64) -> i64 =
-    if i * i > n { 0 }
-    else {
-        let is_prime = load_u8(arr + i);
-        let _mark = if is_prime == 1 {
-            mark_multiples(arr, n, i, i * i)
-        } else { 0 };
-        sieve_loop(arr, n, i + 1)
-    };
-
-fn mark_multiples(arr: i64, n: i64, p: i64, j: i64) -> i64 =
-    if j > n { 0 }
-    else {
-        let _s = store_u8(arr + j, 0);
-        mark_multiples(arr, n, p, j + p)
-    };
-
-fn count_primes(arr: i64, n: i64, i: i64, count: i64) -> i64 =
-    if i > n { count }
-    else {
-        let is_prime = load_u8(arr + i);
-        let new_count = if is_prime == 1 { count + 1 } else { count };
-        count_primes(arr, n, i + 1, new_count)
-    };
-
-fn run_benchmark(iterations: i64, acc: i64, i: i64) -> i64 =
-    if i >= iterations { acc }
-    else {
-        let count = sieve(100000);
-        run_benchmark(iterations, acc + count, i + 1)
-    };
-
 fn main() -> i64 = {
-    // Run sieve(100000) 1500 times for stable measurement (target: ~140ms)
-    // v0.60.52: Increased to reduce measurement noise (min 100ms target)
-    let result = run_benchmark(1500, 0, 0);
+    let mut result: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < 1500 {
+        let c = sieve(100000);
+        let _r = { result = result + c };
+        { iter = iter + 1 }
+    };
     let _p = println(result);
     0
 };
