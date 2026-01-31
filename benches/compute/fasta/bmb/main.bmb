@@ -1,5 +1,5 @@
-// fasta - DNA sequence generation benchmark v0.60.64
-// v0.60.64: Use sb_println() for zero-allocation output
+// fasta - DNA sequence generation benchmark v0.60.65
+// v0.60.65: Use raw byte buffer + puts_cstr() like C for maximum performance
 
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
@@ -82,70 +82,73 @@ fn alu_len() -> i64 = 287;
 fn print_repeat(n: i64) -> i64 = {
     let _u0 = printline(">ONE Homo sapiens alu");
     let alu_str = alu();
-    let sb = sb_with_capacity(61);
+    let line = malloc(61);
     let mut k: i64 = 0;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let mut count: i64 = 0;
-        while count < chars_to_write {
-            let pos = k % alu_len();
-            let c = alu_str.byte_at(pos);
-            let _u = sb_push_char(sb, c);
+        let mut pos: i64 = 0;
+        while pos < chars_to_write {
+            let alu_pos = k % alu_len();
+            let c = alu_str.byte_at(alu_pos);
+            let _s = store_u8(line + pos, c);
             { k = k + 1 };
-            { count = count + 1 }
+            { pos = pos + 1 }
         };
-        let _u = sb_println(sb);
+        let _t = store_u8(line + pos, 0);
+        let _p = puts_cstr(line);
         { remaining = remaining - chars_to_write }
     };
+    let _f = free(line);
     k
 };
 
 fn print_random_iub(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">TWO IUB ambiguity codes");
-    let sb = sb_with_capacity(61);
+    let line = malloc(61);
     let mut seed: i64 = initial_seed;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let mut count: i64 = 0;
-        while count < chars_to_write {
+        let mut pos: i64 = 0;
+        while pos < chars_to_write {
             { seed = (seed * ia() + ic()) % im() };
             let r = random_scaled(seed);
             let c = select_iub_code(table, r);
-            let _u = sb_push_char(sb, c);
-            { count = count + 1 }
+            let _s = store_u8(line + pos, c);
+            { pos = pos + 1 }
         };
-        let _u = sb_println(sb);
+        let _t = store_u8(line + pos, 0);
+        let _p = puts_cstr(line);
         { remaining = remaining - chars_to_write }
     };
+    let _f = free(line);
     seed
 };
 
 fn print_random_homo(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">THREE Homo sapiens frequency");
-    let sb = sb_with_capacity(61);
+    let line = malloc(61);
     let mut seed: i64 = initial_seed;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let mut count: i64 = 0;
-        while count < chars_to_write {
+        let mut pos: i64 = 0;
+        while pos < chars_to_write {
             { seed = (seed * ia() + ic()) % im() };
             let r = random_scaled(seed);
             let c = select_homo_code(table, r);
-            let _u = sb_push_char(sb, c);
-            { count = count + 1 }
+            let _s = store_u8(line + pos, c);
+            { pos = pos + 1 }
         };
-        let _u = sb_println(sb);
+        let _t = store_u8(line + pos, 0);
+        let _p = puts_cstr(line);
         { remaining = remaining - chars_to_write }
     };
+    let _f = free(line);
     seed
 };
 
