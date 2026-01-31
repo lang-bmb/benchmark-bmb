@@ -148,11 +148,20 @@ See `BENCHMARK_AUDIT_REPORT.md` for detailed analysis.
 
 ### Compiler Features
 - **32-bit Integer Intrinsics**: Added `load_i32`/`store_i32` for efficient struct packing
-- **hash_table**: Updated to use 32-bit state field (1.31x → 1.26x improvement)
+- **hash_table**: Updated to use 32-bit state field (1.31x → 1.27x improvement)
 
 ### Benchmark Improvements
 - Added `static inline` to C benchmarks for fair comparison
 - Created comprehensive audit report
+
+### Cycle 35 Analysis
+Identified root causes for remaining performance gaps:
+- **spectral_norm (1.62x)**: GCC fast-math vs IEEE-754 compliance - not fixable without per-instruction fast-math
+- **matrix_multiply (1.25x)**: LLVM doesn't auto-vectorize integer mul-add patterns (GCC uses AVX2)
+- **sieve (1.18x)**: GCC AVX2 vectorization for boolean array operations
+- **n_body (1.12x)**: Near parity, minimal gap
+
+See `BENCHMARK_CYCLE35_REPORT.md` for detailed analysis
 
 ---
 
