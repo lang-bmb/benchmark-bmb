@@ -25,6 +25,9 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     cmake \
     time \
+    valgrind \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set default compilers

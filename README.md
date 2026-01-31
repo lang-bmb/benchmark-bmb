@@ -336,6 +336,46 @@ docker run --rm -v $(pwd)/results:/benchmark/results bmb-benchmark
 | GCC | 12.x |
 | Clang | 15.x |
 | Rust | stable |
+| Zig | 0.13.0 |
+| Valgrind | latest |
+
+---
+
+## Memory Profiling
+
+메모리 사용량 측정을 위한 프로파일링 도구를 제공합니다.
+
+### Quick Start
+
+```bash
+# Docker에서 메모리 프로파일링 실행
+./reproduce.sh --memory
+
+# 또는 직접 실행 (Linux)
+python3 scripts/memory/memory_benchmark.py --all
+
+# 특정 벤치마크만
+python3 scripts/memory/memory_benchmark.py --benchmark fibonacci
+
+# Valgrind 상세 프로파일링 (Linux)
+python3 scripts/memory/memory_benchmark.py --all --valgrind
+```
+
+### 측정 지표
+
+| 지표 | 설명 | 단위 |
+|------|------|------|
+| Peak RSS | 최대 Resident Set Size | KB |
+| Heap Peak | 최대 힙 사용량 (valgrind) | Bytes |
+
+### 결과 형식
+
+```
+results/memory/
+├── memory_results.json   # JSON 형식
+├── memory_results.csv    # CSV 형식
+└── memory_report.md      # Markdown 리포트
+```
 
 ---
 

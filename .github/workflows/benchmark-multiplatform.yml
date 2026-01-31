@@ -178,6 +178,14 @@ jobs:
         shell: bash
         continue-on-error: true
 
+      - name: Run memory profiling (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          echo "=== Memory Profiling ==="
+          python3 scripts/memory/memory_benchmark.py --all --output results/memory
+        shell: bash
+        continue-on-error: true
+
       - name: Generate platform report
         run: |
           echo "# Benchmark Results: ${{ matrix.platform }}" > results/${{ matrix.platform }}.md

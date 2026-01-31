@@ -8,6 +8,7 @@ CATEGORY="all"
 FORMAT="text"
 ITERATIONS=5
 WARMUP=2
+MEMORY_PROFILE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --json)
             FORMAT="json"
+            shift
+            ;;
+        --memory)
+            MEMORY_PROFILE=true
             shift
             ;;
         --iterations)
@@ -112,6 +117,19 @@ if [ "$FORMAT" = "json" ]; then
     JSON_FILE="/benchmark/results/benchmark_${TIMESTAMP}.json"
     ./target/release/benchmark-bmb run --category compute --iterations "$ITERATIONS" --warmup "$WARMUP" --json > "$JSON_FILE" 2>/dev/null || true
     echo "JSON results: $JSON_FILE"
+fi
+
+# Run memory profiling if requested
+if [ "$MEMORY_PROFILE" = true ]; then
+    echo ""
+    echo "=========================================="
+    echo "Running Memory Profiling..."
+    echo "=========================================="
+
+    python3 /benchmark/scripts/memory/memory_benchmark.py --all --output /benchmark/results/memory
+
+    echo ""
+    echo "Memory profiling complete. See /benchmark/results/memory/"
 fi
 
 # Copy results to mounted volume if available

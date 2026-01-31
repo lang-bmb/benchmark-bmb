@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_NAME="bmb-benchmark"
 BUILD_IMAGE=false
 BENCH_ARGS="--all"
+MEMORY_PROFILE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -20,14 +21,19 @@ while [[ $# -gt 0 ]]; do
             BENCH_ARGS="$1"
             shift
             ;;
+        --memory)
+            MEMORY_PROFILE=true
+            shift
+            ;;
         --help)
-            echo "Usage: ./reproduce.sh [--build] [--all|--compute|--realworld]"
+            echo "Usage: ./reproduce.sh [--build] [--all|--compute|--realworld] [--memory]"
             echo ""
             echo "Options:"
             echo "  --build      Force rebuild Docker image"
             echo "  --all        Run all benchmarks (default)"
             echo "  --compute    Run compute benchmarks only"
             echo "  --realworld  Run real-world benchmarks only"
+            echo "  --memory     Run memory profiling after benchmarks"
             exit 0
             ;;
         *)
@@ -36,6 +42,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Add memory flag if requested
+if [ "$MEMORY_PROFILE" = true ]; then
+    BENCH_ARGS="$BENCH_ARGS --memory"
+fi
 
 echo "=========================================="
 echo "BMB Benchmark Suite - Reproduction Script"
