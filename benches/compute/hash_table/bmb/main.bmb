@@ -1,21 +1,20 @@
-// Hash Table benchmark - STRUCT + WHILE LOOP VERSION v0.60.61
-// v0.60.61: Use while loops instead of recursion for better LLVM optimization
-// Layout: [count:i64][entries...]
+// Hash Table benchmark v0.60.66
+// v0.60.66: Use pointer field for entries (like C) to avoid inttoptr
 
 fn table_size() -> i64 = 131072;
 fn get_n() -> i64 = 100000;
 fn not_found() -> i64 = 0 - 9223372036854775807 - 1;
 
-// Entry structure (2 i64 + 1 i32 = 20 bytes + 4 padding = 24 bytes)
-// v0.60.62: Use i32 for state to match C's struct layout
+// Entry structure (24 bytes: 2 i64 + 1 i32 + 4 padding)
 struct Entry {
     key: i64,
     value: i64,
     state: i32
 }
 
-// HashMap structure to eliminate inttoptr for count access
+// HashMap with pointer to entries array (like C)
 struct HashMap {
+    entries: *Entry,
     count: i64,
     capacity: i64
 }
@@ -26,39 +25,38 @@ fn hash_i64(key: i64) -> i64 = {
     h bxor (h >> 32)
 };
 
-// Allocate HashMap: struct (16 bytes) + entries array
+// Allocate HashMap: separate struct and entries array (like C)
 fn hm_new() -> *HashMap = {
-    // Allocate: 16 bytes for HashMap struct + entries
-    let total = 16 + table_size() * 24;
-    let m = calloc(1, total) as *HashMap;
+    let m = malloc(24) as *HashMap;  // 24 bytes for HashMap struct
+    let entries = calloc(table_size(), 24) as *Entry;  // entries array
+    let _e = set m.entries = entries;
     let _c = set m.count = 0;
     let _cap = set m.capacity = table_size();
     m
 };
 
-fn hm_free(m: *HashMap) -> i64 = { let _u = free(m as i64); 0 };
+fn hm_free(m: *HashMap) -> i64 = {
+    let _e = free(m.entries as i64);
+    let _m = free(m as i64);
+    0
+};
 
 fn random_next(seed: i64) -> i64 = (seed * 1103515245 + 12345) % 2147483648;
 
-// Get entries base pointer (after HashMap struct at offset 16)
-fn hm_entries(m: *HashMap) -> *Entry = (m as i64 + 16) as *Entry;
-
-// Get entry at index
-fn entry_at(m: *HashMap, idx: i64) -> *Entry = hm_entries(m) + idx;
-
 // ============================================================================
-// Insert with while loop (v0.60.61)
+// Insert with while loop
 // ============================================================================
 fn hm_insert(m: *HashMap, key: i64, value: i64) -> i64 = {
     let hash = hash_i64(key);
     let cap = m.capacity;
     let mask = cap - 1;
+    let entries = m.entries;
     let mut idx: i64 = hash band mask;
     let mut i: i64 = 0;
     let mut result: i64 = 0;
 
     while i < cap {
-        let e = entry_at(m, idx);
+        let e = entries + idx;
         let state = e.state;
         if state == 0 or state == 2 {
             let _s1 = set e.key = key;
@@ -80,18 +78,19 @@ fn hm_insert(m: *HashMap, key: i64, value: i64) -> i64 = {
 };
 
 // ============================================================================
-// Get with while loop (v0.60.61)
+// Get with while loop
 // ============================================================================
 fn hm_get(m: *HashMap, key: i64) -> i64 = {
     let hash = hash_i64(key);
     let cap = m.capacity;
     let mask = cap - 1;
+    let entries = m.entries;
     let mut idx: i64 = hash band mask;
     let mut i: i64 = 0;
     let mut result: i64 = not_found();
 
     while i < cap {
-        let e = entry_at(m, idx);
+        let e = entries + idx;
         let state = e.state;
         if state == 0 {
             { i = cap }
@@ -107,18 +106,19 @@ fn hm_get(m: *HashMap, key: i64) -> i64 = {
 };
 
 // ============================================================================
-// Remove with while loop (v0.60.61)
+// Remove with while loop
 // ============================================================================
 fn hm_remove(m: *HashMap, key: i64) -> i64 = {
     let hash = hash_i64(key);
     let cap = m.capacity;
     let mask = cap - 1;
+    let entries = m.entries;
     let mut idx: i64 = hash band mask;
     let mut i: i64 = 0;
     let mut result: i64 = 0;
 
     while i < cap {
-        let e = entry_at(m, idx);
+        let e = entries + idx;
         let state = e.state;
         if state == 0 {
             { i = cap }
@@ -180,25 +180,23 @@ fn benchmark_delete(m: *HashMap, n: i64, seed: i64) -> i64 = {
     deleted
 };
 
-fn run_iteration(n: i64, seed: i64, iter: i64, total_found: i64) -> i64 =
-    if iter >= 30 { total_found }
-    else {
+fn main() -> i64 = {
+    let n = get_n();
+    let seed = 42;
+
+    // 30 iterations with while loop (like C)
+    let mut iter: i64 = 0;
+    let mut total_found: i64 = 0;
+    while iter < 30 {
         let m = hm_new();
         let _seed1 = benchmark_insert(m, n, seed);
         let found = benchmark_lookup(m, n, seed);
         let _deleted = benchmark_delete(m, n / 2, random_next(seed));
         let _f = hm_free(m);
-        run_iteration(n, seed, iter + 1, total_found + found)
+        { total_found = total_found + found };
+        { iter = iter + 1 }
     };
 
-fn main() -> i64 = {
-    let n = get_n();
-    let seed = 42;
-
-    // Run 30 iterations for stable measurement
-    let total_found = run_iteration(n, seed, 0, 0);
-
-    // Print final results
     let m = hm_new();
     let _seed1 = benchmark_insert(m, n, seed);
     let len1 = m.count;
