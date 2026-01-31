@@ -50,6 +50,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y gcc clang
 
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
       - name: Setup GCC (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -140,6 +145,21 @@ jobs:
             fi
           done
         shell: bash
+
+      - name: Compile Zig benchmarks
+        run: |
+          compiled=0
+          for dir in benches/*/*/zig; do
+            if [ -f "$dir/main.zig" ]; then
+              echo "Compiling $dir..."
+              if zig build-exe -OReleaseFast "$dir/main.zig" -femit-bin="$dir/main_zig" 2>/dev/null; then
+                compiled=$((compiled + 1))
+              fi
+            fi
+          done
+          echo "Compiled $compiled Zig benchmarks"
+        shell: bash
+        continue-on-error: true
 
       - name: Run benchmarks
         id: run_bench

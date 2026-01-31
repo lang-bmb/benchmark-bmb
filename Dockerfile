@@ -36,6 +36,13 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# Install Zig
+RUN wget https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz \
+    && tar -xf zig-linux-x86_64-0.13.0.tar.xz \
+    && mv zig-linux-x86_64-0.13.0 /opt/zig \
+    && rm zig-linux-x86_64-0.13.0.tar.xz
+ENV PATH="/opt/zig:${PATH}"
+
 # Install hyperfine for benchmarking
 RUN cargo install hyperfine
 
@@ -66,6 +73,13 @@ RUN for dir in benches/*/*/c; do \
 RUN for dir in benches/*/*/rust; do \
         if [ -f "$dir/main.rs" ]; then \
             rustc -C opt-level=3 -C lto=fat -o "$dir/main_rust" "$dir/main.rs" 2>/dev/null || true; \
+        fi; \
+    done
+
+# Compile Zig benchmarks
+RUN for dir in benches/*/*/zig; do \
+        if [ -f "$dir/main.zig" ]; then \
+            zig build-exe -OReleaseFast "$dir/main.zig" -femit-bin="$dir/main_zig" 2>/dev/null || true; \
         fi; \
     done
 
