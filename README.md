@@ -302,6 +302,43 @@ hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang' './ben
 
 ---
 
+## Docker Reproducibility
+
+Docker를 사용하여 동일한 환경에서 벤치마크를 재현할 수 있습니다.
+
+### Quick Start
+
+```bash
+# One-click reproduction
+./reproduce.sh
+
+# Or manually
+docker build -t bmb-benchmark .
+docker run --rm -v $(pwd)/results:/benchmark/results bmb-benchmark
+```
+
+### Options
+
+```bash
+# Run specific category
+./reproduce.sh --compute
+./reproduce.sh --realworld
+
+# Force rebuild image
+./reproduce.sh --build --all
+```
+
+### Docker Environment
+
+| Component | Version |
+|-----------|---------|
+| Base Image | Ubuntu 22.04 |
+| GCC | 12.x |
+| Clang | 15.x |
+| Rust | stable |
+
+---
+
 ## License
 
 MIT License

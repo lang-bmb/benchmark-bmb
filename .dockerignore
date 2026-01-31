@@ -1,0 +1,36 @@
+# Build artifacts
+runner/target/
+**/target/
+
+# Results (will be mounted)
+results/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Compiled binaries (will be built in container)
+**/main_gcc
+**/main_clang
+**/main_rust
+**/main_msvc.exe
+**/main_mingw.exe
+**/*.exe
+**/*.o
+**/*.obj
+
+# Cache files
+**/*.proofcache
+
+# Documentation (not needed for benchmarks)
+*.md
+!README.md
+
+# CI files
+.github/
