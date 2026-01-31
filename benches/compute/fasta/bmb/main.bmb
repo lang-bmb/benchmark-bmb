@@ -1,10 +1,6 @@
-// fasta - DNA sequence generation benchmark
-// Benchmarks Game algorithm with LCG random
-// Uses fixed-point arithmetic (1000000 scale factor)
-// v0.56: Array-based lookup tables for O(1) access (instead of O(n) if-else chains)
-// v0.52: StringBuilder + tail recursion for O(n) performance
+// fasta - DNA sequence generation benchmark v0.60.62
+// v0.60.62: Use while loops instead of recursion for better performance
 
-// Helper: print string with newline (println takes i64, not String)
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
 // LCG constants
@@ -12,171 +8,155 @@ fn im() -> i64 = 139968;
 fn ia() -> i64 = 3877;
 fn ic() -> i64 = 29573;
 fn line_width() -> i64 = 60;
-
-// Fixed-point scale (for probabilities)
 fn scale() -> i64 = 1000000;
 
-// Random number as fixed-point (0 to scale)
 fn random_scaled(seed: i64) -> i64 = (seed * scale()) / im();
 
 // ============================================================================
-// Array-based lookup tables (v0.56)
+// Array-based lookup tables
 // ============================================================================
 
-// IUB table: 15 entries, each entry = (prob: i64, char: i64) = 16 bytes
 fn iub_len() -> i64 = 15;
 
 fn create_iub_table() -> i64 = {
-    let table = malloc(iub_len() * 16);  -- 15 * 16 = 240 bytes
-    -- Entry format: [prob:i64][char:i64]
-    -- Store cumulative probabilities and char codes
-    store_i64(table + 0, 270000);   store_i64(table + 8, 97);   -- a
-    store_i64(table + 16, 390000);  store_i64(table + 24, 99);  -- c
-    store_i64(table + 32, 510000);  store_i64(table + 40, 103); -- g
-    store_i64(table + 48, 780000);  store_i64(table + 56, 116); -- t
-    store_i64(table + 64, 800000);  store_i64(table + 72, 66);  -- B
-    store_i64(table + 80, 820000);  store_i64(table + 88, 68);  -- D
-    store_i64(table + 96, 840000);  store_i64(table + 104, 72); -- H
-    store_i64(table + 112, 860000); store_i64(table + 120, 75); -- K
-    store_i64(table + 128, 880000); store_i64(table + 136, 77); -- M
-    store_i64(table + 144, 900000); store_i64(table + 152, 78); -- N
-    store_i64(table + 160, 920000); store_i64(table + 168, 82); -- R
-    store_i64(table + 176, 940000); store_i64(table + 184, 83); -- S
-    store_i64(table + 192, 960000); store_i64(table + 200, 86); -- V
-    store_i64(table + 208, 980000); store_i64(table + 216, 87); -- W
-    store_i64(table + 224, 1000000); store_i64(table + 232, 89); -- Y
+    let table = malloc(iub_len() * 16);
+    store_i64(table + 0, 270000);   store_i64(table + 8, 97);
+    store_i64(table + 16, 390000);  store_i64(table + 24, 99);
+    store_i64(table + 32, 510000);  store_i64(table + 40, 103);
+    store_i64(table + 48, 780000);  store_i64(table + 56, 116);
+    store_i64(table + 64, 800000);  store_i64(table + 72, 66);
+    store_i64(table + 80, 820000);  store_i64(table + 88, 68);
+    store_i64(table + 96, 840000);  store_i64(table + 104, 72);
+    store_i64(table + 112, 860000); store_i64(table + 120, 75);
+    store_i64(table + 128, 880000); store_i64(table + 136, 77);
+    store_i64(table + 144, 900000); store_i64(table + 152, 78);
+    store_i64(table + 160, 920000); store_i64(table + 168, 82);
+    store_i64(table + 176, 940000); store_i64(table + 184, 83);
+    store_i64(table + 192, 960000); store_i64(table + 200, 86);
+    store_i64(table + 208, 980000); store_i64(table + 216, 87);
+    store_i64(table + 224, 1000000); store_i64(table + 232, 89);
     table
 };
 
-fn iub_prob(table: i64, idx: i64) -> i64 = load_i64(table + idx * 16);
-fn iub_char(table: i64, idx: i64) -> i64 = load_i64(table + idx * 16 + 8);
-
-// Homo sapiens table: 4 entries
 fn homo_len() -> i64 = 4;
 
 fn create_homo_table() -> i64 = {
-    let table = malloc(homo_len() * 16);  -- 4 * 16 = 64 bytes
-    store_i64(table + 0, 302955);   store_i64(table + 8, 97);   -- a
-    store_i64(table + 16, 500943);  store_i64(table + 24, 99);  -- c
-    store_i64(table + 32, 698491);  store_i64(table + 40, 103); -- g
-    store_i64(table + 48, 1000000); store_i64(table + 56, 116); -- t
+    let table = malloc(homo_len() * 16);
+    store_i64(table + 0, 302955);   store_i64(table + 8, 97);
+    store_i64(table + 16, 500943);  store_i64(table + 24, 99);
+    store_i64(table + 32, 698491);  store_i64(table + 40, 103);
+    store_i64(table + 48, 1000000); store_i64(table + 56, 116);
     table
 };
 
-fn homo_prob(table: i64, idx: i64) -> i64 = load_i64(table + idx * 16);
-fn homo_char(table: i64, idx: i64) -> i64 = load_i64(table + idx * 16 + 8);
-
 // ============================================================================
-// Selection functions - tail recursive with inlined array access
+// Selection functions - while loop based
 // ============================================================================
 
-@inline
-fn select_iub_iter(table: i64, r: i64, idx: i64) -> i64 =
-    if idx >= 14 or r < load_i64(table + idx * 16) { load_i64(table + idx * 16 + 8) }
-    else { select_iub_iter(table, r, idx + 1) };
+fn select_iub_code(table: i64, r: i64) -> i64 = {
+    let mut idx: i64 = 0;
+    while idx < 14 and r >= load_i64(table + idx * 16) {
+        { idx = idx + 1 }
+    };
+    load_i64(table + idx * 16 + 8)
+};
 
-fn select_iub_code(table: i64, r: i64) -> i64 = select_iub_iter(table, r, 0);
-
-@inline
-fn select_homo_iter(table: i64, r: i64, idx: i64) -> i64 =
-    if idx >= 3 or r < load_i64(table + idx * 16) { load_i64(table + idx * 16 + 8) }
-    else { select_homo_iter(table, r, idx + 1) };
-
-fn select_homo_code(table: i64, r: i64) -> i64 = select_homo_iter(table, r, 0);
+fn select_homo_code(table: i64, r: i64) -> i64 = {
+    let mut idx: i64 = 0;
+    while idx < 3 and r >= load_i64(table + idx * 16) {
+        { idx = idx + 1 }
+    };
+    load_i64(table + idx * 16 + 8)
+};
 
 // ============================================================================
 // ALU sequence
 // ============================================================================
 
 fn alu() -> String = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
-
 fn alu_len() -> i64 = 287;
-
-// Build one line of repeat sequence into StringBuilder
-fn build_repeat_line(sb: i64, alu_str: String, k: i64, count: i64, limit: i64) -> i64 =
-    if count >= limit { k }
-    else {
-        let pos = k % alu_len();
-        let c = alu_str.byte_at(pos);
-        let _u = sb_push_char(sb, c);
-        build_repeat_line(sb, alu_str, k + 1, count + 1, limit)
-    };
-
-// Generate repeat sequence lines
-fn print_repeat_lines(alu_str: String, k: i64, remaining: i64) -> i64 =
-    if remaining <= 0 { k }
-    else {
-        let sb = sb_with_capacity(61);
-        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let new_k = build_repeat_line(sb, alu_str, k, 0, chars_to_write);
-        let line = sb_build(sb);
-        let _u = printline(line);
-        print_repeat_lines(alu_str, new_k, remaining - chars_to_write)
-    };
 
 fn print_repeat(n: i64) -> i64 = {
     let _u0 = printline(">ONE Homo sapiens alu");
-    print_repeat_lines(alu(), 0, n)
+    let alu_str = alu();
+    let mut k: i64 = 0;
+    let mut remaining: i64 = n;
+
+    while remaining > 0 {
+        let sb = sb_with_capacity(61);
+        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
+
+        // Build one line
+        let mut count: i64 = 0;
+        while count < chars_to_write {
+            let pos = k % alu_len();
+            let c = alu_str.byte_at(pos);
+            let _u = sb_push_char(sb, c);
+            { k = k + 1 };
+            { count = count + 1 }
+        };
+
+        let line = sb_build(sb);
+        let _u = printline(line);
+        { remaining = remaining - chars_to_write }
+    };
+    k
 };
 
 // ============================================================================
-// Random sequence generation with array-based lookup
+// Random sequence generation
 // ============================================================================
 
-// Build one line of random IUB sequence into StringBuilder
-fn build_iub_line(sb: i64, table: i64, seed: i64, count: i64, limit: i64) -> i64 =
-    if count >= limit { seed }
-    else {
-        let new_seed = (seed * ia() + ic()) % im();
-        let r = random_scaled(new_seed);
-        let c = select_iub_code(table, r);
-        let _u = sb_push_char(sb, c);
-        build_iub_line(sb, table, new_seed, count + 1, limit)
-    };
-
-// Generate random IUB sequence lines
-fn print_iub_lines(table: i64, seed: i64, remaining: i64) -> i64 =
-    if remaining <= 0 { seed }
-    else {
-        let sb = sb_with_capacity(61);
-        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let new_seed = build_iub_line(sb, table, seed, 0, chars_to_write);
-        let line = sb_build(sb);
-        let _u = printline(line);
-        print_iub_lines(table, new_seed, remaining - chars_to_write)
-    };
-
-fn print_random_iub(table: i64, seed: i64, n: i64) -> i64 = {
+fn print_random_iub(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">TWO IUB ambiguity codes");
-    print_iub_lines(table, seed, n)
-};
+    let mut seed: i64 = initial_seed;
+    let mut remaining: i64 = n;
 
-// Build one line of random homo sequence into StringBuilder
-fn build_homo_line(sb: i64, table: i64, seed: i64, count: i64, limit: i64) -> i64 =
-    if count >= limit { seed }
-    else {
-        let new_seed = (seed * ia() + ic()) % im();
-        let r = random_scaled(new_seed);
-        let c = select_homo_code(table, r);
-        let _u = sb_push_char(sb, c);
-        build_homo_line(sb, table, new_seed, count + 1, limit)
-    };
-
-// Generate random homo sequence lines
-fn print_homo_lines(table: i64, seed: i64, remaining: i64) -> i64 =
-    if remaining <= 0 { seed }
-    else {
+    while remaining > 0 {
         let sb = sb_with_capacity(61);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-        let new_seed = build_homo_line(sb, table, seed, 0, chars_to_write);
+
+        // Build one line
+        let mut count: i64 = 0;
+        while count < chars_to_write {
+            { seed = (seed * ia() + ic()) % im() };
+            let r = random_scaled(seed);
+            let c = select_iub_code(table, r);
+            let _u = sb_push_char(sb, c);
+            { count = count + 1 }
+        };
+
         let line = sb_build(sb);
         let _u = printline(line);
-        print_homo_lines(table, new_seed, remaining - chars_to_write)
+        { remaining = remaining - chars_to_write }
     };
+    seed
+};
 
-fn print_random_homo(table: i64, seed: i64, n: i64) -> i64 = {
+fn print_random_homo(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">THREE Homo sapiens frequency");
-    print_homo_lines(table, seed, n)
+    let mut seed: i64 = initial_seed;
+    let mut remaining: i64 = n;
+
+    while remaining > 0 {
+        let sb = sb_with_capacity(61);
+        let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
+
+        // Build one line
+        let mut count: i64 = 0;
+        while count < chars_to_write {
+            { seed = (seed * ia() + ic()) % im() };
+            let r = random_scaled(seed);
+            let c = select_homo_code(table, r);
+            let _u = sb_push_char(sb, c);
+            { count = count + 1 }
+        };
+
+        let line = sb_build(sb);
+        let _u = printline(line);
+        { remaining = remaining - chars_to_write }
+    };
+    seed
 };
 
 // ============================================================================
@@ -185,19 +165,14 @@ fn print_random_homo(table: i64, seed: i64, n: i64) -> i64 = {
 
 fn main() -> i64 = {
     let n = 250000;
-
-    -- Create lookup tables once
     let iub_table = create_iub_table();
     let homo_table = create_homo_table();
 
-    -- Run benchmark
     let _u1 = print_repeat(n * 2);
     let seed1 = print_random_iub(iub_table, 42, n * 3);
     let _seed2 = print_random_homo(homo_table, seed1, n * 5);
 
-    -- Free tables
     let _f1 = free(iub_table);
     let _f2 = free(homo_table);
-
     0
 };
