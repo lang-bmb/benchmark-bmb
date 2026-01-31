@@ -6,11 +6,12 @@ fn table_size() -> i64 = 131072;
 fn get_n() -> i64 = 100000;
 fn not_found() -> i64 = 0 - 9223372036854775807 - 1;
 
-// Entry structure (3 i64 values = 24 bytes)
+// Entry structure (2 i64 + 1 i32 = 20 bytes + 4 padding = 24 bytes)
+// v0.60.62: Use i32 for state to match C's struct layout
 struct Entry {
     key: i64,
     value: i64,
-    state: i64
+    state: i32
 }
 
 // HashMap structure to eliminate inttoptr for count access
