@@ -1,0 +1,228 @@
+name: Multi-Platform Benchmark Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to run (comma-separated: ubuntu,macos,windows)'
+        required: false
+        default: 'ubuntu,macos,windows'
+  schedule:
+    # Run weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Benchmark (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            gcc_install: sudo apt-get update && sudo apt-get install -y gcc clang
+            shell: bash
+          - os: macos-latest
+            platform: macos-arm64
+            gcc_install: brew install gcc
+            shell: bash
+          - os: windows-latest
+            platform: windows-x64
+            gcc_install: echo "Using MSVC"
+            shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Setup GCC/Clang (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc clang
+
+      - name: Setup GCC (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # macOS comes with clang, install gcc for comparison
+          brew install gcc || true
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            runner/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('runner/Cargo.lock') }}
+
+      - name: Build runner
+        run: cd runner && cargo build --release
+
+      - name: Compile C benchmarks (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          for dir in benches/*/*/c; do
+            if [ -f "$dir/main.c" ]; then
+              echo "Compiling $dir with GCC..."
+              gcc -O3 -march=native -o "$dir/main_gcc" "$dir/main.c" -lm 2>/dev/null || true
+              echo "Compiling $dir with Clang..."
+              clang -O3 -o "$dir/main_clang" "$dir/main.c" -lm 2>/dev/null || true
+            fi
+          done
+
+      - name: Compile C benchmarks (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "benches/*/*/c" -Filter "main.c" -Recurse | ForEach-Object {
+            $dir = $_.DirectoryName
+            $out = Join-Path $dir "main_msvc.exe"
+            Write-Host "Compiling $($_.FullName)..."
+            cl /O2 /Fe:$out $_.FullName 2>$null
+          }
+
+      - name: Compile Rust benchmarks
+        run: |
+          for dir in benches/*/*/rust; do
+            if [ -f "$dir/main.rs" ]; then
+              echo "Compiling $dir..."
+              rustc -C opt-level=3 -C lto=fat -o "$dir/main_rust" "$dir/main.rs" 2>/dev/null || true
+            fi
+          done
+        shell: bash
+
+      - name: Run benchmarks
+        id: run_bench
+        run: |
+          echo "=== Running benchmarks on ${{ matrix.platform }} ==="
+
+          # Create results directory
+          mkdir -p results
+
+          # Run the benchmark runner
+          cd runner
+          ./target/release/benchmark-bmb run --category compute --iterations 5 --warmup 2 --json > ../results/${{ matrix.platform }}.json 2>/dev/null || true
+
+          # Also run with text output for logs
+          ./target/release/benchmark-bmb run --category compute --iterations 3 --warmup 1 || true
+        shell: bash
+        continue-on-error: true
+
+      - name: Generate platform report
+        run: |
+          echo "# Benchmark Results: ${{ matrix.platform }}" > results/${{ matrix.platform }}.md
+          echo "" >> results/${{ matrix.platform }}.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> results/${{ matrix.platform }}.md
+          echo "**OS:** ${{ matrix.os }}" >> results/${{ matrix.platform }}.md
+          echo "**Runner:** ${{ runner.name }}" >> results/${{ matrix.platform }}.md
+          echo "" >> results/${{ matrix.platform }}.md
+
+          # Count compiled benchmarks
+          echo "## Compilation Status" >> results/${{ matrix.platform }}.md
+          echo "| Language | Count |" >> results/${{ matrix.platform }}.md
+          echo "|----------|-------|" >> results/${{ matrix.platform }}.md
+          echo "| C (GCC) | $(find benches -name 'main_gcc' 2>/dev/null | wc -l) |" >> results/${{ matrix.platform }}.md
+          echo "| C (Clang) | $(find benches -name 'main_clang' 2>/dev/null | wc -l) |" >> results/${{ matrix.platform }}.md
+          echo "| Rust | $(find benches -name 'main_rust' 2>/dev/null | wc -l) |" >> results/${{ matrix.platform }}.md
+        shell: bash
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.platform }}
+          path: results/
+          retention-days: 30
+
+  aggregate:
+    name: Aggregate Results
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results/
+          pattern: results-*
+
+      - name: Merge results
+        run: |
+          mkdir -p results
+
+          echo "# BMB Multi-Platform Benchmark Results" > results/summary.md
+          echo "" >> results/summary.md
+          echo "**Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> results/summary.md
+          echo "" >> results/summary.md
+
+          echo "## Platform Status" >> results/summary.md
+          echo "" >> results/summary.md
+          echo "| Platform | Status |" >> results/summary.md
+          echo "|----------|--------|" >> results/summary.md
+
+          for dir in all-results/results-*; do
+            platform=$(basename "$dir" | sed 's/results-//')
+            if [ -f "$dir/$platform.md" ]; then
+              echo "| $platform | ✅ Complete |" >> results/summary.md
+            else
+              echo "| $platform | ❌ Failed |" >> results/summary.md
+            fi
+          done
+
+          echo "" >> results/summary.md
+          echo "## Individual Reports" >> results/summary.md
+          echo "" >> results/summary.md
+
+          for dir in all-results/results-*; do
+            platform=$(basename "$dir" | sed 's/results-//')
+            if [ -f "$dir/$platform.md" ]; then
+              echo "### $platform" >> results/summary.md
+              cat "$dir/$platform.md" >> results/summary.md
+              echo "" >> results/summary.md
+            fi
+          done
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-summary
+          path: results/summary.md
+          retention-days: 90
+
+      - name: Post summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('results/summary.md', 'utf8');
+
+            // Truncate if too long
+            const maxLen = 60000;
+            const body = summary.length > maxLen
+              ? summary.substring(0, maxLen) + '\n\n... (truncated)'
+              : summary;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 📊 Benchmark Results\n\n' + body
+            });
