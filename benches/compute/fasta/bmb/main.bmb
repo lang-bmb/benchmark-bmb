@@ -1,5 +1,5 @@
-// fasta - DNA sequence generation benchmark v0.60.62
-// v0.60.62: Use while loops instead of recursion for better performance
+// fasta - DNA sequence generation benchmark v0.60.64
+// v0.60.64: Use sb_println() for zero-allocation output
 
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
@@ -10,6 +10,7 @@ fn ic() -> i64 = 29573;
 fn line_width() -> i64 = 60;
 fn scale() -> i64 = 1000000;
 
+@inline
 fn random_scaled(seed: i64) -> i64 = (seed * scale()) / im();
 
 // ============================================================================
@@ -50,9 +51,10 @@ fn create_homo_table() -> i64 = {
 };
 
 // ============================================================================
-// Selection functions - while loop based
+// Selection functions
 // ============================================================================
 
+@inline
 fn select_iub_code(table: i64, r: i64) -> i64 = {
     let mut idx: i64 = 0;
     while idx < 14 and r >= load_i64(table + idx * 16) {
@@ -61,6 +63,7 @@ fn select_iub_code(table: i64, r: i64) -> i64 = {
     load_i64(table + idx * 16 + 8)
 };
 
+@inline
 fn select_homo_code(table: i64, r: i64) -> i64 = {
     let mut idx: i64 = 0;
     while idx < 3 and r >= load_i64(table + idx * 16) {
@@ -79,14 +82,13 @@ fn alu_len() -> i64 = 287;
 fn print_repeat(n: i64) -> i64 = {
     let _u0 = printline(">ONE Homo sapiens alu");
     let alu_str = alu();
+    let sb = sb_with_capacity(61);
     let mut k: i64 = 0;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let sb = sb_with_capacity(61);
+        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-
-        // Build one line
         let mut count: i64 = 0;
         while count < chars_to_write {
             let pos = k % alu_len();
@@ -95,28 +97,21 @@ fn print_repeat(n: i64) -> i64 = {
             { k = k + 1 };
             { count = count + 1 }
         };
-
-        let line = sb_build(sb);
-        let _u = printline(line);
+        let _u = sb_println(sb);
         { remaining = remaining - chars_to_write }
     };
     k
 };
 
-// ============================================================================
-// Random sequence generation
-// ============================================================================
-
 fn print_random_iub(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">TWO IUB ambiguity codes");
+    let sb = sb_with_capacity(61);
     let mut seed: i64 = initial_seed;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let sb = sb_with_capacity(61);
+        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-
-        // Build one line
         let mut count: i64 = 0;
         while count < chars_to_write {
             { seed = (seed * ia() + ic()) % im() };
@@ -125,9 +120,7 @@ fn print_random_iub(table: i64, initial_seed: i64, n: i64) -> i64 = {
             let _u = sb_push_char(sb, c);
             { count = count + 1 }
         };
-
-        let line = sb_build(sb);
-        let _u = printline(line);
+        let _u = sb_println(sb);
         { remaining = remaining - chars_to_write }
     };
     seed
@@ -135,14 +128,13 @@ fn print_random_iub(table: i64, initial_seed: i64, n: i64) -> i64 = {
 
 fn print_random_homo(table: i64, initial_seed: i64, n: i64) -> i64 = {
     let _u0 = printline(">THREE Homo sapiens frequency");
+    let sb = sb_with_capacity(61);
     let mut seed: i64 = initial_seed;
     let mut remaining: i64 = n;
 
     while remaining > 0 {
-        let sb = sb_with_capacity(61);
+        let _clr = sb_clear(sb);
         let chars_to_write = if remaining < line_width() { remaining } else { line_width() };
-
-        // Build one line
         let mut count: i64 = 0;
         while count < chars_to_write {
             { seed = (seed * ia() + ic()) % im() };
@@ -151,17 +143,11 @@ fn print_random_homo(table: i64, initial_seed: i64, n: i64) -> i64 = {
             let _u = sb_push_char(sb, c);
             { count = count + 1 }
         };
-
-        let line = sb_build(sb);
-        let _u = printline(line);
+        let _u = sb_println(sb);
         { remaining = remaining - chars_to_write }
     };
     seed
 };
-
-// ============================================================================
-// Main
-// ============================================================================
 
 fn main() -> i64 = {
     let n = 250000;
