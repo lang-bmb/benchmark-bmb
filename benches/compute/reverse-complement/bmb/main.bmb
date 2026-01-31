@@ -1,85 +1,125 @@
-// reverse-complement - DNA strand complement benchmark
-// Benchmarks Game algorithm adapted for BMB
-// Tests reverse complement on embedded sequence data
-// (BMB interpreter doesn't support stdin line reading)
+// reverse-complement - DNA strand complement benchmark v0.60.65
+// v0.60.65: Use lookup table + in-place reversal like C
 
-// Helper: print string with newline
-fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
-
-// Line width for FASTA output
+fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 fn line_width() -> i64 = 60;
 
-// Complement mapping for IUPAC nucleotide codes
-fn complement(c: i64) -> i64 =
-    -- Standard bases
-    if c == 65 { 84 }       -- A -> T
-    else if c == 84 { 65 }  -- T -> A
-    else if c == 71 { 67 }  -- G -> C
-    else if c == 67 { 71 }  -- C -> G
-    else if c == 97 { 116 } -- a -> t
-    else if c == 116 { 97 } -- t -> a
-    else if c == 103 { 99 } -- g -> c
-    else if c == 99 { 103 } -- c -> g
-    -- RNA
-    else if c == 85 { 65 }  -- U -> A
-    else if c == 117 { 97 } -- u -> a
-    -- IUPAC ambiguity codes
-    else if c == 77 { 75 }  -- M -> K
-    else if c == 75 { 77 }  -- K -> M
-    else if c == 109 { 107 } -- m -> k
-    else if c == 107 { 109 } -- k -> m
-    else if c == 82 { 89 }  -- R -> Y
-    else if c == 89 { 82 }  -- Y -> R
-    else if c == 114 { 121 } -- r -> y
-    else if c == 121 { 114 } -- y -> r
-    else if c == 86 { 66 }  -- V -> B
-    else if c == 66 { 86 }  -- B -> V
-    else if c == 118 { 98 } -- v -> b
-    else if c == 98 { 118 } -- b -> v
-    else if c == 72 { 68 }  -- H -> D
-    else if c == 68 { 72 }  -- D -> H
-    else if c == 104 { 100 } -- h -> d
-    else if c == 100 { 104 } -- d -> h
-    -- Self-complementary: S, W, N
-    else { c };
+// Create complement lookup table (256 bytes)
+fn create_complement_table() -> i64 = {
+    let table = malloc(256);
 
-// Build reversed string by extracting characters from end to start
-fn reverse_build(s: String, idx: i64, acc: String) -> String =
-    if idx < 0 { acc }
-    else {
-        let c = ord(char_at(s, idx));
-        let comp = chr(complement(c));
-        reverse_build(s, idx - 1, acc + comp)
+    // Initialize all to self
+    let mut i: i64 = 0;
+    while i < 256 {
+        let _s = store_u8(table + i, i);
+        { i = i + 1 }
     };
 
-// Reverse complement a sequence string
-fn reverse_complement(s: String) -> String =
-    reverse_build(s, s.len() - 1, "");
+    // Standard bases: A<->T, G<->C
+    let _s1 = store_u8(table + 65, 84);   // A -> T
+    let _s2 = store_u8(table + 84, 65);   // T -> A
+    let _s3 = store_u8(table + 71, 67);   // G -> C
+    let _s4 = store_u8(table + 67, 71);   // C -> G
+    let _s5 = store_u8(table + 97, 116);  // a -> t
+    let _s6 = store_u8(table + 116, 97);  // t -> a
+    let _s7 = store_u8(table + 103, 99);  // g -> c
+    let _s8 = store_u8(table + 99, 103);  // c -> g
 
-// Output sequence in FASTA format (line_width per line)
-fn output_lines(s: String, pos: i64) -> i64 =
-    if pos >= s.len() { 0 }
-    else {
-        let remaining = s.len() - pos;
-        let len = if remaining > line_width() { line_width() } else { remaining };
-        let line = s.slice(pos, pos + len);
-        let u = printline(line);
-        output_lines(s, pos + len)
-    };
+    // RNA: U -> A
+    let _s9 = store_u8(table + 85, 65);   // U -> A
+    let _s10 = store_u8(table + 117, 97); // u -> a
 
-// Process one sequence: output header and reverse complement
-fn process_sequence(header: String, seq: String) -> i64 = {
-    let u1 = printline(header);
-    let revcomp = reverse_complement(seq);
-    output_lines(revcomp, 0)
+    // IUPAC ambiguity codes
+    let _s11 = store_u8(table + 77, 75);  // M -> K
+    let _s12 = store_u8(table + 75, 77);  // K -> M
+    let _s13 = store_u8(table + 109, 107); // m -> k
+    let _s14 = store_u8(table + 107, 109); // k -> m
+    let _s15 = store_u8(table + 82, 89);  // R -> Y
+    let _s16 = store_u8(table + 89, 82);  // Y -> R
+    let _s17 = store_u8(table + 114, 121); // r -> y
+    let _s18 = store_u8(table + 121, 114); // y -> r
+    let _s19 = store_u8(table + 86, 66);  // V -> B
+    let _s20 = store_u8(table + 66, 86);  // B -> V
+    let _s21 = store_u8(table + 118, 98); // v -> b
+    let _s22 = store_u8(table + 98, 118); // b -> v
+    let _s23 = store_u8(table + 72, 68);  // H -> D
+    let _s24 = store_u8(table + 68, 72);  // D -> H
+    let _s25 = store_u8(table + 104, 100); // h -> d
+    let _s26 = store_u8(table + 100, 104); // d -> h
+
+    table
 };
 
-// Test sequences (from Benchmarks Game format)
+// Reverse complement in-place in buffer
+@inline
+fn reverse_complement_inplace(table: i64, buf: i64, len: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut j: i64 = len - 1;
+    while i < j {
+        let ci = load_u8(buf + i);
+        let cj = load_u8(buf + j);
+        let comp_i = load_u8(table + ci);
+        let comp_j = load_u8(table + cj);
+        let _s1 = store_u8(buf + i, comp_j);
+        let _s2 = store_u8(buf + j, comp_i);
+        { i = i + 1 };
+        { j = j - 1 }
+    };
+    // Handle middle element if odd length
+    if i == j {
+        let c = load_u8(buf + i);
+        let comp = load_u8(table + c);
+        let _s = store_u8(buf + i, comp);
+        0
+    } else { 0 }
+};
+
+// Copy string bytes to buffer
+fn copy_string_to_buf(s: String, buf: i64) -> i64 = {
+    let len = s.len();
+    let mut i: i64 = 0;
+    while i < len {
+        let c = s.byte_at(i);
+        let _s = store_u8(buf + i, c);
+        { i = i + 1 }
+    };
+    len
+};
+
+// Output buffer in FASTA format (line_width per line)
+fn output_lines(buf: i64, len: i64, line_buf: i64) -> i64 = {
+    let mut pos: i64 = 0;
+    while pos < len {
+        let remaining = len - pos;
+        let chunk_len = if remaining > line_width() { line_width() } else { remaining };
+
+        // Copy chunk to line buffer
+        let mut i: i64 = 0;
+        while i < chunk_len {
+            let c = load_u8(buf + pos + i);
+            let _s = store_u8(line_buf + i, c);
+            { i = i + 1 }
+        };
+        let _t = store_u8(line_buf + chunk_len, 0);
+        let _p = puts_cstr(line_buf);
+        { pos = pos + chunk_len }
+    };
+    0
+};
+
+// Process one sequence
+fn process_sequence(table: i64, header: String, seq: String, work_buf: i64, line_buf: i64) -> i64 = {
+    let _h = printline(header);
+    let len = copy_string_to_buf(seq, work_buf);
+    let _r = reverse_complement_inplace(table, work_buf, len);
+    output_lines(work_buf, len, line_buf)
+};
+
+// Test sequences
 fn test_seq1() -> String = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG";
 fn test_seq2() -> String = "CGGGTGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGT";
 fn test_seq3() -> String = "GAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCG";
 
-// Longer test sequence for benchmarking
 fn test_long() -> String =
     "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA" +
     "TCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT" +
@@ -87,18 +127,22 @@ fn test_long() -> String =
     "GCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG" +
     "CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
-// Main benchmark: process multiple sequences
 fn main() -> i64 = {
-    -- Process test sequences
-    let u1 = process_sequence(">ONE test sequence 1", test_seq1());
-    let u2 = process_sequence(">TWO test sequence 2", test_seq2());
-    let u3 = process_sequence(">THREE test sequence 3", test_seq3());
-    let u4 = process_sequence(">LONG benchmark sequence", test_long());
+    let table = create_complement_table();
+    let work_buf = malloc(1024);  // Work buffer for sequence
+    let line_buf = malloc(61);    // Line output buffer
 
-    -- Run multiple iterations for benchmarking
-    let u5 = process_sequence(">ITER1", test_long());
-    let u6 = process_sequence(">ITER2", test_long());
-    let u7 = process_sequence(">ITER3", test_long());
+    let _u1 = process_sequence(table, ">ONE test sequence 1", test_seq1(), work_buf, line_buf);
+    let _u2 = process_sequence(table, ">TWO test sequence 2", test_seq2(), work_buf, line_buf);
+    let _u3 = process_sequence(table, ">THREE test sequence 3", test_seq3(), work_buf, line_buf);
+    let _u4 = process_sequence(table, ">LONG benchmark sequence", test_long(), work_buf, line_buf);
 
+    let _u5 = process_sequence(table, ">ITER1", test_long(), work_buf, line_buf);
+    let _u6 = process_sequence(table, ">ITER2", test_long(), work_buf, line_buf);
+    let _u7 = process_sequence(table, ">ITER3", test_long(), work_buf, line_buf);
+
+    let _f1 = free(table);
+    let _f2 = free(work_buf);
+    let _f3 = free(line_buf);
     0
 };
