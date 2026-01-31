@@ -42,24 +42,43 @@ environment:
 - BMB vs Clang: 3 wins, 3 parity, 3 losses
 - BMB vs Rust: 6 wins, 2 parity, 1 loss
 
-### Tier 2: Compiler Optimization Showcase
+### Tier 2: Compiler Features Comparison
 
-BMB 컴파일러의 고급 최적화 기능을 시연하는 벤치마크입니다.
+> **⚠️ 해석 주의**
+>
+> Tier 2는 **컴파일러 최적화 기능** 비교입니다. BMB가 GCC보다 200배 빠른 것이 아니라,
+> TCO(Tail-Call Optimization) 지원 여부의 차이입니다. **TCO 지원 컴파일러끼리 비교하면 거의 동등합니다.**
 
-| Benchmark | BMB | GCC | Clang | Optimization | Description |
-|-----------|-----|-----|-------|--------------|-------------|
-| ackermann | 55ms | 10968ms | ~55ms | **TCO** | Tail-Call Optimization |
-| fibonacci | 29ms | 10499ms | ~30ms | **LR** | Linear Recurrence Detection |
-| tak | 27ms | 51152ms | ~27ms | **TCO** | Tail-Call Optimization |
-| nqueen | 877ms | 6700ms | ~880ms | **TCO** | TCO on backtracking loop |
-| sorting | 167ms | 638ms | ~170ms | **TCO** | TCO on quick_sort/merge_sort |
-| perfect_numbers | 599ms | 976ms | ~600ms | **TCO** | Tail-recursive search |
+#### TCO 지원 컴파일러 비교 (BMB vs Clang)
+
+| Benchmark | BMB | Clang | Optimization | Description |
+|-----------|-----|-------|--------------|-------------|
+| ackermann | 55ms | ~55ms | **TCO** | Tail-Call Optimization |
+| fibonacci | 29ms | ~30ms | **LR** | Linear Recurrence Detection |
+| tak | 27ms | ~27ms | **TCO** | Tail-Call Optimization |
+| nqueen | 877ms | ~880ms | **TCO** | TCO on backtracking loop |
+| sorting | 167ms | ~170ms | **TCO** | TCO on quick_sort/merge_sort |
+| perfect_numbers | 599ms | ~600ms | **TCO** | Tail-recursive search |
+
+**결론:** TCO 지원 컴파일러 간에는 성능 차이 없음 (±2%)
+
+#### 참고: GCC (TCO 미지원)
+
+| Benchmark | GCC | 비고 |
+|-----------|-----|------|
+| ackermann | 10968ms | 스택 오버헤드 |
+| fibonacci | 10499ms | O(2^n) 그대로 실행 |
+| tak | 51152ms | 재귀 호출 오버헤드 |
+| nqueen | 6700ms | 백트래킹 스택 비용 |
+| sorting | 638ms | 재귀 quick_sort/merge_sort |
+| perfect_numbers | 976ms | 재귀 탐색 |
+
+**Note:** GCC는 C 표준에서 TCO를 보장하지 않으므로 직접 비교 대상에서 제외됩니다.
+이는 "언어 성능" 차이가 아닌 "최적화 기능" 차이입니다.
 
 **Optimization Legend:**
 - **TCO (Tail-Call Optimization)**: 꼬리 재귀를 루프로 변환, 스택 오버플로우 방지
 - **LR (Linear Recurrence Detection)**: 선형 점화식을 닫힌 형태로 최적화
-
-**Note**: 이 벤치마크들은 **동일한 알고리즘**을 사용합니다. BMB의 성능 우위는 정당한 컴파일러 최적화의 결과입니다.
 
 ### Tier 3: Real-World Applications
 
@@ -209,6 +228,36 @@ export BMB_RUNTIME_PATH="/path/to/lang-bmb/bmb/runtime"
 hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang' './bench_rust'
 ```
 
+## How to Read These Results
+
+### Ratio 해석
+
+| 표기 | 의미 |
+|------|------|
+| **0.85x** | BMB가 15% 더 빠름 |
+| **1.00x** | 동등 성능 |
+| **1.15x** | BMB가 15% 더 느림 |
+
+- **< 0.98x**: BMB 승리 (Bold 표시)
+- **0.98x ~ 1.02x**: 동등 (Parity)
+- **> 1.02x**: 경쟁 컴파일러 승리
+
+### 통계적 유의성
+
+- ±5% 범위는 "동등"으로 간주
+- 5회 실행 중앙값 보고
+- 상세 리포트에 표준편차 포함
+
+### 이 벤치마크가 측정하지 않는 것
+
+- ❌ 컴파일 시간
+- ❌ 바이너리 크기
+- ❌ 메모리 안전성 보장
+- ❌ 개발 생산성
+- ❌ 에코시스템 성숙도
+
+---
+
 ## Methodology
 
 1. **Same algorithm**: 동일 알고리즘
@@ -218,7 +267,7 @@ hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang' './ben
    - Clang: `-O3`
    - Rust: `-C opt-level=3 -C lto=fat`
    - BMB: LLVM -O3 + scalarizer
-4. **Multiple runs**: 3회 실행, 중앙값 보고
+4. **Multiple runs**: 5회 실행, 중앙값 보고
 5. **Output validation**: 결과값 일치 확인
 
 ---
@@ -227,9 +276,29 @@ hyperfine --warmup 2 --runs 5 './bench_bmb' './bench_gcc' './bench_clang' './ben
 
 | Tier | Purpose | Count |
 |------|---------|-------|
-| **Tier 1** | Core Performance - 순수 알고리즘 성능 비교 | 9 |
-| **Tier 2** | Optimizer Showcase - LLVM 최적화 기능 시연 | 4 |
-| **Tier 3** | Real-World - 실제 사용 사례 성능 | 6 |
+| **Tier 1** | Core Performance - 순수 알고리즘 성능 비교 | 17 |
+| **Tier 2** | Compiler Features - TCO/LR 최적화 비교 | 6 |
+| **Tier 3** | Real-World - 실제 사용 사례 성능 | 7 |
+
+---
+
+## External Benchmarks Included
+
+[Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/)
+기준 벤치마크 포함 현황:
+
+| Benchmark | Status | Notes |
+|-----------|--------|-------|
+| binary-trees | ✅ 포함 | GC/메모리 할당 |
+| fannkuch-redux | ✅ 포함 | 정수 연산 |
+| fasta | ✅ 포함 | 문자열 생성 |
+| k-nucleotide | ✅ 포함 | 해시테이블 |
+| mandelbrot | ✅ 포함 | FP 연산 |
+| n-body | ✅ 포함 | FP 시뮬레이션 |
+| pidigits | ✅ 포함 | 임의 정밀도 |
+| regex-redux | ✅ 포함 | 정규표현식 |
+| reverse-complement | ✅ 포함 | 메모리 처리 |
+| spectral-norm | ✅ 포함 | FP 행렬 연산 |
 
 ---
 
