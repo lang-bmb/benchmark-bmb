@@ -6,7 +6,8 @@
 
 #define N 1000
 
-double A(int i, int j) {
+// v0.60.58: Added static inline for fair comparison with BMB's @inline
+static inline double A(int i, int j) {
     return 1.0 / ((i + j) * (i + j + 1) / 2 + i + 1);
 }
 

@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "=============================================="
-echo "BMB Benchmark Suite v0.60.51"
+echo "BMB Benchmark Suite v0.60.58"
 echo "=============================================="
 echo ""
 
