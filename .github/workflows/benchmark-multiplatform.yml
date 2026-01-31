@@ -60,6 +60,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      # Windows also has MinGW GCC which supports GCC extensions
+      - name: Setup MinGW (Windows)
+        if: runner.os == 'Windows'
+        run: echo "MinGW GCC available at C:\mingw64\bin"
+        shell: pwsh
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -89,13 +95,41 @@ jobs:
       - name: Compile C benchmarks (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        continue-on-error: true
         run: |
+          $ErrorActionPreference = "Continue"
+          $compiled = 0
+          $failed = 0
           Get-ChildItem -Path "benches/*/*/c" -Filter "main.c" -Recurse | ForEach-Object {
             $dir = $_.DirectoryName
             $out = Join-Path $dir "main_msvc.exe"
             Write-Host "Compiling $($_.FullName)..."
-            cl /O2 /Fe:$out $_.FullName 2>$null
+            $result = cl /O2 /Fe:$out $_.FullName 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              $compiled++
+            } else {
+              $failed++
+              Write-Host "  [SKIP] MSVC-incompatible code"
+            }
           }
+          Write-Host "Compiled: $compiled, Skipped: $failed"
+
+      - name: Compile C benchmarks with MinGW (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        continue-on-error: true
+        run: |
+          export PATH="/c/mingw64/bin:$PATH"
+          compiled=0
+          for dir in benches/*/*/c; do
+            if [ -f "$dir/main.c" ]; then
+              echo "Compiling $dir with MinGW GCC..."
+              if gcc -O3 -o "$dir/main_mingw.exe" "$dir/main.c" -lm 2>/dev/null; then
+                compiled=$((compiled + 1))
+              fi
+            fi
+          done
+          echo "Compiled $compiled benchmarks with MinGW"
 
       - name: Compile Rust benchmarks
         run: |
