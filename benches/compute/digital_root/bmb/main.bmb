@@ -1,32 +1,42 @@
-// Digital Root Benchmark
-// Measures: modulo operations, division, loops
-// Computes digital root (repeated digit sum until single digit)
+// Digital Root Benchmark v0.60.62
+// v0.60.62: Use while loops instead of recursion
 
-fn digit_sum(n: i64) -> i64 =
-    digit_sum_acc(n, 0);
-
-fn digit_sum_acc(n: i64, acc: i64) -> i64 =
-    if n == 0 { acc }
-    else { digit_sum_acc(n / 10, acc + n % 10) };
-
-fn digital_root(n: i64) -> i64 =
-    if n < 10 { n }
-    else { digital_root(digit_sum(n)) };
-
-fn sum_digital_roots(n: i64, i: i64, acc: i64) -> i64 =
-    if i > n { acc }
-    else { sum_digital_roots(n, i + 1, acc + digital_root(i)) };
-
-fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
-    if i >= iterations { acc }
-    else {
-        let result = sum_digital_roots(n, 1, 0);
-        run_benchmark(n, iterations, acc + result, i + 1)
+fn digit_sum(n: i64) -> i64 = {
+    let mut num: i64 = n;
+    let mut acc: i64 = 0;
+    while num > 0 {
+        { acc = acc + num % 10 };
+        { num = num / 10 }
     };
+    acc
+};
+
+fn digital_root(n: i64) -> i64 = {
+    let mut num: i64 = n;
+    while num >= 10 {
+        { num = digit_sum(num) }
+    };
+    num
+};
+
+fn sum_digital_roots(n: i64) -> i64 = {
+    let mut i: i64 = 1;
+    let mut acc: i64 = 0;
+    while i <= n {
+        { acc = acc + digital_root(i) };
+        { i = i + 1 }
+    };
+    acc
+};
 
 fn main() -> i64 = {
     // Sum digital roots from 1 to 100000, 10 iterations
-    let result = run_benchmark(100000, 10, 0, 0);
+    let mut result: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < 10 {
+        { result = result + sum_digital_roots(100000) };
+        { iter = iter + 1 }
+    };
     let _p = println(result);
     0
 };
