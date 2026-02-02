@@ -1,14 +1,16 @@
-// fasta - DNA sequence generation benchmark v0.60.65
+// fasta - DNA sequence generation benchmark v0.60.123
 // v0.60.65: Use raw byte buffer + puts_cstr() like C for maximum performance
+// v0.60.123: Add @const to constants and @inline to hot functions
 
+@inline
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
 // LCG constants
-fn im() -> i64 = 139968;
-fn ia() -> i64 = 3877;
-fn ic() -> i64 = 29573;
-fn line_width() -> i64 = 60;
-fn scale() -> i64 = 1000000;
+@const fn im() -> i64 = 139968;
+@const fn ia() -> i64 = 3877;
+@const fn ic() -> i64 = 29573;
+@const fn line_width() -> i64 = 60;
+@const fn scale() -> i64 = 1000000;
 
 @inline
 fn random_scaled(seed: i64) -> i64 = (seed * scale()) / im();
@@ -17,7 +19,7 @@ fn random_scaled(seed: i64) -> i64 = (seed * scale()) / im();
 // Array-based lookup tables
 // ============================================================================
 
-fn iub_len() -> i64 = 15;
+@const fn iub_len() -> i64 = 15;
 
 fn create_iub_table() -> i64 = {
     let table = malloc(iub_len() * 16);
@@ -39,7 +41,7 @@ fn create_iub_table() -> i64 = {
     table
 };
 
-fn homo_len() -> i64 = 4;
+@const fn homo_len() -> i64 = 4;
 
 fn create_homo_table() -> i64 = {
     let table = malloc(homo_len() * 16);
@@ -77,7 +79,7 @@ fn select_homo_code(table: i64, r: i64) -> i64 = {
 // ============================================================================
 
 fn alu() -> String = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
-fn alu_len() -> i64 = 287;
+@const fn alu_len() -> i64 = 287;
 
 fn print_repeat(n: i64) -> i64 = {
     let _u0 = printline(">ONE Homo sapiens alu");

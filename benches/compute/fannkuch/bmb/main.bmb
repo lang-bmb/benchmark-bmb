@@ -1,23 +1,30 @@
-// Fannkuch-redux benchmark
+// Fannkuch-redux benchmark v0.60.123
 // Measures: array manipulation, permutation generation
 // Algorithm: Standard Heap's algorithm permutation with pancake flipping
 // Aligned with C version (n=10) for fair comparison
 // v0.60.17: Uses break statement for cleaner control flow (v0.60.16 feature)
+// v0.60.123: Add @inline to hot functions
 // Note: Uses malloc-based arrays due to lack of array element assignment syntax
 
 // v0.60.28: Array operations using native pointers for optimal codegen
+@inline
 fn array_new(n: i64) -> *i64 = malloc(n * 8) as *i64;
 
+@inline
 fn array_get(arr: *i64, i: i64) -> i64 = arr[i];
 
+@inline
 fn array_set(arr: *i64, i: i64, val: i64) -> i64 = { set arr[i] = val; 0 };
 
+@inline
 fn array_free(arr: *i64) -> i64 = { free(arr); 0 };
 
 // Max helper
+@inline
 fn max_val(a: i64, b: i64) -> i64 = if a > b { a } else { b };
 
 // Swap elements in array
+@inline
 fn swap_in_array(arr: *i64, i: i64, j: i64) -> i64 = {
     let tmp = array_get(arr, i);
     let _a = array_set(arr, i, array_get(arr, j));

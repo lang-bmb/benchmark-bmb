@@ -1,12 +1,13 @@
-// N-Body simulation benchmark with typed pointers (v0.51.39)
+// N-Body simulation benchmark with typed pointers v0.60.123
 // Uses *Body typed pointer for proper LLVM struct GEP codegen
+// v0.60.123: Add @const to constants and @inline to hot functions
 
 // Constants
-fn PI() -> f64 = 3.141592653589793;
-fn SOLAR_MASS() -> f64 = 4.0 * PI() * PI();
-fn DAYS_PER_YEAR() -> f64 = 365.24;
-fn N_BODIES() -> i64 = 5;
-fn N_STEPS() -> i64 = 2000000;
+@const fn PI() -> f64 = 3.141592653589793;
+@const fn SOLAR_MASS() -> f64 = 4.0 * PI() * PI();
+@const fn DAYS_PER_YEAR() -> f64 = 365.24;
+@const fn N_BODIES() -> i64 = 5;
+@const fn N_STEPS() -> i64 = 2000000;
 
 // Body structure (7 f64 values = 56 bytes)
 struct Body {
@@ -24,6 +25,7 @@ fn bodies_new() -> *Body = malloc(N_BODIES() * 56) as *Body;
 
 // Get pointer to body at index i
 // v0.60.34: Use native pointer arithmetic for proper GEP codegen
+@inline
 fn body_at(bodies: *Body, i: i64) -> *Body = bodies + i;
 
 // Null pointer
@@ -119,6 +121,7 @@ fn offset_momentum(bodies: *Body) -> i64 = {
 };
 
 // Advance velocities (inner loop)
+@inline
 fn advance_velocities_inner(bodies: *Body, dt: f64, i: i64, j: i64) -> i64 =
     if j >= N_BODIES() { 0 }
     else {
@@ -147,6 +150,7 @@ fn advance_velocities_inner(bodies: *Body, dt: f64, i: i64, j: i64) -> i64 =
     };
 
 // Advance velocities (outer loop)
+@inline
 fn advance_velocities(bodies: *Body, dt: f64, i: i64) -> i64 =
     if i >= N_BODIES() { 0 }
     else {
@@ -155,6 +159,7 @@ fn advance_velocities(bodies: *Body, dt: f64, i: i64) -> i64 =
     };
 
 // Advance positions
+@inline
 fn advance_positions(bodies: *Body, dt: f64, i: i64) -> i64 =
     if i >= N_BODIES() { 0 }
     else {
@@ -166,6 +171,7 @@ fn advance_positions(bodies: *Body, dt: f64, i: i64) -> i64 =
     };
 
 // Advance simulation by dt
+@inline
 fn advance(bodies: *Body, dt: f64) -> i64 = {
     let _v = advance_velocities(bodies, dt, 0);
     advance_positions(bodies, dt, 0)

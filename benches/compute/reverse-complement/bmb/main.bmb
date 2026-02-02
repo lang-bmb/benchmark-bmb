@@ -1,8 +1,10 @@
-// reverse-complement - DNA strand complement benchmark v0.60.65
+// reverse-complement - DNA strand complement benchmark v0.60.123
 // v0.60.65: Use lookup table + in-place reversal like C
+// v0.60.123: Add @const and @inline to hot functions
 
+@inline
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
-fn line_width() -> i64 = 60;
+@const fn line_width() -> i64 = 60;
 
 // Create complement lookup table (256 bytes)
 fn create_complement_table() -> i64 = {
@@ -75,6 +77,7 @@ fn reverse_complement_inplace(table: i64, buf: i64, len: i64) -> i64 = {
 };
 
 // Copy string bytes to buffer
+@inline
 fn copy_string_to_buf(s: String, buf: i64) -> i64 = {
     let len = s.len();
     let mut i: i64 = 0;
@@ -87,6 +90,7 @@ fn copy_string_to_buf(s: String, buf: i64) -> i64 = {
 };
 
 // Output buffer in FASTA format (line_width per line)
+@inline
 fn output_lines(buf: i64, len: i64, line_buf: i64) -> i64 = {
     let mut pos: i64 = 0;
     while pos < len {

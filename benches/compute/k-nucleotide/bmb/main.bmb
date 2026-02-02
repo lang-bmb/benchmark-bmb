@@ -2,12 +2,15 @@
 // Benchmarks Game algorithm adapted for BMB
 // Counts k-mer frequencies using hashmap
 // Self-contained with embedded test sequence
+// v0.60.123: Add @inline to hot path functions
 
 // Helper: print string with newline
+@inline
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
 // Convert nucleotide char code to 0-3 index
 // A=65, C=67, G=71, T=84 (uppercase)
+@inline
 fn nuc_to_idx(c: i64) -> i64 =
     if c == 65 or c == 97 { 0 }      -- A/a
     else if c == 67 or c == 99 { 1 } -- C/c
@@ -16,6 +19,7 @@ fn nuc_to_idx(c: i64) -> i64 =
     else { 0 };
 
 // Convert 0-3 index back to nucleotide char
+@inline
 fn idx_to_nuc(i: i64) -> String =
     if i == 0 { "A" }
     else if i == 1 { "C" }
@@ -24,16 +28,19 @@ fn idx_to_nuc(i: i64) -> String =
 
 // Encode a k-mer as integer (2 bits per nucleotide)
 // Max k=31 for i64
-fn encode_kmer(s: String, pos: i64, k: i64) -> i64 =
-    encode_kmer_acc(s, pos, k, 0, 0);
-
-fn encode_kmer_acc(s: String, pos: i64, k: i64, idx: i64, acc: i64) -> i64 =
-    if idx >= k { acc }
-    else {
+// v0.60.125: Convert to iterative while loop for better performance
+@inline
+fn encode_kmer(s: String, pos: i64, k: i64) -> i64 = {
+    let mut idx: i64 = 0;
+    let mut acc: i64 = 0;
+    while idx < k {
         let c = ord(char_at(s, pos + idx));
         let nuc = nuc_to_idx(c);
-        encode_kmer_acc(s, pos, k, idx + 1, acc * 4 + nuc)
+        { acc = acc * 4 + nuc };
+        { idx = idx + 1 };
     };
+    acc
+};
 
 // Decode k-mer from integer
 fn decode_kmer(code: i64, k: i64) -> String =
@@ -47,22 +54,23 @@ fn decode_kmer_acc(code: i64, k: i64, acc: String) -> String =
     };
 
 // Count all k-mers in sequence, return hashmap
+// v0.60.125: Convert to iterative while loop for better performance
 fn count_kmers(seq: String, k: i64) -> i64 = {
     let map = hashmap_new();
-    count_kmers_iter(seq, k, map, 0)
-};
-
-fn count_kmers_iter(seq: String, k: i64, map: i64, pos: i64) -> i64 =
-    if pos + k > seq.len() { map }
-    else {
+    let len = seq.len();
+    let mut pos: i64 = 0;
+    while pos + k <= len {
         let kmer = encode_kmer(seq, pos, k);
         let old = hashmap_get(map, kmer);
         let count = if old == i64_min() { 0 } else { old };
         let u = hashmap_insert(map, kmer, count + 1);
-        count_kmers_iter(seq, k, map, pos + 1)
+        { pos = pos + 1 };
     };
+    map
+};
 
 // Get count for a specific pattern from map
+@inline
 fn get_pattern_count(map: i64, pattern: String) -> i64 = {
     let k = pattern.len();
     let code = encode_kmer(pattern, 0, k);
@@ -143,11 +151,13 @@ fn do_swap(v: i64, idx: i64, a: i64, b: i64) -> i64 = {
 };
 
 -- Integer to string conversion
+@inline
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
     else if n < 10 { digit_char(n) }
     else { int_to_string(n / 10) + digit_char(n % 10) };
 
+@inline
 fn digit_char(d: i64) -> String =
     if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
     else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
@@ -156,7 +166,7 @@ fn digit_char(d: i64) -> String =
 
 -- i64::MIN sentinel for hashmap "not found"
 -- Can't use literal i64_min() (lexer overflow)
-fn i64_min() -> i64 = 0 - 9223372036854775807 - 1;
+@const fn i64_min() -> i64 = 0 - 9223372036854775807 - 1;
 
 -- Print count for specific pattern
 fn print_pattern_count(seq: String, pattern: String) -> i64 = {
