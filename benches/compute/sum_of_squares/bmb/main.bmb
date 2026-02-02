@@ -1,10 +1,13 @@
-// Sum of Squares Benchmark
+// Sum of Squares Benchmark v0.60.123
 // Measures: arithmetic operations, loop performance
 // Computes sum of squares from 1 to N
+// v0.60.123: Add @inline to prevent parameter narrowing
 
+@inline
 fn sum_squares(n: i64) -> i64 =
     sum_squares_acc(n, 1, 0);
 
+@inline
 fn sum_squares_acc(n: i64, i: i64, acc: i64) -> i64 =
     if i > n { acc }
     else { sum_squares_acc(n, i + 1, acc + i * i) };

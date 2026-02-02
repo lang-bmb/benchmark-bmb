@@ -1,9 +1,12 @@
-// lexer - Token generation benchmark
+// lexer - Token generation benchmark v0.60.123
 // Tests character processing, state machine, keyword matching
 // Self-contained with embedded source code
+// v0.60.123: Add @inline to hot helper functions
 
+@inline
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
+@inline
 fn int_to_string(n: i64) -> String =
     if n < 0 { "-" + int_to_string(0 - n) }
     else if n < 10 { digit_char(n) }
@@ -26,37 +29,46 @@ fn tok_punct() -> i64 = 6;
 fn tok_comment() -> i64 = 7;
 
 // Character classification
+@inline
 fn is_whitespace(c: i64) -> i64 =
     if c == 32 or c == 9 or c == 10 or c == 13 { 1 } else { 0 };
 
+@inline
 fn is_alpha(c: i64) -> i64 =
     if (c >= 65 and c <= 90) or (c >= 97 and c <= 122) { 1 } else { 0 };
 
+@inline
 fn is_digit(c: i64) -> i64 =
     if c >= 48 and c <= 57 { 1 } else { 0 };
 
+@inline
 fn is_alnum(c: i64) -> i64 =
     if is_alpha(c) == 1 or is_digit(c) == 1 { 1 } else { 0 };
 
+@inline
 fn is_operator_char(c: i64) -> i64 =
     if c == 43 or c == 45 or c == 42 or c == 47 or c == 37 or
        c == 61 or c == 60 or c == 62 or c == 33 or c == 38 or c == 124 { 1 } else { 0 };
 
+@inline
 fn is_punct_char(c: i64) -> i64 =
     if c == 40 or c == 41 or c == 123 or c == 125 or c == 91 or c == 93 or
        c == 59 or c == 58 or c == 44 or c == 46 { 1 } else { 0 };
 
 // Get byte at position (v0.51.44: use byte_at directly instead of ord(char_at()))
+@inline
 fn peek(src: String, pos: i64) -> i64 =
     if pos >= src.len() { 0 } else { src.byte_at(pos) };
 
 // Skip whitespace
+@inline
 fn skip_ws(src: String, pos: i64) -> i64 =
     if pos >= src.len() { pos }
     else if is_whitespace(peek(src, pos)) == 1 { skip_ws(src, pos + 1) }
     else { pos };
 
 // Check for keyword (simplified: just check length and first char)
+@inline
 fn is_keyword_at(src: String, start: i64, len: i64) -> i64 =
     if len == 2 and peek(src, start) == 102 and peek(src, start + 1) == 110 { 1 }      -- fn
     else if len == 3 and peek(src, start) == 108 and peek(src, start + 1) == 101 { 1 } -- let
@@ -69,18 +81,21 @@ fn is_keyword_at(src: String, start: i64, len: i64) -> i64 =
     else { 0 };
 
 // Skip identifier
+@inline
 fn skip_ident(src: String, pos: i64) -> i64 =
     if pos >= src.len() { pos }
     else if is_alnum(peek(src, pos)) == 1 or peek(src, pos) == 95 { skip_ident(src, pos + 1) }
     else { pos };
 
 // Skip number
+@inline
 fn skip_number(src: String, pos: i64) -> i64 =
     if pos >= src.len() { pos }
     else if is_digit(peek(src, pos)) == 1 or peek(src, pos) == 46 { skip_number(src, pos + 1) }
     else { pos };
 
 // Skip string
+@inline
 fn skip_string(src: String, pos: i64) -> i64 =
     if pos >= src.len() { pos }
     else if peek(src, pos) == 34 { pos + 1 }  -- closing quote
