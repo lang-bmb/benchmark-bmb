@@ -1,6 +1,8 @@
-// Digital Root Benchmark v0.60.62
+// Digital Root Benchmark v0.60.123
+// v0.60.123: Add @inline to prevent parameter narrowing overhead
 // v0.60.62: Use while loops instead of recursion
 
+@inline
 fn digit_sum(n: i64) -> i64 = {
     let mut num: i64 = n;
     let mut acc: i64 = 0;
@@ -11,6 +13,7 @@ fn digit_sum(n: i64) -> i64 = {
     acc
 };
 
+@inline
 fn digital_root(n: i64) -> i64 = {
     let mut num: i64 = n;
     while num >= 10 {
