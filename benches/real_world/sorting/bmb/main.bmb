@@ -1,45 +1,46 @@
-// Sorting benchmark - FAIR VERSION v0.60.249
+// Sorting benchmark - FAIR VERSION v0.60.250
 // Measures: comparison operations, data movement
+// v0.60.250: Typed pointer optimization - eliminates inttoptr for better LLVM alias analysis
 // v0.60.249: Converted to native while loops for C-equivalent performance
 // v0.60.246: Optimized with @inline on all hot paths
 // v0.60.123: Add @inline to hot inner loops to prevent narrowing overhead
 // v0.56: Inlined array accessors for reduced overhead
 
-// Inlined array operations
+// Typed pointer array operations - returns *i64 to enable GEP-based access
 @inline
-fn array_new(n: i64) -> i64 = malloc(n * 8);
+fn array_new(n: i64) -> *i64 = malloc(n * 8) as *i64;
 @inline
-fn array_free(arr: i64) -> i64 = { let _u = free(arr); 0 };
+fn array_free(arr: *i64) -> i64 = { let _u = free(arr as i64); 0 };
 
-// Swap two elements in array (inlined)
+// Swap two elements in array (inlined, typed pointer)
 @inline
-fn swap(arr: i64, i: i64, j: i64) -> i64 = {
-    let tmp = load_i64(arr + i * 8);
-    let _a = store_i64(arr + i * 8, load_i64(arr + j * 8));
-    let _b = store_i64(arr + j * 8, tmp);
+fn swap(arr: *i64, i: i64, j: i64) -> i64 = {
+    let tmp = arr[i];
+    set arr[i] = arr[j];
+    set arr[j] = tmp;
     0
 };
 
 // Initialize array with reverse order (worst case for bubble/insertion sort)
-fn init_reverse(arr: i64, size: i64) -> i64 = {
+fn init_reverse(arr: *i64, size: i64) -> i64 = {
     let mut i = 0;
     while i < size {
-        let _s = store_i64(arr + i * 8, size - i);
+        set arr[i] = size - i;
         { i = i + 1; 0 }
     };
     0
 };
 
 // ============ Bubble Sort (while loop version) ============
-fn bubble_sort(arr: i64, n: i64) -> i64 = {
+fn bubble_sort(arr: *i64, n: i64) -> i64 = {
     let mut comparisons = 0;
     let mut i = 0;
     while i < n - 1 {
         let mut j = 0;
         let limit = n - i - 1;
         while j < limit {
-            let a = load_i64(arr + j * 8);
-            let b = load_i64(arr + (j + 1) * 8);
+            let a = arr[j];
+            let b = arr[j + 1];
             let _s = if a > b { swap(arr, j, j + 1) } else { 0 };
             { comparisons = comparisons + 1; j = j + 1; 0 }
         };
@@ -49,27 +50,27 @@ fn bubble_sort(arr: i64, n: i64) -> i64 = {
 };
 
 // ============ Insertion Sort (while loop version) ============
-fn insertion_sort(arr: i64, n: i64) -> i64 = {
+fn insertion_sort(arr: *i64, n: i64) -> i64 = {
     let mut cost = 0;
     let mut i = 1;
     while i < n {
-        let key = load_i64(arr + i * 8);
+        let key = arr[i];
         let mut j = i - 1;
-        while j >= 0 and load_i64(arr + j * 8) > key {
-            let _s = store_i64(arr + (j + 1) * 8, load_i64(arr + j * 8));
+        while j >= 0 and arr[j] > key {
+            set arr[j + 1] = arr[j];
             { cost = cost + 1; j = j - 1; 0 }
         };
-        let _s = store_i64(arr + (j + 1) * 8, key);
+        set arr[j + 1] = key;
         { cost = cost + 1; i = i + 1; 0 }
     };
     cost
 };
 
 // ============ Merge Sort (while loop version) ============
-fn merge_sort(arr: i64, n: i64) -> i64 =
+fn merge_sort(arr: *i64, n: i64) -> i64 =
     merge_sort_helper(arr, 0, n - 1);
 
-fn merge_sort_helper(arr: i64, l: i64, r: i64) -> i64 =
+fn merge_sort_helper(arr: *i64, l: i64, r: i64) -> i64 =
     if l < r {
         let m = l + (r - l) / 2;
         let cost_left = merge_sort_helper(arr, l, m);
@@ -78,7 +79,7 @@ fn merge_sort_helper(arr: i64, l: i64, r: i64) -> i64 =
         cost_left + cost_right + cost_merge
     } else { 0 };
 
-fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
+fn merge(arr: *i64, l: i64, m: i64, r: i64) -> i64 = {
     let n1 = m - l + 1;
     let n2 = r - m;
     let left_arr = array_new(n1);
@@ -87,12 +88,12 @@ fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
     // Copy data to temp arrays (while loop)
     let mut ci = 0;
     while ci < n1 {
-        let _s = store_i64(left_arr + ci * 8, load_i64(arr + (l + ci) * 8));
+        set left_arr[ci] = arr[l + ci];
         { ci = ci + 1; 0 }
     };
     { ci = 0; 0 };
     while ci < n2 {
-        let _s = store_i64(right_arr + ci * 8, load_i64(arr + (m + 1 + ci) * 8));
+        set right_arr[ci] = arr[m + 1 + ci];
         { ci = ci + 1; 0 }
     };
 
@@ -103,25 +104,23 @@ fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
     let mut cost = 0;
 
     while i < n1 and j < n2 {
-        let l_val = load_i64(left_arr + i * 8);
-        let r_val = load_i64(right_arr + j * 8);
+        let l_val = left_arr[i];
+        let r_val = right_arr[j];
         let _s = if l_val <= r_val {
-            let _st = store_i64(arr + k * 8, l_val);
-            { i = i + 1; 0 }
+            { set arr[k] = l_val; i = i + 1; 0 }
         } else {
-            let _st = store_i64(arr + k * 8, r_val);
-            { j = j + 1; 0 }
+            { set arr[k] = r_val; j = j + 1; 0 }
         };
         { cost = cost + 1; k = k + 1; 0 }
     };
 
     // Copy remaining elements
     while i < n1 {
-        let _s = store_i64(arr + k * 8, load_i64(left_arr + i * 8));
+        set arr[k] = left_arr[i];
         { i = i + 1; k = k + 1; 0 }
     };
     while j < n2 {
-        let _s = store_i64(arr + k * 8, load_i64(right_arr + j * 8));
+        set arr[k] = right_arr[j];
         { j = j + 1; k = k + 1; 0 }
     };
 
@@ -131,10 +130,10 @@ fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
 };
 
 // ============ Quick Sort (while loop version) ============
-fn quick_sort(arr: i64, n: i64) -> i64 =
+fn quick_sort(arr: *i64, n: i64) -> i64 =
     quick_sort_helper(arr, 0, n - 1);
 
-fn quick_sort_helper(arr: i64, low: i64, high: i64) -> i64 =
+fn quick_sort_helper(arr: *i64, low: i64, high: i64) -> i64 =
     if low < high {
         let result = partition(arr, low, high);
         let pi = result.0;
@@ -145,14 +144,14 @@ fn quick_sort_helper(arr: i64, low: i64, high: i64) -> i64 =
     } else { 0 };
 
 // Returns (pivot_index, comparison_cost)
-fn partition(arr: i64, low: i64, high: i64) -> (i64, i64) = {
-    let pivot = load_i64(arr + high * 8);
+fn partition(arr: *i64, low: i64, high: i64) -> (i64, i64) = {
+    let pivot = arr[high];
     let mut i = low - 1;
     let mut j = low;
     let mut cost = 0;
 
     while j < high {
-        let _s = if load_i64(arr + j * 8) <= pivot {
+        let _s = if arr[j] <= pivot {
             { i = i + 1; swap(arr, i, j) }
         } else { 0 };
         { cost = cost + 1; j = j + 1; 0 }
