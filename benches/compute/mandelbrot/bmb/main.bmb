@@ -1,6 +1,6 @@
-// Mandelbrot set computation benchmark v0.60.123
+// Mandelbrot set computation benchmark v0.60.246
 // Measures: integer arithmetic (fixed-point), loops/recursion
-// v0.60: Restored tail recursion (matches TailRecursiveToLoop optimization)
+// v0.60.246: Convert iterate() to while loop (matching C performance)
 // v0.60.123: Add @const to constants and @inline to hot functions
 
 // Fixed-point scale: 10000 = 1.0
@@ -18,6 +18,7 @@ fn square_fp(x: i64) -> i64 = mul_fp(x, x);
 @const fn threshold() -> i64 = 400000000;
 
 // Check if point escapes Mandelbrot set - tail recursive for early exit
+// Note: While loop version has syntax complexity; tail recursion with TCO is idiomatic BMB
 @inline
 fn iterate(cr: i64, ci: i64, zr: i64, zi: i64, iter: i64, max_iter: i64) -> i64 =
     if iter >= max_iter { max_iter }

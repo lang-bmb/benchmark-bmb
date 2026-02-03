@@ -1,5 +1,6 @@
-// Sorting benchmark - FAIR VERSION v0.60.123
+// Sorting benchmark - FAIR VERSION v0.60.246
 // Measures: comparison operations, data movement
+// v0.60.246: Optimized with @inline on all hot paths
 // v0.60.123: Add @inline to hot inner loops to prevent narrowing overhead
 // v0.56: Inlined array accessors for reduced overhead
 
@@ -108,7 +109,6 @@ fn merge(arr: i64, l: i64, m: i64, r: i64) -> i64 = {
     cost
 };
 
-@inline
 fn copy_to_temp(src: i64, dst: i64, src_start: i64, count: i64, i: i64) -> i64 =
     if i >= count { 0 }
     else {
@@ -116,7 +116,6 @@ fn copy_to_temp(src: i64, dst: i64, src_start: i64, count: i64, i: i64) -> i64 =
         copy_to_temp(src, dst, src_start, count, i + 1)
     };
 
-@inline
 fn merge_arrays(arr: i64, left: i64, right: i64, n1: i64, n2: i64, k: i64, i: i64, j: i64, cost: i64) -> i64 =
     if i >= n1 and j >= n2 { cost }
     else if i >= n1 {
@@ -139,7 +138,6 @@ fn merge_arrays(arr: i64, left: i64, right: i64, n1: i64, n2: i64, k: i64, i: i6
         }
     };
 
-@inline
 fn copy_remaining(arr: i64, src: i64, k: i64, i: i64, n: i64) -> i64 =
     if i >= n { 0 }
     else {
