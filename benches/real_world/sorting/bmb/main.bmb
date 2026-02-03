@@ -161,10 +161,13 @@ fn partition(arr: *i64, low: i64, high: i64) -> (i64, i64) = {
     (i + 1, cost)
 };
 
-// ============ Main Benchmark ============
-fn run_benchmark(sizes: i64, acc: i64) -> i64 =
-    if sizes <= 0 { acc }
-    else {
+// ============ Main Benchmark (while loop for zero overhead) ============
+fn main() -> i64 = {
+    // v0.60.250: Converted from recursive run_benchmark to while loop
+    let mut sizes = 200;
+    let mut acc: i64 = 0;
+
+    while sizes > 0 {
         let size = sizes * 10;
         let arr = array_new(size);
 
@@ -185,12 +188,9 @@ fn run_benchmark(sizes: i64, acc: i64) -> i64 =
         let quick = quick_sort(arr, size);
 
         let _f = array_free(arr);
-        run_benchmark(sizes - 1, acc + bubble + insertion + merge_cost + quick)
+        { acc = acc + bubble + insertion + merge_cost + quick; sizes = sizes - 1; 0 }
     };
 
-fn main() -> i64 = {
-    // v0.60: Increased from 50 to 200 for better measurement accuracy (~28ms)
-    let result = run_benchmark(200, 0);
-    let _u = println(result);
+    let _u = println(acc);
     0
 };
