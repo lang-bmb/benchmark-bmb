@@ -1,12 +1,16 @@
-// JSON parsing benchmark
+// JSON parsing benchmark v0.60.247
 // Measures: string processing, recursive descent parsing
+// v0.60.247: Add @inline to hot functions, hoist string constant
 // v0.55: Updated with native tuple support
 
 // Character classes
+@inline
 fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
+@inline
 fn is_digit(c: i64) -> bool = c >= 48 and c <= 57;
 
 // Skip whitespace - v0.52: use byte_at
+@inline
 fn skip_ws(s: String, pos: i64) -> i64 =
     if pos >= s.len() { pos }
     else if is_ws(s.byte_at(pos)) { skip_ws(s, pos + 1) }
@@ -22,6 +26,7 @@ fn parse_number(s: String, pos: i64, acc: i64) -> (i64, i64) =
     };
 
 // Find closing bracket/brace - v0.52: use byte_at
+@inline
 fn find_close(s: String, pos: i64, depth: i64, open: i64, close: i64) -> i64 =
     if pos >= s.len() { pos }
     else {
@@ -44,6 +49,7 @@ fn count_array(s: String, pos: i64) -> i64 = {
     else { 0 }
 };
 
+@inline
 fn count_elements(s: String, pos: i64, depth: i64, count: i64) -> i64 =
     if pos >= s.len() { count }
     else {
@@ -84,6 +90,7 @@ fn validate_string(s: String, pos: i64) -> bool =
     find_string_end(s, pos + 1) < s.len();
 
 // v0.52: use byte_at
+@inline
 fn find_string_end(s: String, pos: i64) -> i64 =
     if pos >= s.len() { pos }
     else {
@@ -94,18 +101,20 @@ fn find_string_end(s: String, pos: i64) -> i64 =
     };
 
 // Benchmark: parse many JSON structures
-fn run_benchmark(iterations: i64, valid_count: i64) -> i64 =
+// v0.60.247: Pass string as parameter to avoid allocation in loop
+fn run_benchmark(json: String, iterations: i64, valid_count: i64) -> i64 =
     if iterations <= 0 { valid_count }
     else {
-        let json = "[1,2,3,4,5,6,7,8,9,10]";
         let is_valid = if validate_json(json, 0) { 1 } else { 0 };
         let element_count = count_array(json, 0);
-        run_benchmark(iterations - 1, valid_count + is_valid + element_count)
+        run_benchmark(json, iterations - 1, valid_count + is_valid + element_count)
     };
 
 fn main() -> i64 = {
     // v0.60: Increased from 10000 to 100000 for better measurement accuracy
-    let result = run_benchmark(100000, 0);
+    // v0.60.247: Hoist string constant outside loop
+    let json = "[1,2,3,4,5,6,7,8,9,10]";
+    let result = run_benchmark(json, 100000, 0);
     let _u = println(result);
     0
 };
