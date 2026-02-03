@@ -8,15 +8,17 @@
 fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
 
 // Tape size (same as C version)
-fn tape_size() -> i64 = 30000;
+@const fn tape_size() -> i64 = 30000;
 
 // Array operations using malloc for direct memory access (1 byte per cell, like C)
-fn tape_new() -> i64 = calloc(tape_size(), 1);  -- zero-initialized u8 array
-fn tape_free(tape: i64) -> i64 = { free(tape); 0 };
-fn tape_get(tape: i64, ptr: i64) -> i64 = load_u8(tape + ptr);
-fn tape_set(tape: i64, ptr: i64, val: i64) -> i64 = { store_u8(tape + ptr, val); 0 };
+// v0.60.123: add @inline to all hot path functions
+@inline fn tape_new() -> i64 = calloc(tape_size(), 1);  -- zero-initialized u8 array
+@inline fn tape_free(tape: i64) -> i64 = { free(tape); 0 };
+@inline fn tape_get(tape: i64, ptr: i64) -> i64 = load_u8(tape + ptr);
+@inline fn tape_set(tape: i64, ptr: i64, val: i64) -> i64 = { store_u8(tape + ptr, val); 0 };
 
 // Get byte at position in program string
+@inline
 fn get_char(prog: String, pos: i64) -> i64 =
     if pos >= prog.len() { 0 }
     else { prog.byte_at(pos) };
