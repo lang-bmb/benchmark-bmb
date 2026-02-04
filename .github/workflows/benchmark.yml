@@ -68,7 +68,7 @@ jobs:
           for dir in benches/*/*/c; do
             if [ -f "$dir/main.c" ]; then
               echo "Compiling $dir..."
-              gcc -O3 -o "$dir/main" "$dir/main.c" -lm || echo "Failed: $dir"
+              clang -O3 -o "$dir/main" "$dir/main.c" -lm || echo "Failed: $dir"
             fi
           done
 
@@ -109,13 +109,13 @@ jobs:
 
       - name: Compile all benchmarks
         run: |
-          # Install GCC
-          sudo apt-get update && sudo apt-get install -y gcc
+          # Install Clang (LLVM backend parity with BMB)
+          sudo apt-get update && sudo apt-get install -y clang
 
-          # Compile C
+          # Compile C with Clang
           for dir in benches/*/*/c; do
             if [ -f "$dir/main.c" ]; then
-              gcc -O3 -o "$dir/main" "$dir/main.c" -lm 2>/dev/null || true
+              clang -O3 -o "$dir/main" "$dir/main.c" -lm 2>/dev/null || true
             fi
           done
 

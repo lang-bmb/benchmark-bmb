@@ -11,7 +11,7 @@ BENCHES_DIR="$SCRIPT_DIR/benches"
 CFLAGS="-O3 -march=native"
 LDFLAGS="-lm"
 
-echo "Building C baselines with: gcc $CFLAGS"
+echo "Building C baselines with: clang $CFLAGS (LLVM backend parity)"
 echo ""
 
 count=0
@@ -27,13 +27,13 @@ for c_main in $(find "$BENCHES_DIR" -path "*/c/main.c" -type f); do
 
     output="$c_dir/c_bench.exe"
 
-    # Build with optimization
-    if gcc $CFLAGS -o "$output" "$c_main" $LDFLAGS 2>/dev/null; then
+    # Build with optimization (using Clang for fair comparison with BMB's LLVM backend)
+    if clang $CFLAGS -o "$output" "$c_main" $LDFLAGS 2>/dev/null; then
         echo "  -> OK: $output"
         ((count++))
     else
         # Try without -march=native (for portability)
-        if gcc -O3 -o "$output" "$c_main" $LDFLAGS 2>/dev/null; then
+        if clang -O3 -o "$output" "$c_main" $LDFLAGS 2>/dev/null; then
             echo "  -> OK (no -march): $output"
             ((count++))
         else

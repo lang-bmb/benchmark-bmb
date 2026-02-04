@@ -13,7 +13,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "=============================================="
-echo "BMB Benchmark Suite v0.60.58"
+echo "BMB Benchmark Suite v0.60.260"
+echo "Baseline: Clang -O3 (LLVM backend parity)"
 echo "=============================================="
 echo ""
 
@@ -67,9 +68,9 @@ benchmark() {
         bmb_time="N/A"
     fi
 
-    # Build C
+    # Build C (using Clang for fair comparison with BMB's LLVM backend)
     if [ -f "$c_src" ]; then
-        if gcc -O3 -march=native -o "$c_exe" "$c_src" -lm 2>/dev/null; then
+        if clang -O3 -march=native -o "$c_exe" "$c_src" -lm 2>/dev/null; then
             c_time=$(run_benchmark "$c_exe")
             printf "C: %6dms  " "$c_time"
         else
@@ -81,12 +82,14 @@ benchmark() {
         c_time="N/A"
     fi
 
-    # Calculate ratio
+    # Calculate ratio using awk (bc not always available)
     if [[ "$bmb_time" =~ ^[0-9]+$ ]] && [[ "$c_time" =~ ^[0-9]+$ ]] && [ "$c_time" -gt 0 ]; then
-        ratio=$(echo "scale=2; $bmb_time / $c_time" | bc)
-        if (( $(echo "$ratio <= 1.1" | bc -l) )); then
+        ratio=$(awk "BEGIN {printf \"%.2f\", $bmb_time / $c_time}")
+        ratio_check=$(awk "BEGIN {print ($bmb_time / $c_time <= 1.1) ? 1 : 0}")
+        ratio_warn=$(awk "BEGIN {print ($bmb_time / $c_time <= 1.5) ? 1 : 0}")
+        if [ "$ratio_check" -eq 1 ]; then
             printf "${GREEN}Ratio: ${ratio}x${NC}"
-        elif (( $(echo "$ratio <= 1.5" | bc -l) )); then
+        elif [ "$ratio_warn" -eq 1 ]; then
             printf "${YELLOW}Ratio: ${ratio}x${NC}"
         else
             printf "${RED}Ratio: ${ratio}x${NC}"
