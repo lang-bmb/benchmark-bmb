@@ -113,21 +113,22 @@ fn match_tttaccct(buf: i64, pos: i64, len: i64) -> i64 = {
     }
 };
 
-// Count pattern matches in buffer using tail recursion
-fn count_pattern1_loop(buf: i64, len: i64, i: i64, count: i64) -> i64 =
-    if i >= len { count }
-    else {
-        let m1 = if match_agggtaaa(buf, i, len) == 1 { 1 } else { 0 };
-        let m2 = if match_tttaccct(buf, i, len) == 1 { 1 } else { 0 };
-        count_pattern1_loop(buf, len, i + 1, count + m1 + m2)
+// Count pattern matches in buffer using while loop (v0.60.262)
+fn count_pattern1(buf: i64, len: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut count: i64 = 0;
+    while i < len {
+        let m1 = match_agggtaaa(buf, i, len);
+        let m2 = match_tttaccct(buf, i, len);
+        { count = count + m1 + m2; i = i + 1 }
     };
+    count
+};
 
-fn count_pattern1(buf: i64, len: i64) -> i64 = count_pattern1_loop(buf, len, 0, 0);
-
-// Generate test DNA sequence using tail recursion
-fn generate_dna_loop(buf: i64, len: i64, i: i64) -> i64 =
-    if i >= len { 0 }
-    else {
+// Generate test DNA sequence using while loop (v0.60.262)
+fn generate_dna_loop(buf: i64, len: i64) -> i64 = {
+    let mut i: i64 = 0;
+    while i < len {
         // Simple PRNG for DNA generation
         let seed = i * 1103515245 + 12345;
         let base_idx = (seed / 65536) % 4;
@@ -138,11 +139,13 @@ fn generate_dna_loop(buf: i64, len: i64, i: i64) -> i64 =
                  else { CHAR_T() };
 
         let _s = buffer_set(buf, i, ch);
-        generate_dna_loop(buf, len, i + 1)
+        { i = i + 1 }
     };
+    0
+};
 
 fn generate_dna(buf: i64, len: i64) -> i64 = {
-    let _gen = generate_dna_loop(buf, len, 0);
+    let _gen = generate_dna_loop(buf, len);
 
     // Insert some known patterns for testing
     let _s0 = buffer_set(buf, 100, CHAR_a());
