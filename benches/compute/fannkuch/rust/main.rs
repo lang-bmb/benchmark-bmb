@@ -1,7 +1,8 @@
-// Fannkuch-redux benchmark
-// Measures: permutation generation, array reversal
+// Fannkuch-Redux Benchmark
+// Measures: array manipulation, permutations
 
-fn fannkuch(n: usize) -> i32 {
+fn fannkuch(n: i32) -> i32 {
+    let n = n as usize;
     let mut perm = vec![0i32; n];
     let mut perm1 = vec![0i32; n];
     let mut count = vec![0i32; n];
@@ -11,9 +12,7 @@ fn fannkuch(n: usize) -> i32 {
     }
 
     let mut max_flips = 0;
-    let mut checksum = 0;
     let mut r = n;
-    let mut perm_count = 0;
 
     loop {
         while r != 1 {
@@ -26,51 +25,42 @@ fn fannkuch(n: usize) -> i32 {
         }
 
         let mut flips = 0;
-        loop {
-            let k = perm[0] as usize;
-            if k == 0 {
-                break;
-            }
-
-            let k2 = (k + 1) / 2;
-            for i in 0..k2 {
-                perm.swap(i, k - i);
+        let mut k = perm[0] as usize;
+        while k != 0 {
+            let mut i = 0;
+            let mut j = k;
+            while i < j {
+                perm.swap(i, j);
+                i += 1;
+                j -= 1;
             }
             flips += 1;
+            k = perm[0] as usize;
         }
 
-        max_flips = max_flips.max(flips);
-        if perm_count % 2 == 0 {
-            checksum += flips;
-        } else {
-            checksum -= flips;
+        if flips > max_flips {
+            max_flips = flips;
         }
 
         loop {
             if r == n {
-                println!("{}", checksum);
                 return max_flips;
             }
-
             let perm0 = perm1[0];
             for i in 0..r {
                 perm1[i] = perm1[i + 1];
             }
             perm1[r] = perm0;
-
             count[r] -= 1;
             if count[r] > 0 {
                 break;
             }
             r += 1;
         }
-
-        perm_count += 1;
     }
 }
 
 fn main() {
-    let n = 10;
-    let result = fannkuch(n);
-    println!("Pfannkuchen({}) = {}", n, result);
+    let result = fannkuch(11);
+    println!("{}", result);
 }

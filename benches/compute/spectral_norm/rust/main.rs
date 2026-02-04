@@ -1,54 +1,49 @@
-// Spectral norm benchmark (simplified)
-// Measures: matrix operations, floating-point arithmetic
+// Spectral Norm Benchmark
+// Measures: FP arithmetic, vector operations
 
-const N: usize = 1000;
-
-fn a(i: i64, j: i64) -> f64 {
-    1.0 / (((i + j) * (i + j + 1) / 2 + i + 1) as f64)
+fn a(i: usize, j: usize) -> f64 {
+    1.0 / ((i + j) * (i + j + 1) / 2 + i + 1) as f64
 }
 
-fn mult_av(v: &[f64; N], av: &mut [f64; N], n: usize) {
+fn multiply_av(n: usize, v: &[f64], av: &mut [f64]) {
     for i in 0..n {
         av[i] = 0.0;
         for j in 0..n {
-            av[i] += a(i as i64, j as i64) * v[j];
+            av[i] += a(i, j) * v[j];
         }
     }
 }
 
-fn mult_atv(v: &[f64; N], atv: &mut [f64; N], n: usize) {
+fn multiply_atv(n: usize, v: &[f64], atv: &mut [f64]) {
     for i in 0..n {
         atv[i] = 0.0;
         for j in 0..n {
-            atv[i] += a(j as i64, i as i64) * v[j];
+            atv[i] += a(j, i) * v[j];
         }
     }
 }
 
-fn mult_atav(v: &[f64; N], atav: &mut [f64; N], n: usize, u: &mut [f64; N]) {
-    mult_av(v, u, n);
-    mult_atv(u, atav, n);
+fn multiply_atav(n: usize, v: &[f64], atav: &mut [f64], tmp: &mut [f64]) {
+    multiply_av(n, v, tmp);
+    multiply_atv(n, tmp, atav);
 }
 
 fn main() {
-    let n = N;
-    let mut u = [1.0f64; N];
-    let mut v = [0.0f64; N];
-    let mut tmp = [0.0f64; N];
+    let n: usize = 2000;
+    let mut u = vec![1.0_f64; n];
+    let mut v = vec![0.0_f64; n];
+    let mut tmp = vec![0.0_f64; n];
 
-    // 30 iterations for stable measurement (target: ~111ms)
-    for _ in 0..30 {
-        mult_atav(&u, &mut v, n, &mut tmp);
-        mult_atav(&v, &mut u, n, &mut tmp);
+    for _ in 0..10 {
+        multiply_atav(n, &u, &mut v, &mut tmp);
+        multiply_atav(n, &v, &mut u, &mut tmp);
     }
 
-    let mut vbv = 0.0f64;
-    let mut vv = 0.0f64;
-
+    let mut vbv = 0.0_f64;
+    let mut vv = 0.0_f64;
     for i in 0..n {
         vbv += u[i] * v[i];
         vv += v[i] * v[i];
     }
-
     println!("{:.9}", (vbv / vv).sqrt());
 }

@@ -1,23 +1,26 @@
-// Mandelbrot set computation benchmark
-// Measures: floating-point arithmetic (fixed-point), loops
-// Uses fixed-point arithmetic to match C/BMB versions
+// Mandelbrot Set Benchmark (fixed-point version)
+// Measures: integer arithmetic, nested loops
+// Matches BMB/C implementation for fair comparison
 
 const SCALE: i64 = 10000;
 
+#[inline]
 fn mul_fp(a: i64, b: i64) -> i64 {
     (a * b) / SCALE
 }
 
+#[inline]
 fn square_fp(x: i64) -> i64 {
     mul_fp(x, x)
 }
 
 fn iterate(cr: i64, ci: i64, mut zr: i64, mut zi: i64, mut iter: i64, max_iter: i64) -> i64 {
+    let threshold = 4 * SCALE * SCALE;
     while iter < max_iter {
         let zr2 = square_fp(zr);
         let zi2 = square_fp(zi);
         let mag = zr2 + zi2;
-        if mag > 4 * SCALE * SCALE {
+        if mag > threshold {
             return iter;
         }
         let new_zr = zr2 - zi2 + cr;
@@ -48,6 +51,5 @@ fn main() {
             }
         }
     }
-
     println!("{}", count);
 }

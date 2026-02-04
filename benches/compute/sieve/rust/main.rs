@@ -1,41 +1,29 @@
-// Sieve of Eratosthenes - Prime number benchmark
-// Measures: array operations, loop performance
+// Sieve of Eratosthenes Benchmark
+// Measures: array access, branching
 
-fn sieve(n: usize) -> i64 {
-    let mut arr = vec![true; n + 1];
+fn main() {
+    let n: usize = 10_000_000;
+    let mut sieve = vec![true; n + 1];
+    sieve[0] = false;
+    sieve[1] = false;
 
-    arr[0] = false;
-    arr[1] = false;
-
-    // Sieve
-    let mut i = 2;
+    let mut i: usize = 2;
     while i * i <= n {
-        if arr[i] {
+        if sieve[i] {
             let mut j = i * i;
             while j <= n {
-                arr[j] = false;
+                sieve[j] = false;
                 j += i;
             }
         }
         i += 1;
     }
 
-    // Count primes
     let mut count: i64 = 0;
-    for i in 2..=n {
-        if arr[i] {
+    for i in 0..=n {
+        if sieve[i] {
             count += 1;
         }
     }
-
-    count
-}
-
-fn main() {
-    // 1500 iterations for stable measurement (target: ~140ms)
-    let mut result: i64 = 0;
-    for _ in 0..1500 {
-        result += sieve(100000);
-    }
-    println!("{}", result);
+    println!("{}", count);
 }

@@ -1,25 +1,28 @@
-// brainfuck - Esoteric language interpreter benchmark
+// Brainfuck Interpreter Benchmark
 // Tests interpreter overhead, loop handling, array access
-// Self-contained with embedded test program
-
-use std::io::{self, Read, Write};
 
 const TAPE_SIZE: usize = 30000;
 
-/// Brainfuck interpreter
-/// Instructions: > < + - . , [ ]
 fn interpret(program: &[u8]) {
-    let mut tape = vec![0u8; TAPE_SIZE];
+    let mut tape = [0u8; TAPE_SIZE];
     let mut ptr: usize = 0;
     let mut pc: usize = 0;
+    let len = program.len();
 
-    while pc < program.len() {
+    while pc < len {
         match program[pc] {
             b'>' => {
-                ptr = (ptr + 1) % TAPE_SIZE;
+                ptr += 1;
+                if ptr >= TAPE_SIZE {
+                    ptr = 0;
+                }
             }
             b'<' => {
-                ptr = if ptr == 0 { TAPE_SIZE - 1 } else { ptr - 1 };
+                if ptr == 0 {
+                    ptr = TAPE_SIZE - 1;
+                } else {
+                    ptr -= 1;
+                }
             }
             b'+' => {
                 tape[ptr] = tape[ptr].wrapping_add(1);
@@ -29,38 +32,32 @@ fn interpret(program: &[u8]) {
             }
             b'.' => {
                 print!("{}", tape[ptr] as char);
-                let _ = io::stdout().flush();
             }
             b',' => {
-                let mut buf = [0u8; 1];
-                if io::stdin().read(&mut buf).is_ok() {
-                    tape[ptr] = buf[0];
-                }
+                // Skip input in benchmark
             }
             b'[' => {
                 if tape[ptr] == 0 {
-                    // Jump forward to matching ]
                     let mut depth = 1;
                     while depth > 0 {
                         pc += 1;
-                        match program[pc] {
-                            b'[' => depth += 1,
-                            b']' => depth -= 1,
-                            _ => {}
+                        if program[pc] == b'[' {
+                            depth += 1;
+                        } else if program[pc] == b']' {
+                            depth -= 1;
                         }
                     }
                 }
             }
             b']' => {
                 if tape[ptr] != 0 {
-                    // Jump back to matching [
                     let mut depth = 1;
                     while depth > 0 {
                         pc -= 1;
-                        match program[pc] {
-                            b']' => depth += 1,
-                            b'[' => depth -= 1,
-                            _ => {}
+                        if program[pc] == b']' {
+                            depth += 1;
+                        } else if program[pc] == b'[' {
+                            depth -= 1;
                         }
                     }
                 }
@@ -71,32 +68,31 @@ fn interpret(program: &[u8]) {
     }
 }
 
-// Test programs
 const HELLO_WORLD: &[u8] = b"++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
 
-// Nested loops (1000 iterations to match BMB)
 const NESTED_LOOPS: &[u8] = b"++++++++++[>++++++++++[>++++++++++[>+<-]<-]<-]>>>[-]++++++++[>+++++++++++<-]>.[-]++++++++++.";
 
-// Simple add test
-const ADD_TEST: &[u8] = b"++++++++[>++++++++<-]>."; // 8 * 8 = 64 = '@'
+const ADD_TEST: &[u8] = b"++++++++[>++++++++<-]>.";
+
+fn run_benchmark_loop(n: i32) {
+    for _ in 0..n {
+        interpret(HELLO_WORLD);
+        interpret(NESTED_LOOPS);
+        interpret(ADD_TEST);
+    }
+}
 
 fn main() {
     println!("Brainfuck Interpreter Benchmark");
-
-    // Run Hello World
     print!("Hello World: ");
     interpret(HELLO_WORLD);
     println!();
-
-    // Run nested loops benchmark
     print!("Nested loops (1000 iterations): ");
     interpret(NESTED_LOOPS);
     println!();
-
-    // Run add test
     print!("Add test (8*8=@): ");
     interpret(ADD_TEST);
     println!();
-
+    run_benchmark_loop(9);
     println!("Done.");
 }

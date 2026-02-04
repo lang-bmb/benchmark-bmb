@@ -1,32 +1,28 @@
 // Collatz Conjecture Benchmark
-// Measures: branching, integer operations, loop performance
+// Measures: branching, integer arithmetic
 
 fn collatz_length(mut n: i64) -> i64 {
-    let mut steps: i64 = 0;
-    while n > 1 {
+    let mut len: i64 = 0;
+    while n != 1 {
         if n % 2 == 0 {
-            n = n / 2;
+            n /= 2;
         } else {
             n = 3 * n + 1;
         }
-        steps += 1;
+        len += 1;
     }
-    steps
-}
-
-fn sum_collatz_lengths(start: i64, end: i64) -> i64 {
-    let mut acc: i64 = 0;
-    for i in start..=end {
-        acc += collatz_length(i);
-    }
-    acc
+    len
 }
 
 fn main() {
-    // 200 iterations for stable measurement (target: ~116ms)
-    let mut result: i64 = 0;
-    for _ in 0..200 {
-        result += sum_collatz_lengths(1, 10000);
+    let mut max_len: i64 = 0;
+    let mut max_n: i64 = 0;
+    for n in 1..10_000_000i64 {
+        let len = collatz_length(n);
+        if len > max_len {
+            max_len = len;
+            max_n = n;
+        }
     }
-    println!("{}", result);
+    println!("{} {}", max_n, max_len);
 }

@@ -1,5 +1,5 @@
-// GCD (Greatest Common Divisor) Benchmark
-// Measures: loops, modulo operations, integer arithmetic
+// GCD Benchmark - Euclidean algorithm
+// Measures: integer division, recursion/iteration
 
 fn gcd(mut a: i64, mut b: i64) -> i64 {
     while b != 0 {
@@ -10,21 +10,10 @@ fn gcd(mut a: i64, mut b: i64) -> i64 {
     a
 }
 
-fn sum_gcds(n: i64) -> i64 {
-    let mut acc: i64 = 0;
-    for i in 1..=n {
-        for j in 1..=n {
-            acc += gcd(i, j);
-        }
-    }
-    acc
-}
-
 fn main() {
-    // 100 iterations for stable measurement (target: ~130ms)
-    let mut result: i64 = 0;
-    for _ in 0..100 {
-        result += sum_gcds(300);
+    let mut sum: i64 = 0;
+    for i in 1..50_000_000i64 {
+        sum += gcd(i, i + 7);
     }
-    println!("{}", result);
+    println!("{}", sum);
 }

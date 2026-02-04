@@ -1,128 +1,145 @@
-// Sorting benchmark
-// Measures: Comparison-based sorting, data movement
+// Sorting Benchmark
+// Measures: comparison operations, data movement
 
-fn quicksort(arr: &mut [i64], low: usize, high: usize) {
-    if low < high {
-        let pivot = partition(arr, low, high);
-        if pivot > 0 {
-            quicksort(arr, low, pivot - 1);
-        }
-        quicksort(arr, pivot + 1, high);
-    }
-}
-
-fn partition(arr: &mut [i64], low: usize, high: usize) -> usize {
-    let pivot = arr[high];
-    let mut i = low;
-
-    for j in low..high {
-        if arr[j] < pivot {
-            arr.swap(i, j);
-            i += 1;
+fn bubble_sort(arr: &mut [i64]) -> i64 {
+    let n = arr.len();
+    let mut comparisons: i64 = 0;
+    for i in 0..n - 1 {
+        for j in 0..n - i - 1 {
+            comparisons += 1;
+            if arr[j] > arr[j + 1] {
+                arr.swap(j, j + 1);
+            }
         }
     }
-
-    arr.swap(i, high);
-    i
+    comparisons
 }
 
-fn insertion_sort(arr: &mut [i64]) {
-    for i in 1..arr.len() {
+fn insertion_sort(arr: &mut [i64]) -> i64 {
+    let n = arr.len();
+    let mut cost: i64 = 0;
+    for i in 1..n {
         let key = arr[i];
-        let mut j = i;
-        while j > 0 && arr[j - 1] > key {
-            arr[j] = arr[j - 1];
+        let mut j = i as i64 - 1;
+        while j >= 0 && arr[j as usize] > key {
+            arr[(j + 1) as usize] = arr[j as usize];
             j -= 1;
+            cost += 1;
         }
-        arr[j] = key;
+        arr[(j + 1) as usize] = key;
+        cost += 1;
     }
+    cost
 }
 
-fn merge_sort(arr: &mut [i64]) {
-    let len = arr.len();
-    if len <= 1 {
-        return;
-    }
+fn merge(arr: &mut [i64], l: usize, m: usize, r: usize, cost: &mut i64) {
+    let n1 = m - l + 1;
+    let n2 = r - m;
+    let left: Vec<i64> = arr[l..=m].to_vec();
+    let right: Vec<i64> = arr[m + 1..=r].to_vec();
 
-    let mid = len / 2;
-    merge_sort(&mut arr[..mid]);
-    merge_sort(&mut arr[mid..]);
-
-    let mut temp = arr.to_vec();
-    merge(&arr[..mid], &arr[mid..], &mut temp);
-    arr.copy_from_slice(&temp);
-}
-
-fn merge(left: &[i64], right: &[i64], result: &mut [i64]) {
     let mut i = 0;
     let mut j = 0;
-    let mut k = 0;
+    let mut k = l;
 
-    while i < left.len() && j < right.len() {
+    while i < n1 && j < n2 {
+        *cost += 1;
         if left[i] <= right[j] {
-            result[k] = left[i];
+            arr[k] = left[i];
             i += 1;
         } else {
-            result[k] = right[j];
+            arr[k] = right[j];
             j += 1;
         }
         k += 1;
     }
 
-    while i < left.len() {
-        result[k] = left[i];
+    while i < n1 {
+        arr[k] = left[i];
         i += 1;
         k += 1;
     }
 
-    while j < right.len() {
-        result[k] = right[j];
+    while j < n2 {
+        arr[k] = right[j];
         j += 1;
         k += 1;
     }
 }
 
-fn is_sorted(arr: &[i64]) -> bool {
-    for i in 1..arr.len() {
-        if arr[i - 1] > arr[i] {
-            return false;
-        }
+fn merge_sort_helper(arr: &mut [i64], l: usize, r: usize, cost: &mut i64) {
+    if l < r {
+        let m = l + (r - l) / 2;
+        merge_sort_helper(arr, l, m, cost);
+        merge_sort_helper(arr, m + 1, r, cost);
+        merge(arr, l, m, r, cost);
     }
-    true
 }
 
-fn generate_random(seed: u64, index: usize) -> i64 {
-    let a = 1103515245u64;
-    let c = 12345u64;
-    let m = 1u64 << 31;
-    (((seed.wrapping_mul(a).wrapping_add(c).wrapping_add(index as u64)) % m) % 10000) as i64
+fn merge_sort(arr: &mut [i64]) -> i64 {
+    let mut cost: i64 = 0;
+    if !arr.is_empty() {
+        merge_sort_helper(arr, 0, arr.len() - 1, &mut cost);
+    }
+    cost
+}
+
+fn partition(arr: &mut [i64], low: usize, high: usize, cost: &mut i64) -> usize {
+    let pivot = arr[high];
+    let mut i = low as i64 - 1;
+    for j in low..high {
+        *cost += 1;
+        if arr[j] <= pivot {
+            i += 1;
+            arr.swap(i as usize, j);
+        }
+    }
+    arr.swap((i + 1) as usize, high);
+    (i + 1) as usize
+}
+
+fn quick_sort_helper(arr: &mut [i64], low: usize, high: usize, cost: &mut i64) {
+    if low < high {
+        let pi = partition(arr, low, high, cost);
+        if pi > 0 {
+            quick_sort_helper(arr, low, pi - 1, cost);
+        }
+        quick_sort_helper(arr, pi + 1, high, cost);
+    }
+}
+
+fn quick_sort(arr: &mut [i64]) -> i64 {
+    let mut cost: i64 = 0;
+    if arr.len() > 1 {
+        quick_sort_helper(arr, 0, arr.len() - 1, &mut cost);
+    }
+    cost
 }
 
 fn main() {
-    let size = 5000;
-    let seed = 12345u64;
-    let mut checksum = 0i64;
+    let mut total: i64 = 0;
 
-    // Test quicksort
-    for iter in 0..10 {
-        let mut arr: Vec<i64> = (0..size).map(|i| generate_random(seed + iter as u64, i)).collect();
-        let high = arr.len() - 1;
-        quicksort(&mut arr, 0, high);
-        if is_sorted(&arr) {
-            checksum += 1;
+    for sizes in (1..=200).rev() {
+        let size = sizes * 10;
+        let mut arr: Vec<i64> = (0..size).map(|i| (size - i) as i64).collect();
+
+        total += bubble_sort(&mut arr);
+
+        for i in 0..size {
+            arr[i] = (size - i) as i64;
         }
-        checksum += arr[0] + arr[size - 1];
+        total += insertion_sort(&mut arr);
+
+        for i in 0..size {
+            arr[i] = (size - i) as i64;
+        }
+        total += merge_sort(&mut arr);
+
+        for i in 0..size {
+            arr[i] = (size - i) as i64;
+        }
+        total += quick_sort(&mut arr);
     }
 
-    // Test merge_sort
-    for iter in 0..10 {
-        let mut arr: Vec<i64> = (0..size).map(|i| generate_random(seed + iter as u64 + 100, i)).collect();
-        merge_sort(&mut arr);
-        if is_sorted(&arr) {
-            checksum += 1;
-        }
-        checksum += arr[0] + arr[size - 1];
-    }
-
-    println!("{}", checksum);
+    println!("{}", total);
 }
