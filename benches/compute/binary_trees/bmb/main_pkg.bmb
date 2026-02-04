@@ -1,0 +1,55 @@
+// Binary trees benchmark using bmb-tree package (v0.60.251)
+// Measures: memory allocation, tree traversal, recursion
+// Uses @include to import bmb-tree package
+
+@include "bmb-tree/src/tree.bmb"
+
+// Run iterations at given depth - while loop version
+fn run_iterations(depth: i64, iterations: i64) -> i64 = {
+    let mut i: i64 = 0;
+    let mut check: i64 = 0;
+    while i < iterations {
+        let tree = make_tree(depth);
+        let c = check_tree(tree);
+        let _f = free_tree(tree);
+        { check = check + c };
+        { i = i + 1 };
+    };
+    check
+};
+
+// Main benchmark (depth aligned with C version for fair comparison)
+fn main() -> i64 = {
+    let min_depth = 4;
+    let max_depth = 14;
+    let stretch_depth = max_depth + 1;
+
+    // Stretch tree
+    let stretch_tree = make_tree(stretch_depth);
+    let stretch_check = check_tree(stretch_tree);
+    let _p1 = println(stretch_check);
+    let _f1 = free_tree(stretch_tree);
+
+    // Long-lived tree
+    let long_lived_tree = make_tree(max_depth);
+
+    // Iterate through depths - while loop version
+    let mut depth: i64 = min_depth;
+    let mut total: i64 = 0;
+    while depth <= max_depth {
+        let iterations = shift_left(1, max_depth - depth + 4);
+        let check = run_iterations(depth, iterations);
+        let _p = println(check);
+        { total = total + check };
+        { depth = depth + 2 };
+    };
+
+    // Long-lived tree check
+    let long_check = check_tree(long_lived_tree);
+    let _p2 = println(long_check);
+    let _f2 = free_tree(long_lived_tree);
+
+    let result = total + long_check;
+    let _u = println(result);
+    0
+};
