@@ -61,6 +61,7 @@ fn fannkuch(n: i32) -> i32 {
 }
 
 fn main() {
-    let result = fannkuch(11);
-    println!("{}", result);
+    // Match BMB/C: n=10
+    let n = 10;
+    println!("Pfannkuchen({}) = {}", n, fannkuch(n));
 }
