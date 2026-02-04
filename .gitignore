@@ -50,3 +50,6 @@ run_available_benchmarks.ps1
 run_final_benchmarks.ps1
 # Auto-generated benchmark runner scripts
 **/run.cmd
+
+# Proof cache files
+*.proofcache
