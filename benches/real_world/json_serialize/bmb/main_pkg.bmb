@@ -1,0 +1,112 @@
+// json-serialize - JSON serialization benchmark (Package Version)
+// Uses bmb-string package via @include
+// v0.60.251: Dogfooding - reuses gotgan package code
+
+@include "bmb-string/src/string.bmb"
+
+fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
+
+// Write JSON string (with quotes) to StringBuilder
+fn json_string_to_sb(s: String, sb: i64) -> i64 = {
+    let u1 = sb_push_char(sb, 34);  -- opening quote
+    let u2 = sb_push_escaped(sb, s);  -- escape & push entire string in one call
+    sb_push_char(sb, 34)  -- closing quote
+};
+
+// Write JSON integer to StringBuilder
+fn json_int_to_sb(n: i64, sb: i64) -> i64 =
+    sb_push_int(sb, n);
+
+// Serialize person object to StringBuilder
+fn serialize_person_to_sb(name: String, age: i64, city: String, salary: i64, sb: i64) -> i64 = {
+    let u1 = sb_push(sb, "{\"name\":");
+    let u2 = json_string_to_sb(name, sb);
+    let u3 = sb_push(sb, ",\"age\":");
+    let u4 = json_int_to_sb(age, sb);
+    let u5 = sb_push(sb, ",\"city\":");
+    let u6 = json_string_to_sb(city, sb);
+    let u7 = sb_push(sb, ",\"salary\":");
+    let u8 = json_int_to_sb(salary, sb);
+    sb_push(sb, "}")
+};
+
+// Serialize integer array to StringBuilder
+fn serialize_int_array(arr: i64, len: i64, sb: i64) -> i64 = {
+    let u0 = sb_push_char(sb, 91);  -- [
+    let mut i: i64 = 0;
+    while i < len { {
+        i = if i > 0 { { sb_push_char(sb, 44); i } } else { i };  -- comma
+        sb_push_int(sb, load_i64(arr + i * 8));
+        i = i + 1;
+        ()
+    } };
+    sb_push_char(sb, 93)  -- ]
+};
+
+// Test strings with special characters
+fn name_with_quote() -> String = "Alice \"The Great\"";
+fn city_with_newline() -> String = "Los\nAngeles";
+
+// Benchmark: serialize many structures using StringBuilder
+fn run_benchmark(iterations: i64) -> i64 = {
+    let mut total_len: i64 = 0;
+    let mut i: i64 = 0;
+    let sb = sb_new();
+    let mut len1: i64 = 0;
+    let mut len2: i64 = 0;
+    let mut len3: i64 = 0;
+
+    -- Create test array [1,2,3,4,5,6,7,8,9,10]
+    let arr = calloc(10, 8);
+    let mut j: i64 = 0;
+    while j < 10 { {
+        store_i64(arr + j * 8, j + 1);
+        j = j + 1;
+        ()
+    } };
+
+    while i < iterations { {
+        sb_clear(sb);
+        serialize_person_to_sb("John Doe", 30, "New York", 50000, sb);
+        len1 = sb_len(sb);
+
+        sb_clear(sb);
+        serialize_int_array(arr, 10, sb);
+        len2 = sb_len(sb);
+
+        sb_clear(sb);
+        serialize_person_to_sb(name_with_quote(), 25, city_with_newline(), 60000, sb);
+        len3 = sb_len(sb);
+
+        total_len = total_len + len1 + len2 + len3;
+        i = i + 1;
+        ()
+    } };
+
+    let u = free(arr);
+    total_len
+};
+
+fn main() -> i64 = {
+    let u1 = printline("JSON Serialize Benchmark");
+
+    let total = run_benchmark(10000);
+
+    let u2 = printline("Total characters: " + int_to_string(total));
+    let u3 = printline("Sample output:");
+
+    let sb = sb_new();
+    let s = serialize_person_to_sb("Test User", 42, "Boston", 75000, sb);
+    let sample1 = sb_build(sb);
+    let u4 = printline("  Object: " + sample1);
+
+    sb_clear(sb);
+    let arr = calloc(5, 8);
+    let mut i: i64 = 0;
+    while i < 5 { { store_i64(arr + i * 8, i + 1); i = i + 1; () } };
+    let s2 = serialize_int_array(arr, 5, sb);
+    let sample2 = sb_build(sb);
+    let u5 = printline("  Array: " + sample2);
+
+    printline("Done.")
+};
