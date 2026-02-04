@@ -1,18 +1,23 @@
-// Digital Root Benchmark v0.60.123
+// Digital Root Benchmark v0.60.261
+// v0.60.261: Optimized - compute div/mod together, assign in single block
 // v0.60.123: Add @inline to prevent parameter narrowing overhead
 // v0.60.62: Use while loops instead of recursion
 
+// Digit sum - extract digits and sum them
 @inline
 fn digit_sum(n: i64) -> i64 = {
     let mut num: i64 = n;
     let mut acc: i64 = 0;
     while num > 0 {
-        { acc = acc + num % 10 };
-        { num = num / 10 }
+        // Compute both mod and div, then update both in one block
+        let d = num % 10;
+        let q = num / 10;
+        { acc = acc + d; num = q }
     };
     acc
 };
 
+// Digital root: repeatedly sum digits until single digit
 @inline
 fn digital_root(n: i64) -> i64 = {
     let mut num: i64 = n;
@@ -22,12 +27,12 @@ fn digital_root(n: i64) -> i64 = {
     num
 };
 
+// Sum digital roots from 1 to n
 fn sum_digital_roots(n: i64) -> i64 = {
     let mut i: i64 = 1;
     let mut acc: i64 = 0;
     while i <= n {
-        { acc = acc + digital_root(i) };
-        { i = i + 1 }
+        { acc = acc + digital_root(i); i = i + 1 }
     };
     acc
 };
@@ -37,8 +42,7 @@ fn main() -> i64 = {
     let mut result: i64 = 0;
     let mut iter: i64 = 0;
     while iter < 10 {
-        { result = result + sum_digital_roots(100000) };
-        { iter = iter + 1 }
+        { result = result + sum_digital_roots(100000); iter = iter + 1 }
     };
     let _p = println(result);
     0
