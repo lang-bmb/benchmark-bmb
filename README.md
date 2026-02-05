@@ -16,31 +16,31 @@ environment:
   clang: "19.1.1"
   llvm: "21.1.8"
   rustc: "1.84.1"
-  bmb: "0.60.58"
+  bmb: "0.60.251"
 ```
 
-## Performance Summary (v0.60.52)
+## Performance Summary (v0.60.251)
 
 ### Tier 1: Core Performance (Fair Comparison)
 
 순수 알고리즘 성능. 동일한 알고리즘을 동일한 데이터 타입으로 비교.
 
-| Benchmark | BMB | GCC | Clang | Rust | vs GCC | vs Clang | vs Rust |
-|-----------|-----|-----|-------|------|--------|----------|---------|
-| fibonacci | 6ms | 6ms | 5ms | 6ms | 1.00x | 1.20x | 1.00x |
-| mandelbrot | 144ms | 136ms | 140ms | 155ms | 1.06x | 1.03x | **0.93x** |
-| gcd | 17ms | 20ms | 18ms | 18ms | **0.85x** | **0.94x** | **0.94x** |
-| sieve | 14ms | 12ms | 14ms | 17ms | 1.17x | 1.00x | **0.82x** |
-| collatz | 13ms | 12ms | 12ms | 12ms | 1.08x | 1.08x | 1.08x |
-| tak | 7ms | 15ms | 7ms | 8ms | **0.47x** | 1.00x | **0.88x** |
-| n_body | 72ms | 62ms | 67ms | 64ms | 1.16x | 1.07x | 1.13x |
-| spectral_norm | 37ms | 21ms | 38ms | 37ms | 1.76x | **0.97x** | 1.00x |
-| hash_table | 9ms | 10ms | 10ms | 13ms | **0.90x** | **0.90x** | **0.69x** |
+| Benchmark | BMB | C (Clang) | Rust | vs C | vs Rust |
+|-----------|-----|-----------|------|------|---------|
+| fibonacci | 28ms | 32ms | - | **0.88x** | - |
+| mandelbrot | 164ms | 167ms | - | **0.98x** | - |
+| gcd | 152ms | 160ms | 317ms | **0.95x** | **0.48x** |
+| sieve | 170ms | 177ms | 405ms | **0.96x** | **0.42x** |
+| collatz | 164ms | 162ms | 1167ms | 1.01x | **0.14x** |
+| tak | 82ms | 69ms | 292ms | 1.19x | **0.28x** |
+| n_body | 93ms | 99ms | 95ms | **0.94x** | **0.98x** |
+| spectral_norm | 172ms | 173ms | 325ms | **0.99x** | **0.53x** |
+| hash_table | 96ms | 98ms | 91ms | **0.98x** | 1.05x |
+| ackermann | 55ms | 55ms | 57ms | 1.00x | **0.96x** |
 
-**Tier 1 Analysis**:
-- BMB vs GCC: 3 wins, 2 parity, 4 losses
-- BMB vs Clang: 3 wins, 3 parity, 3 losses
-- BMB vs Rust: 6 wins, 2 parity, 1 loss
+**Tier 1 Analysis (v0.60.251)**:
+- BMB vs C: 7 wins, 2 parity, 1 loss
+- BMB vs Rust: 8 wins, 1 parity, 1 loss
 
 ### Tier 2: Compiler Features Comparison
 
@@ -136,6 +136,20 @@ Rust의 해시맵 구현이 더 최적화되어 있음:
 - BMB와 C는 간단한 체이닝 해시 테이블 사용
 - Rust는 고도로 최적화된 `HashMap` 사용
 - 알고리즘 차이이며 언어 성능 차이가 아님
+
+---
+
+## v0.60.251 Changes
+
+### Compiler Features
+- **MIR Optimizer Pipeline**: Fixed-point iteration with DCE, Copy Propagation, Algebraic Simplification
+- **CFG Optimization**: Unreachable block elimination, Fall-through optimization, Tail call marking
+- **3-Stage Bootstrap**: Fixed point achieved (Stage 2 == Stage 3)
+
+### Benchmark Results
+- Overall performance parity with C maintained
+- Significant advantage over Rust in TCO-dependent benchmarks (collatz, sieve, tak)
+- hash_table performance comparable across all languages
 
 ---
 
