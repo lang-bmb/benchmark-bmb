@@ -41,15 +41,18 @@ fn loop_with_invariant(iterations: i64, constant: i64, acc: i64) -> i64
     loop_with_invariant(iterations - 1, constant, acc + expensive_pure(constant))
   };
 
-// Run iterations
-fn run_iterations(remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 {
-    acc
-  } else {
-    let sum_result = sum_with_pure(20, 0);
-    let loop_result = loop_with_invariant(100, 25, 0);
-    run_iterations(remaining - 1, acc + sum_result + loop_result)
-  };
-
 // Main entry point
-fn main() -> i64 = run_iterations(1000, 0);
+fn main() -> i64 = {
+    let mut remaining: i64 = 1000;
+    let mut acc: i64 = 0;
+
+    while remaining > 0 {
+        let sum_result = sum_with_pure(20, 0);
+        let loop_result = loop_with_invariant(100, 25, 0);
+        { acc = acc + sum_result + loop_result };
+        { remaining = remaining - 1 }
+    };
+
+    println(acc);
+    0
+};

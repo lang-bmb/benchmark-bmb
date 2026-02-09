@@ -29,19 +29,21 @@ fn dot_product(a: [i64; 10], b: [i64; 10], idx: i64, acc: i64) -> i64
     dot_product(a, b, idx + 1, acc + a[idx] * b[idx])
   };
 
-// Run iterations
-fn run_iterations(a: [i64; 10], b: [i64; 10], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 {
-    acc
-  } else {
-    let sum_result = sum_arrays(a, b, 0, 0);
-    let dot_result = dot_product(a, b, 0, 0);
-    run_iterations(a, b, remaining - 1, acc + sum_result + dot_result)
-  };
-
 // Main entry point
 fn main() -> i64 = {
     let a: [i64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let b: [i64; 10] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-    run_iterations(a, b, 10000, 0)
+
+    let mut remaining: i64 = 10000;
+    let mut acc: i64 = 0;
+
+    while remaining > 0 {
+        let sum_result = sum_arrays(a, b, 0, 0);
+        let dot_result = dot_product(a, b, 0, 0);
+        { acc = acc + sum_result + dot_result };
+        { remaining = remaining - 1 }
+    };
+
+    println(acc);
+    0
 };

@@ -8,26 +8,17 @@
 // Actual: Analyze LLVM IR to understand optimization
 
 // WITH CONTRACT: Pre-condition proves bounds, no runtime check needed
-fn sum_with_contract(arr: [i64; 100], start: i64, end: i64, acc: i64) -> i64
-  pre start >= 0 and end <= 100 and start <= end
-= if start >= end { acc } else { sum_with_contract(arr, start + 1, end, acc + arr[start]) };
+fn sum_element_with_contract(arr: [i64; 100], idx: i64) -> i64
+  pre idx >= 0 and idx < 100
+= arr[idx];
 
 // WITHOUT CONTRACT: Must check bounds at runtime (simulated)
-fn sum_without_contract(arr: [i64; 100], start: i64, end: i64, acc: i64) -> i64 =
-  if start < 0 { acc }
-  else if end > 100 { acc }
-  else if start >= end { acc }
-  else { sum_without_contract(arr, start + 1, end, acc + arr[start]) };
+fn sum_element_without_contract(arr: [i64; 100], idx: i64) -> i64 =
+  if idx < 0 { 0 }
+  else if idx >= 100 { 0 }
+  else { arr[idx] };
 
-// Run iterations with contract
-fn run_with_contract(arr: [i64; 100], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_with_contract(arr, remaining - 1, acc + sum_with_contract(arr, 0, 100, 0)) };
-
-// Run iterations without contract
-fn run_without_contract(arr: [i64; 100], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_without_contract(arr, remaining - 1, acc + sum_without_contract(arr, 0, 100, 0)) };
-
-// Main - run both versions for comparison
+// Main - run both versions for comparison using loops
 fn main() -> i64 = {
     let arr: [i64; 100] = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -36,7 +27,25 @@ fn main() -> i64 = {
         61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
         81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
     ];
-    let with_contract = run_with_contract(arr, 1000, 0);
-    let without_contract = run_without_contract(arr, 1000, 0);
-    with_contract + without_contract
+
+    let mut with_contract: i64 = 0;
+    let mut without_contract: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < 1000 {
+        let mut i: i64 = 0;
+        let mut sum1: i64 = 0;
+        let mut sum2: i64 = 0;
+        while i < 100 {
+            { sum1 = sum1 + sum_element_with_contract(arr, i) };
+            { sum2 = sum2 + sum_element_without_contract(arr, i) };
+            { i = i + 1 };
+        };
+        { with_contract = with_contract + sum1 };
+        { without_contract = without_contract + sum2 };
+        { iter = iter + 1 };
+    };
+
+    println(with_contract + without_contract);
+    0
 };

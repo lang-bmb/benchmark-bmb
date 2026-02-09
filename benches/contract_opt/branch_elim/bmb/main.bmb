@@ -27,41 +27,38 @@ fn safe_divide_without_contract(a: i64, b: i64) -> i64 =
   else if a < 0 { 0 }
   else { a / b };
 
-// Compute with contract (dead branches should be eliminated)
-fn compute_with_contract(values: [i64; 32], idx: i64, acc: i64) -> i64
-  pre idx >= 0
-= if idx >= 32 { acc } else {
-    let value = values[idx];
-    let abs_val = abs_with_contract(value);  // value is positive by construction
-    let divided = safe_divide_with_contract(abs_val, 2);
-    compute_with_contract(values, idx + 1, acc + divided)
-  };
-
-// Compute without contract (all branches must be evaluated)
-fn compute_without_contract(values: [i64; 32], idx: i64, acc: i64) -> i64 =
-  if idx < 0 { acc }
-  else if idx >= 32 { acc }
-  else {
-    let value = values[idx];
-    let abs_val = abs_without_contract(value);
-    let divided = safe_divide_without_contract(abs_val, 2);
-    compute_without_contract(values, idx + 1, acc + divided)
-  };
-
-// Run iterations
-fn run_with_contract(values: [i64; 32], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_with_contract(values, remaining - 1, acc + compute_with_contract(values, 0, 0)) };
-
-fn run_without_contract(values: [i64; 32], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_without_contract(values, remaining - 1, acc + compute_without_contract(values, 0, 0)) };
-
 // Main
 fn main() -> i64 = {
     let values: [i64; 32] = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
     ];
-    let with_contract = run_with_contract(values, 1000, 0);
-    let without_contract = run_without_contract(values, 1000, 0);
-    with_contract + without_contract
+
+    let mut with_contract: i64 = 0;
+    let mut without_contract: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < 1000 {
+        let mut i: i64 = 0;
+        let mut sum1: i64 = 0;
+        let mut sum2: i64 = 0;
+        while i < 32 {
+            let value = values[i];
+            let abs1 = abs_with_contract(value);
+            let div1 = safe_divide_with_contract(abs1, 2);
+            { sum1 = sum1 + div1 };
+
+            let abs2 = abs_without_contract(value);
+            let div2 = safe_divide_without_contract(abs2, 2);
+            { sum2 = sum2 + div2 };
+
+            { i = i + 1 };
+        };
+        { with_contract = with_contract + sum1 };
+        { without_contract = without_contract + sum2 };
+        { iter = iter + 1 };
+    };
+
+    println(with_contract + without_contract);
+    0
 };

@@ -31,10 +31,6 @@ fn sum_until_sentinel(values: [i64; 100], idx: i64, acc: i64) -> i64
     }
   };
 
-// Run iterations
-fn run_iterations(values: [i64; 100], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_iterations(values, remaining - 1, acc + sum_until_sentinel(values, 0, 0)) };
-
 // Main entry point
 fn main() -> i64 = {
     // Array with valid values (no sentinel)
@@ -50,5 +46,15 @@ fn main() -> i64 = {
         81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
         91, 92, 93, 94, 95, 96, 97, 98, 99, 100
     ];
-    run_iterations(values, 100, 0)
+
+    let mut remaining: i64 = 100;
+    let mut acc: i64 = 0;
+
+    while remaining > 0 {
+        { acc = acc + sum_until_sentinel(values, 0, 0) };
+        { remaining = remaining - 1 }
+    };
+
+    println(acc);
+    0
 };

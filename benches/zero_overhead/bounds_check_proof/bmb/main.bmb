@@ -21,14 +21,20 @@ fn sum_range(arr: [i64; 10], start: i64, end: i64) -> i64
 
 fn sum_array(arr: [i64; 10]) -> i64 = sum_range(arr, 0, 10);
 
-// Run multiple iterations
-fn run_iterations(arr: [i64; 10], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else { run_iterations(arr, remaining - 1, acc + sum_array(arr)) };
-
 // Entry point - benchmark measures recursive array sum
 // The key insight: get_element has NO runtime bounds check
 // because the contract proves validity at compile-time
 fn main() -> i64 = {
     let arr: [i64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    run_iterations(arr, 100, 0)
+
+    let mut remaining: i64 = 100;
+    let mut acc: i64 = 0;
+
+    while remaining > 0 {
+        { acc = acc + sum_array(arr) };
+        { remaining = remaining - 1 }
+    };
+
+    println(acc);
+    0
 };
