@@ -86,7 +86,8 @@ fn vector_max(a: i64, n: i64) -> i64 = {
             let va = buffer_get(a, i);
             if va > max_val {
                 { max_val = va };
-            };
+                0
+            } else { 0 };
             { i = i + 1 };
         };
         max_val

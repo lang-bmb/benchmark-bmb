@@ -81,14 +81,16 @@ fn run_meetings(creatures: i64, num_creatures: i64, num_meetings: i64) -> i64 = 
         // Check if self-meeting (same creature index)
         if idx1 == idx2 {
             let _sm1 = creature_inc_self_meetings(c1);
-        };
+            0
+        } else { 0 };
 
         // Move to next pair (round-robin)
         { idx1 = (idx1 + 1) % num_creatures };
         { idx2 = (idx2 + 1) % num_creatures };
         if idx1 == idx2 {
             { idx2 = (idx2 + 1) % num_creatures };
-        };
+            0
+        } else { 0 };
 
         { meetings_left = meetings_left - 1 };
     };
