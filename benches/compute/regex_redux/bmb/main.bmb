@@ -73,14 +73,14 @@ fn match_agggtaaa(buf: i64, pos: i64, len: i64) -> i64 = {
         let c6 = buffer_get(buf, pos + 6);
         let c7 = buffer_get(buf, pos + 7);
 
-        if (c0 == CHAR_a() || c0 == CHAR_A()) &&
-           (c1 == CHAR_g() || c1 == CHAR_G()) &&
-           (c2 == CHAR_g() || c2 == CHAR_G()) &&
-           (c3 == CHAR_g() || c3 == CHAR_G()) &&
-           (c4 == CHAR_t() || c4 == CHAR_T()) &&
-           (c5 == CHAR_a() || c5 == CHAR_A()) &&
-           (c6 == CHAR_a() || c6 == CHAR_A()) &&
-           (c7 == CHAR_a() || c7 == CHAR_A())
+        if (c0 == CHAR_a()  or c0 == CHAR_A())  and
+           (c1 == CHAR_g()  or c1 == CHAR_G())  and
+           (c2 == CHAR_g()  or c2 == CHAR_G())  and
+           (c3 == CHAR_g()  or c3 == CHAR_G())  and
+           (c4 == CHAR_t()  or c4 == CHAR_T())  and
+           (c5 == CHAR_a()  or c5 == CHAR_A())  and
+           (c6 == CHAR_a()  or c6 == CHAR_A())  and
+           (c7 == CHAR_a()  or c7 == CHAR_A())
         { 1 }
         else { 0 }
     }
@@ -100,14 +100,14 @@ fn match_tttaccct(buf: i64, pos: i64, len: i64) -> i64 = {
         let c6 = buffer_get(buf, pos + 6);
         let c7 = buffer_get(buf, pos + 7);
 
-        if (c0 == CHAR_t() || c0 == CHAR_T()) &&
-           (c1 == CHAR_t() || c1 == CHAR_T()) &&
-           (c2 == CHAR_t() || c2 == CHAR_T()) &&
-           (c3 == CHAR_a() || c3 == CHAR_A()) &&
-           (c4 == CHAR_c() || c4 == CHAR_C()) &&
-           (c5 == CHAR_c() || c5 == CHAR_C()) &&
-           (c6 == CHAR_c() || c6 == CHAR_C()) &&
-           (c7 == CHAR_t() || c7 == CHAR_T())
+        if (c0 == CHAR_t()  or c0 == CHAR_T())  and
+           (c1 == CHAR_t()  or c1 == CHAR_T())  and
+           (c2 == CHAR_t()  or c2 == CHAR_T())  and
+           (c3 == CHAR_a()  or c3 == CHAR_A())  and
+           (c4 == CHAR_c()  or c4 == CHAR_C())  and
+           (c5 == CHAR_c()  or c5 == CHAR_C())  and
+           (c6 == CHAR_c()  or c6 == CHAR_C())  and
+           (c7 == CHAR_t()  or c7 == CHAR_T())
         { 1 }
         else { 0 }
     }
