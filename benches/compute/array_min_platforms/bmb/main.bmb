@@ -1,0 +1,66 @@
+// Array Min Platforms — minimum platforms needed for overlapping intervals
+// Measures: counting sort, sweep line, register carry (cur_platforms, max_platforms)
+// Workload: N=100000, 500 iterations
+
+fn main() -> () = {
+    let n = 100000;
+    let iters = 500;
+    let range = 10000;
+    let arrivals = malloc(n * 8);
+    let departures = malloc(n * 8);
+    let timeline = malloc((range + 1) * 8);
+
+    // Generate events: arrival in [0, range-1000), duration in [1, 1000]
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let arr_time = seed % (range - 1000);
+        let _s = store_i64(arrivals + i * 8, arr_time);
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let dur = (seed % 1000) + 1;
+        let _s2 = store_i64(departures + i * 8, arr_time + dur);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Clear timeline
+        let mut t = 0;
+        while t <= range {
+            let _s = store_i64(timeline + t * 8, 0);
+            set t = t + 1
+        };
+
+        // Mark arrivals (+1) and departures (-1)
+        set i = 0;
+        while i < n {
+            let at = load_i64(arrivals + i * 8);
+            let _s = store_i64(timeline + at * 8, load_i64(timeline + at * 8) + 1);
+            let dt = load_i64(departures + i * 8);
+            let _c = if dt <= range {
+                let _s2 = store_i64(timeline + dt * 8, load_i64(timeline + dt * 8) - 1);
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+
+        // Sweep to find max concurrent
+        let mut cur_platforms: i64 = 0;
+        let mut max_platforms: i64 = 0;
+        set t = 0;
+        while t <= range {
+            set cur_platforms = cur_platforms + load_i64(timeline + t * 8);
+            let _c = if cur_platforms > max_platforms { set max_platforms = cur_platforms; 0 } else { 0 };
+            set t = t + 1
+        };
+        set checksum = checksum + max_platforms;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arrivals);
+    let _f2 = free(departures);
+    let _f3 = free(timeline);
+    ()
+};

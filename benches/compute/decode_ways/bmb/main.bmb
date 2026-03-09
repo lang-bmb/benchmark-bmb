@@ -1,0 +1,41 @@
+// Decode Ways — DP count decodings (like Leetcode 91)
+// Measures: register carry (prev/prev2), sequential scan
+// Workload: N=2000000, 500 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let digits = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(digits + i * 8, seed % 3 + 1);
+            set i = i + 1
+        };
+
+        let mut prev2: i64 = 1;
+        let mut prev1: i64 = 1;
+
+        set i = 1;
+        while i < n {
+            let mut cur: i64 = prev1;
+            let two = load_i64(digits + (i - 1) * 8) * 10 + load_i64(digits + i * 8);
+            set cur = if two >= 10 {
+                if two <= 26 { cur + prev2 } else { cur }
+            } else { cur };
+            set cur = cur % 1000000007;
+            set prev2 = prev1;
+            set prev1 = cur;
+            set i = i + 1
+        };
+        set checksum = checksum + prev1;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(digits)
+};

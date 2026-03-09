@@ -1,0 +1,84 @@
+// Connected Components — Union-Find with path compression and union by rank
+// Measures: union-find operations, path compression, component counting
+// Workload: N=5000 vertices, ~20000 edges, 3000 iterations
+
+fn find(parent: i64, x: i64) -> i64 = {
+    let mut r = x;
+    while load_i64(parent + r * 8) != r {
+        set r = load_i64(parent + r * 8)
+    };
+    // Path compression
+    let mut c = x;
+    while c != r {
+        let next = load_i64(parent + c * 8);
+        let _s = store_i64(parent + c * 8, r);
+        set c = next
+    };
+    r
+};
+
+fn union(parent: i64, rank: i64, a: i64, b: i64) -> i64 = {
+    let ra = find(parent, a);
+    let rb = find(parent, b);
+    if ra == rb {
+        0
+    } else {
+        let rank_a = load_i64(rank + ra * 8);
+        let rank_b = load_i64(rank + rb * 8);
+        let _u = if rank_a < rank_b {
+            store_i64(parent + ra * 8, rb)
+        } else {
+            let _s = store_i64(parent + rb * 8, ra);
+            let _r = if rank_a == rank_b {
+                store_i64(rank + ra * 8, rank_a + 1)
+            } else { 0 };
+            0
+        };
+        1
+    }
+};
+
+fn main() -> () = {
+    let n = 5000;
+    let num_edges = 20000;
+    let iters = 3000;
+    let parent = malloc(n * 8);
+    let rank = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 99999 + iter;
+        // Initialize union-find
+        let mut i = 0;
+        while i < n {
+            let _sp = store_i64(parent + i * 8, i);
+            let _sr = store_i64(rank + i * 8, 0);
+            set i = i + 1
+        };
+        // Generate edges and union
+        let mut e = 0;
+        while e < num_edges {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let u = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let v = seed % n;
+            let _r = union(parent, rank, u, v);
+            set e = e + 1
+        };
+        // Count components: vertices where find(i) == i
+        let mut components = 0;
+        set i = 0;
+        while i < n {
+            let ri = find(parent, i);
+            let _x = if ri == i {
+                set components = components + 1;
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        set checksum = checksum + components;
+        set iter = iter + 1
+    };
+    print(checksum)
+};

@@ -1,0 +1,74 @@
+// Run-Length Encoding — encode + decode cycle
+// Measures: sequential scan, conditional grouping
+// Workload: N=200K elements, 500 iterations
+
+fn main() -> () = {
+    let n = 200000;
+    let iters = 500;
+    let data = malloc(n * 8);
+    let enc_val = malloc(n * 8);
+    let enc_cnt = malloc(n * 8);
+    let decoded = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Generate random data with many runs (values 0-4)
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(data + i * 8, seed % 5);
+            set i = i + 1
+        };
+
+        // Encode: compress runs into (value, count) pairs
+        let mut enc_len = 0;
+        let mut run_val = load_i64(data);
+        let mut run_cnt = 1;
+        set i = 1;
+        while i < n {
+            let cur = load_i64(data + i * 8);
+            let _x = if cur == run_val {
+                set run_cnt = run_cnt + 1;
+                0
+            } else {
+                let _s1 = store_i64(enc_val + enc_len * 8, run_val);
+                let _s2 = store_i64(enc_cnt + enc_len * 8, run_cnt);
+                set enc_len = enc_len + 1;
+                set run_val = cur;
+                set run_cnt = 1;
+                0
+            };
+            set i = i + 1
+        };
+        // Flush last run
+        let _s1 = store_i64(enc_val + enc_len * 8, run_val);
+        let _s2 = store_i64(enc_cnt + enc_len * 8, run_cnt);
+        set enc_len = enc_len + 1;
+
+        // Decode: expand back to original array
+        let mut pos = 0;
+        set i = 0;
+        while i < enc_len {
+            let v = load_i64(enc_val + i * 8);
+            let c = load_i64(enc_cnt + i * 8);
+            let mut j = 0;
+            while j < c {
+                let _s = store_i64(decoded + pos * 8, v);
+                set pos = pos + 1;
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+
+        set checksum = checksum + load_i64(decoded) + load_i64(decoded + (n - 1) * 8) + enc_len;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(data);
+    let _f2 = free(enc_val);
+    let _f3 = free(enc_cnt);
+    let _f4 = free(decoded);
+    ()
+};

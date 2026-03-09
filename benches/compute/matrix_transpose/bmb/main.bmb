@@ -1,0 +1,49 @@
+// Matrix Transpose — in-place square matrix transpose
+// Measures: cache performance, strided memory access
+// Workload: 1000x1000 matrix, 500 iterations
+
+fn main() -> () = {
+    let n = 1000;
+    let iters = 500;
+    let mat = malloc(n * n * 8);
+
+    // Initialize: mat[i*n+j] = i*n + j
+    let mut i: i64 = 0;
+    while i < n {
+        let mut j: i64 = 0;
+        while j < n {
+            let _s = store_i64(mat + (i * n + j) * 8, i * n + j);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+
+    // Transpose in-place iters times
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set i = 0;
+        while i < n {
+            let mut j: i64 = i + 1;
+            while j < n {
+                let idx_ij = (i * n + j) * 8;
+                let idx_ji = (j * n + i) * 8;
+                let tmp = load_i64(mat + idx_ij);
+                let val_ji = load_i64(mat + idx_ji);
+                let _s1 = store_i64(mat + idx_ij, val_ji);
+                let _s2 = store_i64(mat + idx_ji, tmp);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        set iter = iter + 1
+    };
+
+    // Checksum: sum of first 100 elements
+    let mut checksum: i64 = 0;
+    let mut k: i64 = 0;
+    while k < 100 {
+        set checksum = checksum + load_i64(mat + k * 8);
+        set k = k + 1
+    };
+    print(checksum)
+};

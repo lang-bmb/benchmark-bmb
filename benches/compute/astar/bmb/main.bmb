@@ -1,0 +1,219 @@
+// A* pathfinding benchmark — heuristic search on a grid
+// Measures: priority queue, heuristic computation, grid traversal
+// Workload: 200x200 grid, 500 path queries, random obstacles
+
+fn as_swap(f: i64, n: i64, a: i64, b: i64) -> () = {
+    let tf = load_i64(f + a * 8);
+    let _s1 = store_i64(f + a * 8, load_i64(f + b * 8));
+    let _s2 = store_i64(f + b * 8, tf);
+    let tn = load_i64(n + a * 8);
+    let _s3 = store_i64(n + a * 8, load_i64(n + b * 8));
+    let _s4 = store_i64(n + b * 8, tn)
+};
+
+fn as_up(f: i64, n: i64, i_start: i64) -> () = {
+    let mut i = i_start;
+    while i > 0 {
+        let p = (i - 1) / 2;
+        let _x = if load_i64(f + i * 8) < load_i64(f + p * 8) {
+            as_swap(f, n, i, p);
+            set i = p; 0
+        } else {
+            set i = 0 - 1; 0
+        };
+        0
+    };
+    ()
+};
+
+fn as_down(f: i64, n: i64, sz: i64, i_start: i64) -> () = {
+    let mut i = i_start;
+    let mut cont = 1;
+    while cont == 1 {
+        let mut s = i;
+        let l = 2 * i + 1;
+        let r = 2 * i + 2;
+        set s = if l < sz {
+            if load_i64(f + l * 8) < load_i64(f + s * 8) { l } else { s }
+        } else { s };
+        set s = if r < sz {
+            if load_i64(f + r * 8) < load_i64(f + s * 8) { r } else { s }
+        } else { s };
+        let _x = if s == i {
+            set cont = 0; 0
+        } else {
+            as_swap(f, n, i, s);
+            set i = s; 0
+        };
+        0
+    };
+    ()
+};
+
+fn abs64(x: i64) -> i64 = {
+    if x < 0 { 0 - x } else { x }
+};
+
+fn manhattan(a: i64, b: i64, w: i64) -> i64 = {
+    let ar = a / w;
+    let ac = a % w;
+    let br = b / w;
+    let bc = b % w;
+    abs64(ar - br) + abs64(ac - bc)
+};
+
+fn astar(grid: i64, w: i64, h: i64, src: i64, dst: i64,
+         g: i64, heap_f: i64, heap_n: i64) -> i64 = {
+    let inf = 999999999;
+    let total = w * h;
+    let mut i = 0;
+    while i < total {
+        let _s = store_i64(g + i * 8, inf);
+        set i = i + 1
+    };
+    let _s = store_i64(g + src * 8, 0);
+
+    let mut hsz = 0;
+    let _s2 = store_i64(heap_f, manhattan(src, dst, w));
+    let _s3 = store_i64(heap_n, src);
+    set hsz = 1;
+
+    let mut result = 0 - 1;
+    let mut done = 0;
+
+    while hsz > 0 {
+        let _check = if done == 0 {
+            let u = load_i64(heap_n);
+            set hsz = hsz - 1;
+            let _s4 = store_i64(heap_f, load_i64(heap_f + hsz * 8));
+            let _s5 = store_i64(heap_n, load_i64(heap_n + hsz * 8));
+            let _x = if hsz > 0 { as_down(heap_f, heap_n, hsz, 0); 0 } else { 0 };
+
+            let _y = if u == dst {
+                set result = load_i64(g + dst * 8);
+                set done = 1;
+                set hsz = 0;
+                0
+            } else {
+                let ur = u / w;
+                let uc = u % w;
+                let gu = load_i64(g + u * 8);
+
+                // Direction 0: up (row-1)
+                let nr0 = ur - 1;
+                let _d0 = if nr0 >= 0 {
+                    let v0 = nr0 * w + uc;
+                    let _dd = if load_i64(grid + v0 * 8) != 1 {
+                        let ng = gu + 1;
+                        let _ddd = if ng < load_i64(g + v0 * 8) {
+                            let _sg = store_i64(g + v0 * 8, ng);
+                            let _sf = store_i64(heap_f + hsz * 8, ng + manhattan(v0, dst, w));
+                            let _sn = store_i64(heap_n + hsz * 8, v0);
+                            as_up(heap_f, heap_n, hsz);
+                            set hsz = hsz + 1; 0
+                        } else { 0 }; 0
+                    } else { 0 }; 0
+                } else { 0 };
+                // Direction 1: down (row+1)
+                let nr1 = ur + 1;
+                let _d1 = if nr1 < h {
+                    let v1 = nr1 * w + uc;
+                    let _dd = if load_i64(grid + v1 * 8) != 1 {
+                        let ng = gu + 1;
+                        let _ddd = if ng < load_i64(g + v1 * 8) {
+                            let _sg = store_i64(g + v1 * 8, ng);
+                            let _sf = store_i64(heap_f + hsz * 8, ng + manhattan(v1, dst, w));
+                            let _sn = store_i64(heap_n + hsz * 8, v1);
+                            as_up(heap_f, heap_n, hsz);
+                            set hsz = hsz + 1; 0
+                        } else { 0 }; 0
+                    } else { 0 }; 0
+                } else { 0 };
+                // Direction 2: left (col-1)
+                let nc2 = uc - 1;
+                let _d2 = if nc2 >= 0 {
+                    let v2 = ur * w + nc2;
+                    let _dd = if load_i64(grid + v2 * 8) != 1 {
+                        let ng = gu + 1;
+                        let _ddd = if ng < load_i64(g + v2 * 8) {
+                            let _sg = store_i64(g + v2 * 8, ng);
+                            let _sf = store_i64(heap_f + hsz * 8, ng + manhattan(v2, dst, w));
+                            let _sn = store_i64(heap_n + hsz * 8, v2);
+                            as_up(heap_f, heap_n, hsz);
+                            set hsz = hsz + 1; 0
+                        } else { 0 }; 0
+                    } else { 0 }; 0
+                } else { 0 };
+                // Direction 3: right (col+1)
+                let nc3 = uc + 1;
+                let _d3 = if nc3 < w {
+                    let v3 = ur * w + nc3;
+                    let _dd = if load_i64(grid + v3 * 8) != 1 {
+                        let ng = gu + 1;
+                        let _ddd = if ng < load_i64(g + v3 * 8) {
+                            let _sg = store_i64(g + v3 * 8, ng);
+                            let _sf = store_i64(heap_f + hsz * 8, ng + manhattan(v3, dst, w));
+                            let _sn = store_i64(heap_n + hsz * 8, v3);
+                            as_up(heap_f, heap_n, hsz);
+                            set hsz = hsz + 1; 0
+                        } else { 0 }; 0
+                    } else { 0 }; 0
+                } else { 0 };
+                0
+            };
+            0
+        } else { 0 };
+        0
+    };
+    result
+};
+
+fn main() -> () = {
+    let w = 200;
+    let h = 200;
+    let total = w * h;
+    let queries = 500;
+
+    let grid = malloc(total * 8);
+    let g = malloc(total * 8);
+    let heap_f = malloc(total * 8);
+    let heap_n = malloc(total * 8);
+
+    // Zero grid first
+    let mut i = 0;
+    while i < total {
+        let _s = store_i64(grid + i * 8, 0);
+        set i = i + 1
+    };
+
+    // Generate random obstacles (~20% density)
+    let mut seed = 99999;
+    set i = 0;
+    while i < total {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(grid + i * 8, if seed % 100 < 20 { 1 } else { 0 });
+        set i = i + 1
+    };
+    // Clear corners
+    let _s = store_i64(grid, 0);
+    let _s2 = store_i64(grid + (total - 1) * 8, 0);
+
+    let mut checksum = 0;
+    let mut q = 0;
+    while q < queries {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let src = seed % total;
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let dst = seed % total;
+        let _cs = store_i64(grid + src * 8, 0);
+        let _cd = store_i64(grid + dst * 8, 0);
+        let dist = astar(grid, w, h, src, dst, g, heap_f, heap_n);
+        set checksum = checksum + dist;
+        set q = q + 1
+    };
+    print(checksum);
+    let _f1 = free(grid);
+    let _f2 = free(g);
+    let _f3 = free(heap_f);
+    let _f4 = free(heap_n)
+};

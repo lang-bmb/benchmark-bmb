@@ -1,0 +1,35 @@
+// Bitcount benchmark — population count (Hamming weight)
+// Measures: bitwise operations, loop performance, branch prediction
+// Workload: count bits in 10M numbers, 30 iterations
+
+// Brian Kernighan's bit counting
+fn popcount(x: i64) -> i64 = {
+    let mut count = 0;
+    let mut u = x;
+    while u != 0 {
+        set u = u band (u - 1);
+        set count = count + 1
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 10000000;
+    let iters = 30;
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 54321 + iter;
+        let mut sum_val = 0;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            set sum_val = sum_val + popcount(seed);
+            set i = i + 1
+        };
+        set checksum = checksum + sum_val;
+        set iter = iter + 1
+    };
+    print(checksum)
+};

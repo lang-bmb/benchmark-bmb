@@ -1,0 +1,100 @@
+// Topological Sort — Kahn's algorithm (BFS-based)
+// Measures: queue operations, indegree tracking, graph traversal
+// Workload: N=5000 DAG nodes, ~15000 edges, 200 iterations
+
+fn topo_sort(adj: i64, deg: i64, n: i64, indeg: i64, queue: i64, result: i64) -> i64 = {
+    let max_deg = 10;
+    // Compute indegrees
+    let mut i = 0;
+    while i < n {
+        let _s = store_i64(indeg + i * 8, 0);
+        set i = i + 1
+    };
+    set i = 0;
+    while i < n {
+        let d = load_i64(deg + i * 8);
+        let base = i * max_deg;
+        let mut j = 0;
+        while j < d {
+            let v = load_i64(adj + (base + j) * 8);
+            let _s = store_i64(indeg + v * 8, load_i64(indeg + v * 8) + 1);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+    // Enqueue nodes with indegree 0
+    let mut head = 0;
+    let mut tail = 0;
+    set i = 0;
+    while i < n {
+        let _x = if load_i64(indeg + i * 8) == 0 {
+            let _s = store_i64(queue + tail * 8, i);
+            set tail = tail + 1;
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    // Process
+    let mut count = 0;
+    while head < tail {
+        let node = load_i64(queue + head * 8);
+        set head = head + 1;
+        let _s = store_i64(result + count * 8, node);
+        set count = count + 1;
+        let d = load_i64(deg + node * 8);
+        let base = node * max_deg;
+        let mut j = 0;
+        while j < d {
+            let v = load_i64(adj + (base + j) * 8);
+            let new_ind = load_i64(indeg + v * 8) - 1;
+            let _s2 = store_i64(indeg + v * 8, new_ind);
+            let _x = if new_ind == 0 {
+                let _s3 = store_i64(queue + tail * 8, v);
+                set tail = tail + 1;
+                0
+            } else { 0 };
+            set j = j + 1
+        };
+        0
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 5000;
+    let max_deg = 10;
+    let iters = 200;
+    let adj = malloc(n * max_deg * 8);
+    let deg = malloc(n * 8);
+    let indeg = malloc(n * 8);
+    let queue = malloc(n * 8);
+    let result = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 54321 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let d = (seed % 3) + 1;
+            let _sd = store_i64(deg + i * 8, d);
+            let base = i * max_deg;
+            let mut j = 0;
+            while j < d {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                // DAG: edges go from lower to higher numbered nodes
+                let target = i + 1 + (seed % (n - i - 1 + 1));
+                let t = if target >= n { (i + 1) % n } else { target };
+                let _s = store_i64(adj + (base + j) * 8, t);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        // Last node has no edges
+        let _sd = store_i64(deg + (n - 1) * 8, 0);
+        set checksum = checksum + topo_sort(adj, deg, n, indeg, queue, result);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

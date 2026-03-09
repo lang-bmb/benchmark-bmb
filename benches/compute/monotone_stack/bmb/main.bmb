@@ -1,0 +1,58 @@
+// Monotone Stack — next smaller element for each position
+// Measures: stack operations, register tracking
+// Workload: N=500000, 1000 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 1000;
+    let arr = malloc(n * 8);
+    let result = malloc(n * 8);
+    let stack = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 100000);
+            set i = i + 1
+        };
+
+        let mut top: i64 = 0 - 1;
+        set i = 0;
+        while i < n {
+            let ai = load_i64(arr + i * 8);
+            while top >= 0 {
+                let si = load_i64(stack + top * 8);
+                let _x = if load_i64(arr + si * 8) >= ai {
+                    let _s = store_i64(result + si * 8, i);
+                    set top = top - 1;
+                    ()
+                } else { break };
+                0
+            };
+            set top = top + 1;
+            let _s = store_i64(stack + top * 8, i);
+            set i = i + 1
+        };
+        while top >= 0 {
+            let _s = store_i64(result + load_i64(stack + top * 8) * 8, 0 - 1);
+            set top = top - 1
+        };
+
+        let mut sum: i64 = 0;
+        set i = 0;
+        while i < n {
+            set sum = sum + load_i64(result + i * 8);
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(result);
+    let _f3 = free(stack)
+};

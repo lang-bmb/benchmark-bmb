@@ -1,0 +1,38 @@
+// Max Ascending Sum — max sum of strictly ascending subarray
+// Measures: register-carry (prev, running sum), sequential scan
+// Workload: N=2000000, 2000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        let first = load_i64(arr);
+        let mut max_sum: i64 = first;
+        let mut cur_sum: i64 = first;
+        let mut prev: i64 = first;
+        set i = 1;
+        while i < n {
+            let val = load_i64(arr + i * 8);
+            set cur_sum = if val > prev { cur_sum + val } else { val };
+            set max_sum = if cur_sum > max_sum { cur_sum } else { max_sum };
+            set prev = val;
+            set i = i + 1
+        };
+        set checksum = checksum + max_sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

@@ -32,7 +32,7 @@ fn match_tttaccct(buf: &[u8], pos: usize) -> bool {
 }
 
 fn main() {
-    let seq_len = 100_000;
+    let seq_len = 500_000;
 
     // Generate DNA sequence
     let mut buf = vec![0u8; seq_len];

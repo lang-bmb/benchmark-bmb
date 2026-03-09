@@ -1,0 +1,158 @@
+// Strongly Connected Components — Kosaraju's algorithm
+// Measures: 2-pass DFS, graph reversal, component tracking
+// Workload: N=3000 nodes, ~9000 edges, 200 iterations
+
+fn dfs1(adj: i64, deg: i64, n: i64, node: i64, visited: i64, order: i64, order_idx: i64, stack: i64) -> i64 = {
+    let max_deg = 10;
+    // Iterative DFS using explicit stack
+    let mut sp = 0;
+    let _s = store_i64(stack, node);
+    set sp = 1;
+    let _sv = store_i64(visited + node * 8, 1);
+    let mut idx = load_i64(order_idx);
+    while sp > 0 {
+        set sp = sp - 1;
+        let cur = load_i64(stack + sp * 8);
+        let d = load_i64(deg + cur * 8);
+        let base = cur * max_deg;
+        let mut pushed = 0;
+        let mut j = 0;
+        while j < d {
+            let nb = load_i64(adj + (base + j) * 8);
+            let _x = if load_i64(visited + nb * 8) == 0 {
+                let _sv2 = store_i64(visited + nb * 8, 1);
+                let _sp = store_i64(stack + sp * 8, nb);
+                set sp = sp + 1;
+                set pushed = pushed + 1;
+                0
+            } else { 0 };
+            set j = j + 1
+        };
+        let _o = if pushed == 0 {
+            store_i64(order + idx * 8, cur);
+            set idx = idx + 1;
+            0
+        } else { 0 };
+        0
+    };
+    let _si = store_i64(order_idx, idx);
+    idx
+};
+
+fn dfs2(radj: i64, rdeg: i64, node: i64, visited: i64, stack: i64) -> i64 = {
+    let max_deg = 10;
+    let mut sp = 0;
+    let _s = store_i64(stack, node);
+    set sp = 1;
+    let _sv = store_i64(visited + node * 8, 1);
+    let mut count = 0;
+    while sp > 0 {
+        set sp = sp - 1;
+        let cur = load_i64(stack + sp * 8);
+        set count = count + 1;
+        let d = load_i64(rdeg + cur * 8);
+        let base = cur * max_deg;
+        let mut j = 0;
+        while j < d {
+            let nb = load_i64(radj + (base + j) * 8);
+            let _x = if load_i64(visited + nb * 8) == 0 {
+                let _sv2 = store_i64(visited + nb * 8, 1);
+                let _sp = store_i64(stack + sp * 8, nb);
+                set sp = sp + 1;
+                0
+            } else { 0 };
+            set j = j + 1
+        };
+        0
+    };
+    count
+};
+
+fn kosaraju(adj: i64, deg: i64, radj: i64, rdeg: i64, n: i64, visited: i64, order: i64, stack: i64) -> i64 = {
+    let max_deg = 10;
+    // Pass 1: compute finish order
+    let mut i = 0;
+    while i < n {
+        let _s = store_i64(visited + i * 8, 0);
+        set i = i + 1
+    };
+    let order_idx = malloc(8);
+    let _si = store_i64(order_idx, 0);
+    set i = 0;
+    while i < n {
+        let _x = if load_i64(visited + i * 8) == 0 {
+            let _d = dfs1(adj, deg, n, i, visited, order, order_idx, stack);
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    // Pass 2: process in reverse order
+    set i = 0;
+    while i < n {
+        let _s = store_i64(visited + i * 8, 0);
+        set i = i + 1
+    };
+    let mut num_scc = 0;
+    set i = n - 1;
+    while i >= 0 {
+        let node = load_i64(order + i * 8);
+        let _x = if load_i64(visited + node * 8) == 0 {
+            let _c = dfs2(radj, rdeg, node, visited, stack);
+            set num_scc = num_scc + 1;
+            0
+        } else { 0 };
+        set i = i - 1
+    };
+    let _f = free(order_idx);
+    num_scc
+};
+
+fn main() -> () = {
+    let n = 3000;
+    let max_deg = 10;
+    let iters = 200;
+    let adj = malloc(n * max_deg * 8);
+    let deg = malloc(n * 8);
+    let radj = malloc(n * max_deg * 8);
+    let rdeg = malloc(n * 8);
+    let visited = malloc(n * 8);
+    let order = malloc(n * 8);
+    let stack = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 99999 + iter;
+        // Build graph and reverse graph
+        let mut i = 0;
+        while i < n {
+            let _sr = store_i64(rdeg + i * 8, 0);
+            set i = i + 1
+        };
+        set i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let d = (seed % 3) + 1;
+            let _sd = store_i64(deg + i * 8, d);
+            let base = i * max_deg;
+            let mut j = 0;
+            while j < d {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let target = seed % n;
+                let _s = store_i64(adj + (base + j) * 8, target);
+                // Add reverse edge
+                let rd = load_i64(rdeg + target * 8);
+                let _x = if rd < max_deg {
+                    let _sr = store_i64(radj + (target * max_deg + rd) * 8, i);
+                    let _srd = store_i64(rdeg + target * 8, rd + 1);
+                    0
+                } else { 0 };
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        set checksum = checksum + kosaraju(adj, deg, radj, rdeg, n, visited, order, stack);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

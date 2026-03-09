@@ -1,0 +1,42 @@
+// Array Reverse — in-place reversal
+// Measures: two-pointer swap, random access, cache behavior
+// Workload: N=500000 array, 5000 iterations
+
+fn reverse(arr: i64, n: i64) -> () = {
+    let mut i = 0;
+    let mut j = n - 1;
+    while i < j {
+        let t = load_i64(arr + i * 8);
+        let _s1 = store_i64(arr + i * 8, load_i64(arr + j * 8));
+        let _s2 = store_i64(arr + j * 8, t);
+        set i = i + 1;
+        set j = j - 1
+    };
+    ()
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 5000;
+    let arr = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(arr + i * 8, seed);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        reverse(arr, n);
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

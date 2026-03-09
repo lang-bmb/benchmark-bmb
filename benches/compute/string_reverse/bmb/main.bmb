@@ -1,0 +1,59 @@
+// String Reverse benchmark — reverse a 100000-character i64 array
+// Measures: array read/write, swap pattern, memory access
+// Workload: 100000 chars, 5000 iterations, LCG PRNG
+
+fn fill_string(arr: i64, n: i64, seed_in: i64) -> i64 = {
+    let mut seed = seed_in;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let ch = (seed % 26) + 97;
+        let _s = store_i64(arr + i * 8, ch);
+        set i = i + 1
+    };
+    seed
+};
+
+fn reverse_string(arr: i64, n: i64) -> () = {
+    let mut lo = 0;
+    let mut hi = n - 1;
+    while lo < hi {
+        let tmp = load_i64(arr + lo * 8);
+        let _s1 = store_i64(arr + lo * 8, load_i64(arr + hi * 8));
+        let _s2 = store_i64(arr + hi * 8, tmp);
+        set lo = lo + 1;
+        set hi = hi - 1
+    }
+};
+
+fn checksum(arr: i64, n: i64) -> i64 = {
+    let mut sum_val = 0;
+    let mut i = 0;
+    while i < 10 {
+        set sum_val = sum_val + load_i64(arr + i * 8);
+        set i = i + 1
+    };
+    let mut j = 0;
+    while j < 10 {
+        set sum_val = sum_val + load_i64(arr + (n - 10 + j) * 8);
+        set j = j + 1
+    };
+    sum_val
+};
+
+fn main() -> () = {
+    let n = 100000;
+    let iters = 5000;
+    let arr = malloc(n * 8);
+
+    let mut total = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let _seed = fill_string(arr, n, 12345 + iter);
+        reverse_string(arr, n);
+        set total = total + checksum(arr, n);
+        set iter = iter + 1
+    };
+    print(total);
+    let _f = free(arr)
+};

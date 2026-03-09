@@ -1,0 +1,47 @@
+// Gas Station — circular tour greedy
+// Measures: register tracking (tank, start), sequential scan
+// Workload: N=2000000, 500 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let gas = malloc(n * 8);
+    let cost = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s1 = store_i64(gas + i * 8, seed % 100);
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s2 = store_i64(cost + i * 8, seed % 100);
+            set i = i + 1
+        };
+
+        let mut total_tank: i64 = 0;
+        let mut curr_tank: i64 = 0;
+        let mut start: i64 = 0;
+
+        set i = 0;
+        while i < n {
+            let diff = load_i64(gas + i * 8) - load_i64(cost + i * 8);
+            set total_tank = total_tank + diff;
+            set curr_tank = curr_tank + diff;
+            let _r = if curr_tank < 0 {
+                set start = i + 1;
+                set curr_tank = 0;
+                ()
+            } else { () };
+            set i = i + 1
+        };
+        let result = if total_tank >= 0 { start } else { 0 - 1 };
+        set checksum = checksum + result;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(gas);
+    let _f2 = free(cost)
+};

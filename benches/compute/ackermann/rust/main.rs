@@ -13,7 +13,7 @@ fn ackermann(m: i64, n: i64) -> i64 {
 
 fn main() {
     let mut result: i64 = 0;
-    for _ in 0..1000 {
+    for _ in 0..3000 {
         result += ackermann(3, 10);
     }
     println!("{}", result);

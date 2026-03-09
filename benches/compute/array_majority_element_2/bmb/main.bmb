@@ -1,0 +1,76 @@
+// Array Majority Element 2 — Boyer-Moore voting for top-2 candidates
+// Measures: register carry (cand1, cand2, count1, count2), branchy logic
+// Workload: N=2000000 array, 500 iterations
+
+fn majority2_sum(arr: i64, n: i64) -> i64 = {
+    let _c = if n == 0 { return 0 } else { 0 };
+    let mut cand1: i64 = 0;
+    let mut cand2: i64 = 1;
+    let mut cnt1: i64 = 0;
+    let mut cnt2: i64 = 0;
+    let mut i = 0;
+    while i < n {
+        let val = load_i64(arr + i * 8);
+        let _b = if val == cand1 {
+            set cnt1 = cnt1 + 1;
+            0
+        } else { if val == cand2 {
+            set cnt2 = cnt2 + 1;
+            0
+        } else { if cnt1 == 0 {
+            set cand1 = val;
+            set cnt1 = 1;
+            0
+        } else { if cnt2 == 0 {
+            set cand2 = val;
+            set cnt2 = 1;
+            0
+        } else {
+            set cnt1 = cnt1 - 1;
+            set cnt2 = cnt2 - 1;
+            0
+        } } } };
+        set i = i + 1
+    };
+
+    // Verify candidates
+    set cnt1 = 0;
+    set cnt2 = 0;
+    set i = 0;
+    while i < n {
+        let val = load_i64(arr + i * 8);
+        let _b2 = if val == cand1 { set cnt1 = cnt1 + 1; 0 }
+        else { if val == cand2 { set cnt2 = cnt2 + 1; 0 } else { 0 } };
+        set i = i + 1
+    };
+
+    let threshold = n / 3;
+    let mut result: i64 = 0;
+    let _r1 = if cnt1 > threshold { set result = result + cand1; 0 } else { 0 };
+    let _r2 = if cnt2 > threshold { set result = result + cand2; 0 } else { 0 };
+    result
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10);
+            set i = i + 1
+        };
+        set checksum = checksum + majority2_sum(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

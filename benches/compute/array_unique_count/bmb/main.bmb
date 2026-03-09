@@ -1,0 +1,64 @@
+// Array Unique Count — count unique elements using sorted scan
+// Measures: sorting (insertion sort on small arrays), sequential comparison
+// Workload: N=5000, 50000 iterations
+
+fn main() -> () = {
+    let n = 5000;
+    let iters = 50000;
+    let arr = malloc(n * 8);
+    let tmp = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate random array with some duplicates
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % (n * 2));
+            set i = i + 1
+        };
+
+        // Copy to tmp for sorting
+        set i = 0;
+        while i < n {
+            let _s = store_i64(tmp + i * 8, load_i64(arr + i * 8));
+            set i = i + 1
+        };
+
+        // Insertion sort
+        set i = 1;
+        while i < n {
+            let key = load_i64(tmp + i * 8);
+            let mut j = i - 1;
+            while j >= 0 {
+                let _c = if load_i64(tmp + j * 8) > key {
+                    let _s = store_i64(tmp + (j + 1) * 8, load_i64(tmp + j * 8));
+                    set j = j - 1
+                } else {
+                    break
+                };
+                ()
+            };
+            let _s = store_i64(tmp + (j + 1) * 8, key);
+            set i = i + 1
+        };
+
+        // Count unique
+        let mut unique: i64 = 1;
+        set i = 1;
+        while i < n {
+            let _c = if load_i64(tmp + i * 8) != load_i64(tmp + (i - 1) * 8) {
+                set unique = unique + 1
+            } else { () };
+            set i = i + 1
+        };
+        set checksum = checksum + unique;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(tmp);
+    ()
+};

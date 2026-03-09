@@ -1,0 +1,91 @@
+// Count inversions benchmark — iterative bottom-up merge sort variant
+// Measures: merge-based counting, sequential memory access, branch prediction
+// Workload: 50K elements, 200 iterations with different seeds
+
+fn count_inversions(arr: i64, temp: i64, n: i64) -> i64 = {
+    let mut total_inv = 0;
+    let mut width = 1;
+    while width < n {
+        let mut left = 0;
+        while left < n {
+            let mid = left + width;
+            let mut right = mid + width;
+            let _c = if right > n { set right = n; 0 } else { 0 };
+            let _c2 = if mid < n {
+                // Merge [left..mid) and [mid..right), counting inversions
+                let mut i = left;
+                let mut j = mid;
+                let mut k = left;
+                while k < right {
+                    let _m = if i >= mid {
+                        // Left exhausted, take from right
+                        let _s = store_i64(temp + k * 8, load_i64(arr + j * 8));
+                        set j = j + 1;
+                        0
+                    } else {
+                        let _m2 = if j >= right {
+                            // Right exhausted, take from left
+                            let _s = store_i64(temp + k * 8, load_i64(arr + i * 8));
+                            set i = i + 1;
+                            0
+                        } else {
+                            let left_val = load_i64(arr + i * 8);
+                            let right_val = load_i64(arr + j * 8);
+                            let _m3 = if left_val <= right_val {
+                                let _s = store_i64(temp + k * 8, left_val);
+                                set i = i + 1;
+                                0
+                            } else {
+                                // Right element is smaller — count inversions
+                                set total_inv = total_inv + (mid - i);
+                                let _s = store_i64(temp + k * 8, right_val);
+                                set j = j + 1;
+                                0
+                            };
+                            0
+                        };
+                        0
+                    };
+                    set k = k + 1
+                };
+                // Copy merged result back to arr
+                set k = left;
+                while k < right {
+                    let _s = store_i64(arr + k * 8, load_i64(temp + k * 8));
+                    set k = k + 1
+                };
+                0
+            } else { 0 };
+            set left = left + width * 2
+        };
+        set width = width * 2
+    };
+    total_inv
+};
+
+fn main() -> () = {
+    let n = 50000;
+    let iters = 200;
+    let arr = malloc(n * 8);
+    let temp = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Fill array with PRNG values
+        let mut seed = 54321 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed);
+            set i = i + 1
+        };
+        let inv = count_inversions(arr, temp, n);
+        set checksum = checksum + inv;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(temp);
+    ()
+};

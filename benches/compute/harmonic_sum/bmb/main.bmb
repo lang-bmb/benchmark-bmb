@@ -1,0 +1,24 @@
+// Harmonic Sum — compute sum of 1/1 + 1/2 + ... + 1/N using integer arithmetic
+// Measures: division, accumulation, loop
+// Workload: N=10000, 500000 iterations
+
+fn main() -> () = {
+    let n = 10000;
+    let iters = 500000;
+    let scale: i64 = 1000000000;
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut sum: i64 = 0;
+        let mut i: i64 = 1;
+        while i <= n {
+            set sum = sum + scale / i;
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

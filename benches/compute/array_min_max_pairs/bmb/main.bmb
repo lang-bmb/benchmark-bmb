@@ -1,0 +1,63 @@
+// Array Min Max Pairs — find min and max with 3n/2 comparisons
+// Measures: register carry (cur_min, cur_max), pair comparison trick
+// Workload: N=2000000 array, 1000 iterations
+
+fn min_max_pairs(arr: i64, n: i64) -> i64 = {
+    let _c = if n == 0 { return 0 } else { 0 };
+    let mut lo: i64 = 0;
+    let mut hi: i64 = 0;
+    let mut start: i64 = 0;
+    let _c2 = if n % 2 == 0 {
+        let _c3 = if load_i64(arr) < load_i64(arr + 8) {
+            set lo = load_i64(arr);
+            set hi = load_i64(arr + 8);
+            0
+        } else {
+            set lo = load_i64(arr + 8);
+            set hi = load_i64(arr);
+            0
+        };
+        set start = 2;
+        0
+    } else {
+        set lo = load_i64(arr);
+        set hi = load_i64(arr);
+        set start = 1;
+        0
+    };
+    let mut i = start;
+    while i < n - 1 {
+        let a = load_i64(arr + i * 8);
+        let b = load_i64(arr + (i + 1) * 8);
+        let small = if a < b { a } else { b };
+        let big = if a < b { b } else { a };
+        let _c4 = if small < lo { set lo = small; 0 } else { 0 };
+        let _c5 = if big > hi { set hi = big; 0 } else { 0 };
+        set i = i + 2
+    };
+    hi - lo
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 1000;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+        set checksum = checksum + min_max_pairs(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

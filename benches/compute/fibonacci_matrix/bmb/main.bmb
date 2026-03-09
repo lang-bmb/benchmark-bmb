@@ -1,0 +1,59 @@
+// Fibonacci Matrix — compute Fibonacci via 2x2 matrix exponentiation
+// Measures: multiply, modulo, binary exponentiation
+// Workload: fib(10^18 mod 10^9+7), 5000000 iterations
+
+fn mat_mul(a00: i64, a01: i64, a10: i64, a11: i64,
+           b00: i64, b01: i64, b10: i64, b11: i64,
+           m: i64, out: i64) -> () = {
+    let _s0 = store_i64(out, (a00 * b00 + a01 * b10) % m);
+    let _s1 = store_i64(out + 8, (a00 * b01 + a01 * b11) % m);
+    let _s2 = store_i64(out + 16, (a10 * b00 + a11 * b10) % m);
+    let _s3 = store_i64(out + 24, (a10 * b01 + a11 * b11) % m);
+    ()
+};
+
+fn fib_mod(n: i64, m: i64, tmp: i64) -> i64 = {
+    let _c = if n <= 1 { return n % m } else { 0 };
+    let mut r00: i64 = 1;
+    let mut r01: i64 = 0;
+    let mut r10: i64 = 0;
+    let mut r11: i64 = 1;
+    let mut b00: i64 = 1;
+    let mut b01: i64 = 1;
+    let mut b10: i64 = 1;
+    let mut b11: i64 = 0;
+    let mut e = n;
+    while e > 0 {
+        let _c2 = if (e band 1) == 1 {
+            let _mm = mat_mul(r00, r01, r10, r11, b00, b01, b10, b11, m, tmp);
+            set r00 = load_i64(tmp);
+            set r01 = load_i64(tmp + 8);
+            set r10 = load_i64(tmp + 16);
+            set r11 = load_i64(tmp + 24);
+            ()
+        } else { () };
+        let _mm2 = mat_mul(b00, b01, b10, b11, b00, b01, b10, b11, m, tmp);
+        set b00 = load_i64(tmp);
+        set b01 = load_i64(tmp + 8);
+        set b10 = load_i64(tmp + 16);
+        set b11 = load_i64(tmp + 24);
+        set e = e >> 1
+    };
+    r01
+};
+
+fn main() -> () = {
+    let iters = 5000000;
+    let m: i64 = 1000000007;
+    let tmp = malloc(32);
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let n = 1000000000000000000 + iter;
+        set checksum = (checksum + fib_mod(n, m, tmp)) % m;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(tmp);
+    ()
+};

@@ -1,0 +1,40 @@
+// Sign Alternation — count sign changes in difference sequence
+// Measures: register-carry (prev diff sign), sequential scan
+// Workload: N=2000000, 2000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        let mut count: i64 = 0;
+        let mut prev: i64 = load_i64(arr);
+        let mut prev_diff: i64 = 0;
+        set i = 1;
+        while i < n {
+            let cur = load_i64(arr + i * 8);
+            let diff = cur - prev;
+            let pos_neg = if diff > 0 { if prev_diff < 0 { 1 } else { 0 } } else { 0 };
+            let neg_pos = if diff < 0 { if prev_diff > 0 { 1 } else { 0 } } else { 0 };
+            set count = count + pos_neg + neg_pos;
+            let _x = if diff != 0 { set prev_diff = diff; () } else { () };
+            set prev = cur;
+            set i = i + 1
+        };
+        set checksum = checksum + count;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

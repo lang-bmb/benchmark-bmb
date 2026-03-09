@@ -1,0 +1,83 @@
+// Spiral Matrix — traverse matrix in spiral order, compute sum
+// Measures: direction changes, boundary tracking, sequential access
+// Workload: 500x500 matrix, 5000 iterations
+
+fn spiral_sum(mat: i64, rows: i64, cols: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut top: i64 = 0;
+    let mut bottom = rows - 1;
+    let mut left: i64 = 0;
+    let mut right = cols - 1;
+
+    while top <= bottom {
+        let _c0 = if left > right { set top = bottom + 1; 0 } else { 0 };
+        let _c1 = if top > bottom { 0 } else {
+            // Right across top
+            let mut j = left;
+            while j <= right {
+                set sum = sum + load_i64(mat + (top * cols + j) * 8);
+                set j = j + 1
+            };
+            set top = top + 1;
+
+            // Down the right
+            let mut i = top;
+            while i <= bottom {
+                set sum = sum + load_i64(mat + (i * cols + right) * 8);
+                set i = i + 1
+            };
+            set right = right - 1;
+
+            // Left across bottom (if rows remain)
+            let _c2 = if top <= bottom {
+                set j = right;
+                while j >= left {
+                    set sum = sum + load_i64(mat + (bottom * cols + j) * 8);
+                    set j = j - 1
+                };
+                set bottom = bottom - 1;
+                0
+            } else { 0 };
+
+            // Up the left (if cols remain)
+            let _c3 = if left <= right {
+                set i = bottom;
+                while i >= top {
+                    set sum = sum + load_i64(mat + (i * cols + left) * 8);
+                    set i = i - 1
+                };
+                set left = left + 1;
+                0
+            } else { 0 };
+            0
+        };
+        ()
+    };
+    sum
+};
+
+fn main() -> () = {
+    let rows = 500;
+    let cols = 500;
+    let iters = 10000;
+    let mat = malloc(rows * cols * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < rows * cols {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(mat + i * 8, seed % 100);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set checksum = checksum + spiral_sum(mat, rows, cols);
+        let _s = store_i64(mat, (load_i64(mat) + iter) % 100);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(mat);
+    ()
+};

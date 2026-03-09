@@ -1,0 +1,95 @@
+// Segment Tree — iterative bottom-up, range sum query + point update
+// Measures: random access patterns, tree traversal, arithmetic
+// Workload: N=50000 elements, 200000 mixed update/query ops, 100 iterations
+
+fn seg_build(tree: i64, n: i64) -> () = {
+    let mut i = n - 1;
+    while i >= 1 {
+        let _s = store_i64(tree + i * 8, load_i64(tree + (i * 2) * 8) + load_i64(tree + (i * 2 + 1) * 8));
+        set i = i - 1
+    }
+};
+
+fn seg_update(tree: i64, n: i64, pos: i64, val: i64) -> () = {
+    let mut p = pos + n;
+    let _s = store_i64(tree + p * 8, val);
+    set p = p / 2;
+    while p >= 1 {
+        let _s = store_i64(tree + p * 8, load_i64(tree + (p * 2) * 8) + load_i64(tree + (p * 2 + 1) * 8));
+        set p = p / 2
+    }
+};
+
+fn seg_query(tree: i64, n: i64, l_arg: i64, r_arg: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut l = l_arg + n;
+    let mut r = r_arg + n + 1;
+    while l < r {
+        if l band 1 == 1 {
+            set sum = sum + load_i64(tree + l * 8);
+            set l = l + 1
+        } else {
+            ()
+        };
+        if r band 1 == 1 {
+            set r = r - 1;
+            set sum = sum + load_i64(tree + r * 8)
+        } else {
+            ()
+        };
+        set l = l / 2;
+        set r = r / 2
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 50000;
+    let ops = 200000;
+    let iters = 100;
+    let tree = malloc(n * 2 * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Initialize leaves with deterministic values
+        let mut seed = 42 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(tree + (i + n) * 8, seed % 1000);
+            set i = i + 1
+        };
+        // Build internal nodes
+        seg_build(tree, n);
+
+        // Mixed operations
+        let mut op = 0;
+        while op < ops {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let kind = seed % 3;
+            if kind == 0 {
+                // Point update
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let pos = seed % n;
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let val = seed % 1000;
+                seg_update(tree, n, pos, val)
+            } else {
+                // Range sum query
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let a = seed % n;
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let b = seed % n;
+                let l = if a <= b { a } else { b };
+                let r = if a <= b { b } else { a };
+                let result = seg_query(tree, n, l, r);
+                set checksum = checksum + result
+            };
+            set op = op + 1
+        };
+        set iter = iter + 1
+    };
+    let _f = free(tree);
+    print(checksum % 1000000007)
+};

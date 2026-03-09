@@ -1,0 +1,123 @@
+// Matrix Inverse — Gauss-Jordan elimination
+// Measures: pivot selection, row operations, division
+// Workload: N=200, 100 iterations
+
+fn matrix_inverse(a: i64, inv: i64, n: i64) -> () = {
+    // Initialize inv as identity * 1000
+    let mut i = 0;
+    while i < n {
+        let mut j = 0;
+        while j < n {
+            let val = if i == j { 1000 } else { 0 };
+            let _s = store_i64(inv + (i * n + j) * 8, val);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+
+    let mut col = 0;
+    while col < n {
+        // Find pivot (largest absolute value in column)
+        let mut pivot_row = col;
+        let pv = load_i64(a + (col * n + col) * 8);
+        let mut max_val = if pv < 0 { 0 - pv } else { pv };
+        let mut i2 = col + 1;
+        while i2 < n {
+            let v = load_i64(a + (i2 * n + col) * 8);
+            let av = if v < 0 { 0 - v } else { v };
+            let _c = if av > max_val {
+                set max_val = av;
+                set pivot_row = i2;
+                ()
+            } else { () };
+            set i2 = i2 + 1
+        };
+
+        // Swap rows
+        let _sw = if pivot_row != col {
+            let mut j2 = 0;
+            while j2 < n {
+                let tmp = load_i64(a + (col * n + j2) * 8);
+                let _s1 = store_i64(a + (col * n + j2) * 8, load_i64(a + (pivot_row * n + j2) * 8));
+                let _s2 = store_i64(a + (pivot_row * n + j2) * 8, tmp);
+                let tmp2 = load_i64(inv + (col * n + j2) * 8);
+                let _s3 = store_i64(inv + (col * n + j2) * 8, load_i64(inv + (pivot_row * n + j2) * 8));
+                let _s4 = store_i64(inv + (pivot_row * n + j2) * 8, tmp2);
+                set j2 = j2 + 1
+            };
+            ()
+        } else { () };
+
+        let pivot = load_i64(a + (col * n + col) * 8);
+        let _skip = if pivot == 0 {
+            ()
+        } else {
+            // Scale pivot row
+            let mut j3 = 0;
+            while j3 < n {
+                let _s1 = store_i64(a + (col * n + j3) * 8, load_i64(a + (col * n + j3) * 8) * 1000 / pivot);
+                let _s2 = store_i64(inv + (col * n + j3) * 8, load_i64(inv + (col * n + j3) * 8) * 1000 / pivot);
+                set j3 = j3 + 1
+            };
+
+            // Eliminate column in other rows
+            let mut i3 = 0;
+            while i3 < n {
+                let _el = if i3 != col {
+                    let factor = load_i64(a + (i3 * n + col) * 8);
+                    let mut j4 = 0;
+                    while j4 < n {
+                        let _s1 = store_i64(a + (i3 * n + j4) * 8,
+                            load_i64(a + (i3 * n + j4) * 8) - factor * load_i64(a + (col * n + j4) * 8) / 1000);
+                        let _s2 = store_i64(inv + (i3 * n + j4) * 8,
+                            load_i64(inv + (i3 * n + j4) * 8) - factor * load_i64(inv + (col * n + j4) * 8) / 1000);
+                        set j4 = j4 + 1
+                    };
+                    ()
+                } else { () };
+                set i3 = i3 + 1
+            };
+            ()
+        };
+        set col = col + 1
+    }
+};
+
+fn main() -> () = {
+    let n = 200;
+    let iters = 100;
+    let a = malloc(n * n * 8);
+    let inv = malloc(n * n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate diagonally dominant matrix (for invertibility)
+        let mut i = 0;
+        while i < n {
+            let mut row_sum: i64 = 0;
+            let mut j = 0;
+            while j < n {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let val = (seed % 201) - 100;
+                let _s = store_i64(a + (i * n + j) * 8, val);
+                let _rs = if i != j {
+                    let av = if val < 0 { 0 - val } else { val };
+                    set row_sum = row_sum + av;
+                    ()
+                } else { () };
+                set j = j + 1
+            };
+            let _s = store_i64(a + (i * n + i) * 8, row_sum + 100);
+            set i = i + 1
+        };
+        matrix_inverse(a, inv, n);
+        set checksum = checksum + load_i64(inv) + load_i64(inv + (n * n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(a);
+    let _f2 = free(inv);
+    ()
+};

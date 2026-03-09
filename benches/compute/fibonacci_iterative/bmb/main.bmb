@@ -1,0 +1,29 @@
+// Fibonacci Iterative — compute Nth Fibonacci number iteratively
+// Measures: simple loop, variable swap, addition
+// Workload: fib(92) * 10000000 iterations
+
+fn fib(n: i64) -> i64 = {
+    let _c = if n <= 1 { return n } else { 0 };
+    let mut a: i64 = 0;
+    let mut b: i64 = 1;
+    let mut i = 2;
+    while i <= n {
+        let t = a + b;
+        set a = b;
+        set b = t;
+        set i = i + 1
+    };
+    b
+};
+
+fn main() -> () = {
+    let iters = 10000000;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set checksum = checksum + fib(92);
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

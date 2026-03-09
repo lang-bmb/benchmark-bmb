@@ -1,0 +1,53 @@
+// Pascal's Triangle row computation benchmark — modular arithmetic
+// Measures: sequential array access, modular addition, pointer swapping
+// Workload: N=2000 rows, 200 iterations, sum all entries mod 10^9+7
+
+fn pascal(n: i64, prev: i64, curr: i64) -> i64 = {
+    let modv = 1000000007;
+    let mut checksum = 1;
+    let _s0 = store_i64(prev, 1);
+    let mut row = 1;
+    while row <= n {
+        let _sc0 = store_i64(curr, 1);
+        let mut j = 1;
+        while j < row {
+            let a = load_i64(prev + (j - 1) * 8);
+            let b = load_i64(prev + j * 8);
+            let _sc = store_i64(curr + j * 8, (a + b) % modv);
+            set j = j + 1
+        };
+        let _scr = store_i64(curr + row * 8, 1);
+        // Sum all entries in curr row
+        let mut k = 0;
+        while k <= row {
+            set checksum = (checksum + load_i64(curr + k * 8)) % modv;
+            set k = k + 1
+        };
+        // Swap prev and curr by copying curr into prev
+        let mut c = 0;
+        while c <= row {
+            let _cp = store_i64(prev + c * 8, load_i64(curr + c * 8));
+            set c = c + 1
+        };
+        set row = row + 1
+    };
+    checksum
+};
+
+fn main() -> () = {
+    let n = 2000;
+    let iters = 200;
+    let prev = malloc((n + 1) * 8);
+    let curr = malloc((n + 1) * 8);
+
+    let mut total = 0;
+    let modv = 1000000007;
+    let mut iter = 0;
+    while iter < iters {
+        set total = (total + pascal(n, prev, curr)) % modv;
+        set iter = iter + 1
+    };
+    print(total);
+    let _f1 = free(prev);
+    let _f2 = free(curr)
+};

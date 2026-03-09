@@ -1,0 +1,57 @@
+// array_circular_max — Max subarray sum in circular array
+// Measures: register-carried Kadane max+min in single pass (4 accumulators)
+// Workload: N=2000000, 500 iterations
+
+fn circular_max(arr: i64, n: i64) -> i64 = {
+    let mut total: i64 = 0;
+    let first = load_i64(arr);
+    let mut max_sum = first;
+    let mut cur_max = first;
+    let mut min_sum = first;
+    let mut cur_min = first;
+    let mut i = 0;
+    while i < n {
+        let v = load_i64(arr + i * 8);
+        set total = total + v;
+        let _u = if i > 0 {
+            let prev_max = if cur_max > 0 { cur_max } else { 0 };
+            set cur_max = v + prev_max;
+            let _a = if cur_max > max_sum { set max_sum = cur_max; 0 } else { 0 };
+            let prev_min = if cur_min < 0 { cur_min } else { 0 };
+            set cur_min = v + prev_min;
+            let _b = if cur_min < min_sum { set min_sum = cur_min; 0 } else { 0 };
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    let wrap_sum = total - min_sum;
+    let result = if wrap_sum > max_sum {
+        if wrap_sum != 0 { wrap_sum } else { max_sum }
+    } else { max_sum };
+    result
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, (seed % 201) - 100);
+            set i = i + 1
+        };
+        set checksum = checksum + circular_max(arr, n);
+        set seed = (seed + iter) band 2147483647;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

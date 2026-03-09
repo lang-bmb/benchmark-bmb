@@ -1,0 +1,44 @@
+// Prime Factorization — trial division
+// Measures: integer division, modular arithmetic, nested loops
+// Workload: N=500K numbers, 5 iterations
+
+fn main() -> () = {
+    let n_max = 500000;
+    let iters = 5;
+    let mut checksum: i64 = 0;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut num: i64 = 2;
+        while num <= n_max {
+            let mut n: i64 = num;
+
+            // Factor out 2s
+            while (n band 1) == 0 {
+                set checksum = checksum + 2;
+                set n = n / 2
+            };
+
+            // Odd factors from 3 upward
+            let mut f: i64 = 3;
+            while f * f <= n {
+                while n % f == 0 {
+                    set checksum = checksum + f;
+                    set n = n / f
+                };
+                set f = f + 2
+            };
+
+            // Remaining prime factor > sqrt(num)
+            let _x = if n > 1 {
+                set checksum = checksum + n;
+                0
+            } else { 0 };
+
+            set num = num + 1
+        };
+        set iter = iter + 1
+    };
+
+    print(checksum)
+};

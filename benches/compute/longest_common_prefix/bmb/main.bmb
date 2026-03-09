@@ -1,0 +1,64 @@
+// Longest Common Prefix benchmark — sequential string comparison
+// Measures: memory access patterns, sequential comparison, branch prediction
+// Workload: 20000 strings of length 50, 1000 iterations
+// Uses raw memory (malloc/load_i64/store_i64/free) for fair comparison with C
+
+fn lcp_len(ptr_a: i64, ptr_b: i64, str_len: i64) -> i64 = {
+    // Use a sentinel: result stores final answer, k scans forward
+    // We encode "found mismatch at position p" by setting result and jumping k to end
+    let mut result = str_len;
+    let mut k = 0;
+    while k < str_len {
+        let ca = load_i64(ptr_a + k * 8);
+        let cb = load_i64(ptr_b + k * 8);
+        set k = if ca == cb {
+            k + 1
+        } else {
+            set result = k;
+            str_len
+        };
+        k
+    };
+    result
+};
+
+fn main() -> () = {
+    let n = 20000;
+    let str_len = 50;
+    let stride = 50;
+    let iters = 1000;
+
+    let buf = malloc(n * stride * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Generate n strings of str_len chars using PRNG
+        let mut seed = 42 + iter;
+        let mut i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < str_len {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let _s = store_i64(buf + (i * stride + j) * 8, seed % 26);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+
+        // Sum LCP lengths of all consecutive pairs
+        let mut total = 0;
+        set i = 0;
+        while i < n - 1 {
+            let off_a = i * stride * 8;
+            let off_b = (i + 1) * stride * 8;
+            set total = total + lcp_len(buf + off_a, buf + off_b, str_len);
+            set i = i + 1
+        };
+        set checksum = checksum + total;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(buf);
+    ()
+};

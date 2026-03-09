@@ -1,0 +1,61 @@
+// Equal Sum Partition — DP subset sum variant
+// Measures: 1D DP boolean array, backward scan
+// Workload: N=200, target=5000, 5000 iterations
+
+fn main() -> () = {
+    let n = 200;
+    let iters = 5000;
+    let max_sum = 10001;
+    let arr = malloc(n * 8);
+    let dp = malloc(max_sum * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut total: i64 = 0;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let val = seed % 100 + 1;
+            let _s = store_i64(arr + i * 8, val);
+            set total = total + val;
+            set i = i + 1
+        };
+
+        let mut result: i64 = 0;
+        let _c = if total % 2 == 0 {
+            let target = total / 2;
+            let _t = if target < max_sum {
+                // Clear dp
+                set i = 0;
+                while i < max_sum {
+                    let _s = store_i64(dp + i * 8, 0);
+                    set i = i + 1
+                };
+                let _s = store_i64(dp, 1);
+
+                set i = 0;
+                while i < n {
+                    let ai = load_i64(arr + i * 8);
+                    let mut j = target;
+                    while j >= ai {
+                        let _u = if load_i64(dp + (j - ai) * 8) != 0 {
+                            store_i64(dp + j * 8, 1)
+                        } else { 0 };
+                        set j = j - 1
+                    };
+                    set i = i + 1
+                };
+                set result = load_i64(dp + target * 8);
+                ()
+            } else { () };
+            ()
+        } else { () };
+        set checksum = checksum + result;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(dp)
+};

@@ -13,9 +13,11 @@ int64_t sum_squares(int64_t n) {
 }
 
 int main() {
+    int64_t base = 100000;
+    int64_t iters = 6000;
     int64_t result = 0;
-    for (int i = 0; i < 1000; i++) {
-        result += sum_squares(100000);
+    for (int64_t i = 0; i < iters; i++) {
+        result += sum_squares(base + (i % 10));
     }
     printf("%lld\n", (long long)result);
     return 0;

@@ -1,24 +1,24 @@
-// Bounds Check Elimination - contract optimization benchmark
-// In BMB: Contracts prove bounds at compile-time, no runtime check needed
-// Measures: Array access with compile-time verified bounds
+// Bounds Check Elimination — contract optimization benchmark
+// Uses DYNAMIC array indices that LLVM cannot statically verify
+// Contract pre-condition provides the proof for check elimination
 
-fn safe_access(arr: &[i64; 10000], index: i64) -> i64
-  pre  index >= 0 and index < 10000
-  post ret == arr[index]
-=
-  // Bounds check eliminated: pre-condition proves validity
-  arr[index];
+fn safe_get(arr: &[i64; 10], idx: i64) -> i64
+    pre idx >= 0 and idx < 10
+= arr[idx];
 
-fn sum_range(arr: &[i64; 10000], start: i64, end: i64) -> i64
-  pre  start >= 0 and end <= 10000 and start <= end
-=
-  if start >= end { 0 } else { safe_access(arr, start) + sum_range(arr, start + 1, end) };
-
-fn sum_array(arr: &[i64; 10000]) -> i64 =
-  sum_range(arr, 0, 10000);
+// Dynamic index: depends on loop counter, but bounded [0,10)
+// LLVM cannot prove safety without contract assume
+fn dynamic_sum(arr: &[i64; 10], n: i64, acc: i64) -> i64
+= if n <= 0 { acc }
+  else {
+    let idx = n % 10;
+    let val = safe_get(arr, idx);
+    dynamic_sum(arr, n - 1, acc + val)
+  };
 
 fn main() -> i64 = {
-  // Note: Full implementation would initialize and sum array
-  // This is a simplified version for benchmark structure
-  0
+    let arr: [i64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let result = dynamic_sum(&arr, 10000000, 0);
+    let _u = println(result);
+    0
 };

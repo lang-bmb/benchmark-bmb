@@ -1,0 +1,37 @@
+// Stock Buy/Sell — max profit with single transaction
+// Measures: register tracking (min_price, max_profit), sequential scan
+// Workload: N=2000000, 1000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 1000;
+    let prices = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(prices + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        let mut min_price = load_i64(prices);
+        let mut max_profit: i64 = 0;
+
+        set i = 1;
+        while i < n {
+            let price = load_i64(prices + i * 8);
+            let profit = price - min_price;
+            set max_profit = if profit > max_profit { profit } else { max_profit };
+            set min_price = if price < min_price { price } else { min_price };
+            set i = i + 1
+        };
+        set checksum = checksum + max_profit;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(prices)
+};

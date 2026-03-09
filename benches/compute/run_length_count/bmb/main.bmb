@@ -1,0 +1,41 @@
+// Run-Length Count — count consecutive runs in array
+// Measures: sequential scan, branch prediction, simple counting
+// Workload: N=100000 array, 2000 iterations
+
+fn count_runs(arr: i64, n: i64) -> i64 = {
+    let _c = if n == 0 { return 0 } else { 0 };
+    let mut runs = 1;
+    let mut i = 1;
+    while i < n {
+        let _c2 = if load_i64(arr + i * 8) != load_i64(arr + (i - 1) * 8) {
+            set runs = runs + 1;
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    runs
+};
+
+fn main() -> () = {
+    let n = 100000;
+    let iters = 10000;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10);
+            set i = i + 1
+        };
+        set checksum = checksum + count_runs(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

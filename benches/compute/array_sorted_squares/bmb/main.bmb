@@ -1,0 +1,61 @@
+// Array Sorted Squares — two-pointer merge to produce sorted squares of sorted array
+// Measures: two-pointer merge, register carry (left, right), store to result
+// Workload: N=1000000 array, 500 iterations
+
+fn sorted_squares(arr: i64, result: i64, n: i64) -> i64 = {
+    let mut left: i64 = 0;
+    let mut right: i64 = n - 1;
+    let mut pos: i64 = n - 1;
+    while left <= right {
+        let lv = load_i64(arr + left * 8);
+        let rv = load_i64(arr + right * 8);
+        let abs_l = if lv < 0 { 0 - lv } else { lv };
+        let abs_r = if rv < 0 { 0 - rv } else { rv };
+        let _s = if abs_l > abs_r {
+            let _st = store_i64(result + pos * 8, abs_l * abs_l);
+            set left = left + 1;
+            0
+        } else {
+            let _st = store_i64(result + pos * 8, abs_r * abs_r);
+            set right = right - 1;
+            0
+        };
+        set pos = pos - 1
+    };
+    // Return checksum: sum of first 8 + last 8 elements
+    let mut cs: i64 = 0;
+    let mut j = 0;
+    while j < 8 {
+        set cs = cs + load_i64(result + j * 8);
+        set cs = cs + load_i64(result + (n - 1 - j) * 8);
+        set j = j + 1
+    };
+    cs
+};
+
+fn main() -> () = {
+    let n = 1000000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let result = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        // Fill with sorted values in range [-n/2, n/2)
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, i - n / 2 + seed % 3);
+            set i = i + 1
+        };
+        set checksum = checksum + sorted_squares(arr, result, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(result);
+    ()
+};

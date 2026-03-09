@@ -1,0 +1,50 @@
+// Histogram — frequency counting
+// Measures: random array access, binning, accumulation
+// Workload: N=1M values, 256 bins, 200 iterations
+
+fn main() -> () = {
+    let n = 1000000;
+    let bins = 256;
+    let iters = 200;
+    let values = malloc(n * 8);
+    let hist = malloc(bins * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(values + i * 8, seed % bins);
+            set i = i + 1
+        };
+        // Clear histogram
+        set i = 0;
+        while i < bins {
+            let _s = store_i64(hist + i * 8, 0);
+            set i = i + 1
+        };
+        // Build histogram
+        set i = 0;
+        while i < n {
+            let val = load_i64(values + i * 8);
+            let _s = store_i64(hist + val * 8, load_i64(hist + val * 8) + 1);
+            set i = i + 1
+        };
+        // Entropy approximation: sum of count[i] * count[i]
+        let mut entropy = 0;
+        set i = 0;
+        while i < bins {
+            let c = load_i64(hist + i * 8);
+            set entropy = entropy + c * c;
+            set i = i + 1
+        };
+        set checksum = checksum + entropy;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(values);
+    let _f2 = free(hist);
+    ()
+};

@@ -1,0 +1,61 @@
+// Sliding Window Maximum — deque-based O(n) algorithm
+// Measures: deque operations, sequential access, branch prediction
+// Workload: N=200000 array, window=100, 500 iterations
+
+fn sliding_window_max_sum(arr: i64, n: i64, k: i64, deq: i64) -> i64 = {
+    let mut front: i64 = 0;
+    let mut back: i64 = 0;
+    let mut sum: i64 = 0;
+    let mut i = 0;
+    while i < n {
+        // Remove elements outside window
+        while front < back {
+            if load_i64(deq + front * 8) <= i - k {
+                set front = front + 1
+            } else { break };
+            ()
+        };
+        // Remove smaller elements from back
+        while front < back {
+            if load_i64(arr + load_i64(deq + (back - 1) * 8) * 8) <= load_i64(arr + i * 8) {
+                set back = back - 1
+            } else { break };
+            ()
+        };
+        let _s = store_i64(deq + back * 8, i);
+        set back = back + 1;
+        let _c = if i >= k - 1 {
+            set sum = sum + load_i64(arr + load_i64(deq + front * 8) * 8);
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 200000;
+    let k = 100;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let deq = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+        set checksum = checksum + sliding_window_max_sum(arr, n, k, deq);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(deq);
+    ()
+};

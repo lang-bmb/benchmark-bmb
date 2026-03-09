@@ -1,0 +1,27 @@
+// Range Narrowing - postcondition range contracts enable optimization
+// post ret >= 0 and ret < 256 lets LLVM narrow result to byte range
+
+fn to_byte(x: i64) -> i64
+    post ret >= 0 and ret < 256
+= if x < 0 { 0 } else if x >= 256 { 255 } else { x };
+
+fn process_pixel(r: i64, g: i64, b: i64) -> i64
+= {
+    let rr = to_byte(r);
+    let gg = to_byte(g);
+    let bb = to_byte(b);
+    rr * 65536 + gg * 256 + bb
+};
+
+fn sum_pixels(n: i64, acc: i64) -> i64
+= if n <= 0 { acc }
+  else {
+      let pixel = process_pixel(n % 300, n % 500, n % 700);
+      sum_pixels(n - 1, acc + pixel)
+  };
+
+fn main() -> i64 = {
+    let result = sum_pixels(1000000, 0);
+    let _u = println(result);
+    0
+};

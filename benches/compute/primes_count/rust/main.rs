@@ -5,28 +5,32 @@ fn is_prime(n: i64) -> bool {
     if n < 2 {
         return false;
     }
-    if n == 2 {
-        return true;
-    }
-    if n % 2 == 0 {
-        return false;
-    }
-    let mut i: i64 = 3;
-    while i * i <= n {
-        if n % i == 0 {
+    let mut d: i64 = 2;
+    while d * d <= n {
+        if n % d == 0 {
             return false;
         }
-        i += 2;
+        d += 1;
     }
     true
 }
 
-fn main() {
+fn count_primes(n: i64) -> i64 {
     let mut count: i64 = 0;
-    for i in 2..1_000_000i64 {
+    let mut i: i64 = 2;
+    while i <= n {
         if is_prime(i) {
             count += 1;
         }
+        i += 1;
     }
-    println!("{}", count);
+    count
+}
+
+fn main() {
+    let mut result: i64 = 0;
+    for _ in 0..40 {
+        result += count_primes(50000);
+    }
+    println!("{}", result);
 }

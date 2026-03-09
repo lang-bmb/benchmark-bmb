@@ -1,0 +1,48 @@
+// Range Update — apply range additions and flatten with prefix sum
+// Measures: random access writes, sequential prefix sum scan
+// Workload: N=500000 array, 500000 updates, 500 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let nups = 500000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        // Clear
+        let mut i = 0;
+        while i < n {
+            let _s = store_i64(arr + i * 8, 0);
+            set i = i + 1
+        };
+        // Apply range updates as difference array
+        set i = 0;
+        while i < nups {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let lo = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let hi = lo + (seed % (n - lo));
+            let _s1 = store_i64(arr + lo * 8, load_i64(arr + lo * 8) + 1);
+            let _c = if hi + 1 < n {
+                let _s2 = store_i64(arr + (hi + 1) * 8, load_i64(arr + (hi + 1) * 8) - 1);
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        // Prefix sum to flatten
+        set i = 1;
+        while i < n {
+            let _s = store_i64(arr + i * 8, load_i64(arr + i * 8) + load_i64(arr + (i - 1) * 8));
+            set i = i + 1
+        };
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

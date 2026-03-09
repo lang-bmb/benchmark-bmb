@@ -1,0 +1,38 @@
+// Max Gap Sorted — find max gap between consecutive elements in sorted array
+// Measures: register-carry (prev), sequential scan on sorted data
+// Workload: N=2000000, 2000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut val: i64 = 0;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            set val = val + seed % 10;
+            let _s = store_i64(arr + i * 8, val);
+            set i = i + 1
+        };
+
+        let mut max_gap: i64 = 0;
+        let mut prev: i64 = load_i64(arr);
+        set i = 1;
+        while i < n {
+            let cur = load_i64(arr + i * 8);
+            let gap = cur - prev;
+            set max_gap = if gap > max_gap { gap } else { max_gap };
+            set prev = cur;
+            set i = i + 1
+        };
+        set checksum = checksum + max_gap;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

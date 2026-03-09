@@ -1,14 +1,11 @@
 // Digital Root Benchmark
-// Measures: integer arithmetic, nested loops
+// Measures: modulo operations, division, loops
 
-#[inline]
 fn digit_sum(mut n: i64) -> i64 {
     let mut acc: i64 = 0;
     while n > 0 {
-        let d = n % 10;
-        let q = n / 10;
-        acc += d;
-        n = q;
+        acc += n % 10;
+        n /= 10;
     }
     acc
 }
@@ -20,10 +17,18 @@ fn digital_root(mut n: i64) -> i64 {
     n
 }
 
-fn main() {
-    let mut sum: i64 = 0;
-    for i in 1..10_000_000i64 {
-        sum += digital_root(i * 12345);
+fn sum_digital_roots(n: i64) -> i64 {
+    let mut acc: i64 = 0;
+    for i in 1..=n {
+        acc += digital_root(i);
     }
-    println!("{}", sum);
+    acc
+}
+
+fn main() {
+    let mut result: i64 = 0;
+    for _ in 0..50 {
+        result += sum_digital_roots(100000);
+    }
+    println!("{}", result);
 }

@@ -40,11 +40,12 @@ int main() {
     int stretch_depth = max_depth + 1;
 
     Node* stretch = make_tree(stretch_depth);
-    printf("stretch tree check: %ld\n", check_tree(stretch));
+    printf("%ld\n", check_tree(stretch));
     free_tree(stretch);
 
     Node* long_lived = make_tree(max_depth);
 
+    long total = 0;
     for (int depth = min_depth; depth <= max_depth; depth += 2) {
         int iterations = 1 << (max_depth - depth + min_depth);
         long check = 0;
@@ -53,11 +54,15 @@ int main() {
             check += check_tree(tree);
             free_tree(tree);
         }
-        printf("%d trees of depth %d check: %ld\n", iterations, depth, check);
+        printf("%ld\n", check);
+        total += check;
     }
 
-    printf("long lived tree check: %ld\n", check_tree(long_lived));
+    long long_check = check_tree(long_lived);
+    printf("%ld\n", long_check);
     free_tree(long_lived);
+
+    printf("%ld\n", total + long_check);
 
     return 0;
 }

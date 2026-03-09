@@ -112,18 +112,12 @@ fn compute_vv(v: *f64, n: i64) -> f64 = {
 };
 
 fn main() -> i64 = {
-    // Use compile-time constant for stack allocation
     let n: i64 = 1000;
 
-    // Stack-allocated vectors using [val; N] repeat syntax
-    let u: [f64; 1000] = [0.0; 1000];
-    let v: [f64; 1000] = [0.0; 1000];
-    let temp: [f64; 1000] = [0.0; 1000];
-
-    // Cast arrays to pointers (v0.60.23: array decay)
-    let u_ptr = u as *f64;
-    let v_ptr = v as *f64;
-    let temp_ptr = temp as *f64;
+    // Heap-allocated vectors (avoids __chkstk on Windows for >4KB stack frames)
+    let u_ptr = calloc(n, 8) as *f64;
+    let v_ptr = calloc(n, 8) as *f64;
+    let temp_ptr = calloc(n, 8) as *f64;
 
     // Initialize u with 1.0
     let init = init_ones(u_ptr, n);
@@ -136,8 +130,11 @@ fn main() -> i64 = {
     let vv = compute_vv(v_ptr, n);
     let result = sqrt(vbv / vv);
 
-    // v0.60.44: Use println_f64 for proper float output
     let p = println_f64(result);
+
+    let _f1 = free(u_ptr as i64);
+    let _f2 = free(v_ptr as i64);
+    let _f3 = free(temp_ptr as i64);
 
     0
 };

@@ -1,0 +1,39 @@
+// Min Cost Climbing Stairs — DP with register carry
+// Measures: register-carry (prev/prev2), sequential scan
+// Workload: N=2000000, 1000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 1000;
+    let cost = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(cost + i * 8, seed % 1000);
+            set i = i + 1
+        };
+
+        // dp[i] = cost[i] + min(dp[i-1], dp[i-2])
+        let mut prev2 = load_i64(cost);
+        let mut prev1 = load_i64(cost + 8);
+
+        set i = 2;
+        while i < n {
+            let mn = if prev1 < prev2 { prev1 } else { prev2 };
+            let cur = load_i64(cost + i * 8) + mn;
+            set prev2 = prev1;
+            set prev1 = cur;
+            set i = i + 1
+        };
+        let result = if prev1 < prev2 { prev1 } else { prev2 };
+        set checksum = checksum + result;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(cost)
+};

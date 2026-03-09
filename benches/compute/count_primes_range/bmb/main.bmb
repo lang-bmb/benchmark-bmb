@@ -1,0 +1,51 @@
+// Count Primes in Range — segmented counting using sieve
+// Measures: sieve computation, sequential access, range queries
+// Workload: count primes in [1, 10^6], 500 iterations
+
+fn count_primes(limit: i64, sieve: i64) -> i64 = {
+    let mut i = 0;
+    while i <= limit {
+        let _s = store_i64(sieve + i * 8, 1);
+        set i = i + 1
+    };
+    let _s0 = store_i64(sieve, 0);
+    let _s1 = store_i64(sieve + 8, 0);
+
+    set i = 2;
+    while i * i <= limit {
+        let _c = if load_i64(sieve + i * 8) != 0 {
+            let mut j = i * i;
+            while j <= limit {
+                let _s = store_i64(sieve + j * 8, 0);
+                set j = j + i
+            };
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+
+    let mut count: i64 = 0;
+    set i = 2;
+    while i <= limit {
+        set count = count + load_i64(sieve + i * 8);
+        set i = i + 1
+    };
+    count
+};
+
+fn main() -> () = {
+    let limit = 1000000;
+    let iters = 500;
+    let sieve = malloc((limit + 1) * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let lim = limit - iter * 100;
+        set checksum = checksum + count_primes(lim, sieve);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(sieve);
+    ()
+};

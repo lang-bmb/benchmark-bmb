@@ -1,0 +1,59 @@
+// Bitonic Sort — parallel-friendly comparison-based sort
+// Measures: bitonic merge network, sequential access patterns
+// Workload: N=65536 (power of 2), 100 iterations
+
+fn bitonic_sort(arr: i64, n: i64) -> () = {
+    let mut k = 2;
+    while k <= n {
+        let mut j = k / 2;
+        while j > 0 {
+            let mut i = 0;
+            while i < n {
+                let l = i bxor j;
+                let _x = if l > i {
+                    let ai = load_i64(arr + i * 8);
+                    let al = load_i64(arr + l * 8);
+                    // ascending if (i & k)==0, descending otherwise
+                    // both cases: swap if condition met
+                    let do_swap = if (i band k) == 0 {
+                        if ai > al { 1 } else { 0 }
+                    } else {
+                        if ai < al { 1 } else { 0 }
+                    };
+                    let _sw = if do_swap != 0 {
+                        let _s1 = store_i64(arr + i * 8, al);
+                        let _s2 = store_i64(arr + l * 8, ai);
+                        ()
+                    } else { () };
+                    0
+                } else { 0 };
+                set i = i + 1
+            };
+            set j = j / 2
+        };
+        set k = k * 2
+    }
+};
+
+fn main() -> () = {
+    let n = 65536;
+    let iters = 100;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % n);
+            set i = i + 1
+        };
+        bitonic_sort(arr, n);
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

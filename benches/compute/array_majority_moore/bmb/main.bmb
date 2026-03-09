@@ -1,0 +1,64 @@
+// Array Majority Moore — Boyer-Moore majority vote (single pass candidate)
+// Measures: register carry (candidate, count), branch prediction
+// Workload: N=2000000 array, 1000 iterations
+
+fn majority_moore(arr: i64, n: i64) -> i64 = {
+    // Phase 1: find candidate
+    let mut candidate = load_i64(arr);
+    let mut count: i64 = 1;
+    let mut i = 1;
+    while i < n {
+        let _c = if count == 0 {
+            set candidate = load_i64(arr + i * 8);
+            set count = 1;
+            0
+        } else {
+            let _c2 = if load_i64(arr + i * 8) == candidate {
+                set count = count + 1; 0
+            } else {
+                set count = count - 1; 0
+            };
+            0
+        };
+        set i = i + 1
+    };
+    // Phase 2: verify
+    let mut freq: i64 = 0;
+    set i = 0;
+    while i < n {
+        let _c3 = if load_i64(arr + i * 8) == candidate {
+            set freq = freq + 1; 0
+        } else { 0 };
+        set i = i + 1
+    };
+    if freq > n / 2 { candidate } else { 0 - 1 }
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 1000;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let maj_val = iter % 7;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = if seed % 3 == 0 {
+                store_i64(arr + i * 8, seed % 20)
+            } else {
+                store_i64(arr + i * 8, maj_val)
+            };
+            set i = i + 1
+        };
+        set checksum = checksum + majority_moore(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

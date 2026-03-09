@@ -1,0 +1,42 @@
+// Array Compact — remove zeros from array in-place
+// Measures: conditional copy, sequential scan, write pointer
+// Workload: N=500000 array, 5000 iterations
+
+fn compact(arr: i64, n: i64) -> i64 = {
+    let mut write: i64 = 0;
+    let mut i = 0;
+    while i < n {
+        let v = load_i64(arr + i * 8);
+        let _c = if v != 0 {
+            let _s = store_i64(arr + write * 8, v);
+            set write = write + 1;
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    write
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 5000;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 5);
+            set i = i + 1
+        };
+        set checksum = checksum + compact(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

@@ -1,0 +1,53 @@
+// Array Stock Span — compute stock span using stack
+// Measures: stack operations, sequential access
+// Workload: N=500000, 1000 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 1000;
+    let prices = malloc(n * 8);
+    let span = malloc(n * 8);
+    let stack = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(prices + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        let mut top: i64 = 0 - 1;
+        set i = 0;
+        while i < n {
+            let pi = load_i64(prices + i * 8);
+            while top >= 0 {
+                let _x = if load_i64(prices + load_i64(stack + top * 8) * 8) <= pi {
+                    set top = top - 1;
+                    ()
+                } else { break };
+                0
+            };
+            let _s1 = store_i64(span + i * 8, if top < 0 { i + 1 } else { i - load_i64(stack + top * 8) });
+            set top = top + 1;
+            let _s2 = store_i64(stack + top * 8, i);
+            set i = i + 1
+        };
+
+        let mut sum: i64 = 0;
+        set i = 0;
+        while i < n {
+            set sum = sum + load_i64(span + i * 8);
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(prices);
+    let _f2 = free(span);
+    let _f3 = free(stack)
+};

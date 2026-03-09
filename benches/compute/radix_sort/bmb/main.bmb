@@ -1,0 +1,75 @@
+// Radix sort benchmark — counting sort + bit extraction
+// Measures: array traversal, counting, memory write patterns
+// Workload: 500K elements, 8-byte keys, 200 iterations
+
+fn radix_sort(arr: i64, tmp: i64, n: i64) -> () = {
+    let count = malloc(256 * 8);
+    let mut pass = 0;
+    while pass < 4 {
+        let shift = pass * 8;
+        // Zero counts
+        let mut i = 0;
+        while i < 256 {
+            let _s = store_i64(count + i * 8, 0);
+            set i = i + 1
+        };
+        // Count occurrences
+        set i = 0;
+        while i < n {
+            let byte_val = (load_i64(arr + i * 8) >> shift) band 255;
+            let _s = store_i64(count + byte_val * 8, load_i64(count + byte_val * 8) + 1);
+            set i = i + 1
+        };
+        // Prefix sum
+        set i = 1;
+        while i < 256 {
+            let _s = store_i64(count + i * 8, load_i64(count + i * 8) + load_i64(count + (i - 1) * 8));
+            set i = i + 1
+        };
+        // Scatter (reverse order for stability)
+        set i = n - 1;
+        while i >= 0 {
+            let byte_val = (load_i64(arr + i * 8) >> shift) band 255;
+            let new_count = load_i64(count + byte_val * 8) - 1;
+            let _s1 = store_i64(count + byte_val * 8, new_count);
+            let _s2 = store_i64(tmp + new_count * 8, load_i64(arr + i * 8));
+            set i = i - 1
+        };
+        // Copy back
+        set i = 0;
+        while i < n {
+            let _s = store_i64(arr + i * 8, load_i64(tmp + i * 8));
+            set i = i + 1
+        };
+        set pass = pass + 1
+    };
+    let _f = free(count);
+    ()
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 200;
+    let arr = malloc(n * 8);
+    let tmp = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Generate pseudo-random data
+        let mut seed = 54321 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed);
+            set i = i + 1
+        };
+        radix_sort(arr, tmp, n);
+        // Checksum: first + middle + last
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(tmp)
+};

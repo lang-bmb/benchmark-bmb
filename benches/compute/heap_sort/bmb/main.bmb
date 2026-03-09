@@ -1,0 +1,84 @@
+// Heap Sort — in-place comparison sort using binary heap
+// Measures: heap operations (sift-down), array swaps
+// Workload: N=200000, 100 iterations
+
+fn sift_down(arr: i64, start: i64, end_idx: i64) -> () = {
+    let mut root = start;
+    let mut done = 0;
+    while done == 0 {
+        let child = root * 2 + 1;
+        let _x = if child > end_idx {
+            set done = 1;
+            ()
+        } else {
+            let root_val = load_i64(arr + root * 8);
+            let child_val = load_i64(arr + child * 8);
+            let mut swap_idx = root;
+            let mut best = root_val;
+            let _c1 = if root_val < child_val {
+                set swap_idx = child;
+                set best = child_val;
+                ()
+            } else { () };
+            let _c2 = if child + 1 <= end_idx {
+                let child2_val = load_i64(arr + (child + 1) * 8);
+                let _c3 = if best < child2_val {
+                    set swap_idx = child + 1;
+                    ()
+                } else { () };
+                ()
+            } else { () };
+            let _sw = if swap_idx == root {
+                set done = 1;
+                ()
+            } else {
+                let _s1 = store_i64(arr + root * 8, load_i64(arr + swap_idx * 8));
+                let _s2 = store_i64(arr + swap_idx * 8, root_val);
+                set root = swap_idx;
+                ()
+            };
+            ()
+        }
+    }
+};
+
+fn heap_sort(arr: i64, n: i64) -> () = {
+    // Build max heap
+    let mut start = (n - 2) / 2;
+    while start >= 0 {
+        sift_down(arr, start, n - 1);
+        set start = start - 1
+    };
+    // Extract elements
+    let mut end_idx = n - 1;
+    while end_idx > 0 {
+        let tmp = load_i64(arr);
+        let _s1 = store_i64(arr, load_i64(arr + end_idx * 8));
+        let _s2 = store_i64(arr + end_idx * 8, tmp);
+        set end_idx = end_idx - 1;
+        sift_down(arr, 0, end_idx)
+    }
+};
+
+fn main() -> () = {
+    let n = 200000;
+    let iters = 100;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % n);
+            set i = i + 1
+        };
+        heap_sort(arr, n);
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

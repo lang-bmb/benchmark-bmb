@@ -1,0 +1,58 @@
+// Trapping Rain Water — two-pointer approach
+// Measures: two-pointer, register tracking (left_max, right_max)
+// Workload: N=2000000, 500 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let heights = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(heights + i * 8, seed % 1000);
+            set i = i + 1
+        };
+
+        let mut left: i64 = 0;
+        let mut right: i64 = n - 1;
+        let mut left_max: i64 = 0;
+        let mut right_max: i64 = 0;
+        let mut water: i64 = 0;
+
+        while left < right {
+            let hl = load_i64(heights + left * 8);
+            let hr = load_i64(heights + right * 8);
+            let _x = if hl < hr {
+                let _u = if hl >= left_max {
+                    set left_max = hl;
+                    ()
+                } else {
+                    set water = water + left_max - hl;
+                    ()
+                };
+                set left = left + 1;
+                ()
+            } else {
+                let _u = if hr >= right_max {
+                    set right_max = hr;
+                    ()
+                } else {
+                    set water = water + right_max - hr;
+                    ()
+                };
+                set right = right - 1;
+                ()
+            };
+            0
+        };
+        set checksum = checksum + water;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(heights)
+};

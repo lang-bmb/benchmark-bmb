@@ -1,0 +1,81 @@
+// Jacobi Iteration — 2D Laplace solver
+// Measures: stencil computation, array swapping, convergence loop
+// Workload: 300x300 grid, 500 iterations, 10 solves
+
+fn jacobi_solve(u_old: i64, u_new: i64, n: i64, steps: i64) -> i64 = {
+    // Initialize: boundary u[0][j] = 1000, others = 0
+    let mut i = 0;
+    while i < n {
+        let mut j = 0;
+        while j < n {
+            let val = if i == 0 { 1000 } else { 0 };
+            let _s1 = store_i64(u_old + (i * n + j) * 8, val);
+            let _s2 = store_i64(u_new + (i * n + j) * 8, val);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+
+    let mut step = 0;
+    while step < steps {
+        // Update interior points
+        set i = 1;
+        while i < n - 1 {
+            let mut j = 1;
+            while j < n - 1 {
+                let up    = load_i64(u_old + ((i - 1) * n + j) * 8);
+                let down  = load_i64(u_old + ((i + 1) * n + j) * 8);
+                let left  = load_i64(u_old + (i * n + (j - 1)) * 8);
+                let right = load_i64(u_old + (i * n + (j + 1)) * 8);
+                let _s = store_i64(u_new + (i * n + j) * 8, (up + down + left + right) / 4);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        // Fix boundary in u_new
+        let mut bj = 0;
+        while bj < n {
+            let _s = store_i64(u_new + bj * 8, 1000);
+            set bj = bj + 1
+        };
+        // Swap: copy u_new into u_old
+        let mut idx = 0;
+        let total = n * n;
+        while idx < total {
+            let _s = store_i64(u_old + idx * 8, load_i64(u_new + idx * 8));
+            set idx = idx + 1
+        };
+        set step = step + 1
+    };
+
+    // Checksum: sum of all interior points
+    let mut sum = 0;
+    set i = 1;
+    while i < n - 1 {
+        let mut j = 1;
+        while j < n - 1 {
+            set sum = sum + load_i64(u_new + (i * n + j) * 8);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 300;
+    let steps = 500;
+    let iters = 10;
+    let u_old = malloc(n * n * 8);
+    let u_new = malloc(n * n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        set checksum = checksum + jacobi_solve(u_old, u_new, n, steps);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(u_old);
+    let _f2 = free(u_new)
+};

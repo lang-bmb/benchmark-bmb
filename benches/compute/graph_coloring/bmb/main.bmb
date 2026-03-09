@@ -1,0 +1,83 @@
+// Graph Coloring — greedy coloring of adjacency matrix
+// Measures: adjacency matrix access, bit manipulation, greedy search
+// Workload: N=500 vertices, density=30%, 200 iterations
+
+fn main() -> () = {
+    let n = 500;
+    let iters = 200;
+    let adj = malloc(n * n * 8);
+    let color = malloc(n * 8);
+    let used = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate random graph (adjacency matrix)
+        let mut i = 0;
+        while i < n {
+            let mut j = i + 1;
+            while j < n {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let edge = if (seed % 100) < 30 { 1 } else { 0 };
+                let _s1 = store_i64(adj + (i * n + j) * 8, edge);
+                let _s2 = store_i64(adj + (j * n + i) * 8, edge);
+                set j = j + 1
+            };
+            let _s = store_i64(adj + (i * n + i) * 8, 0);
+            set i = i + 1
+        };
+
+        // Initialize colors to -1
+        set i = 0;
+        while i < n {
+            let _s = store_i64(color + i * 8, 0 - 1);
+            set i = i + 1
+        };
+
+        // Greedy coloring
+        let mut v = 0;
+        while v < n {
+            // Mark colors used by neighbors
+            set i = 0;
+            while i < n {
+                let _s = store_i64(used + i * 8, 0);
+                set i = i + 1
+            };
+            let mut u = 0;
+            while u < n {
+                let edge = load_i64(adj + (v * n + u) * 8);
+                let cu = load_i64(color + u * 8);
+                // Combined condition: neighbor with assigned color
+                let _c = if (edge != 0) {
+                    let _c2 = if (cu >= 0) {
+                        let _s = store_i64(used + cu * 8, 1);
+                        ()
+                    } else { () };
+                    ()
+                } else { () };
+                set u = u + 1
+            };
+            // Find smallest available color
+            let mut c = 0;
+            while load_i64(used + c * 8) != 0 {
+                set c = c + 1
+            };
+            let _s = store_i64(color + v * 8, c);
+            set v = v + 1
+        };
+
+        // Checksum
+        set i = 0;
+        while i < n {
+            set checksum = checksum + load_i64(color + i * 8);
+            set i = i + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(adj);
+    let _f2 = free(color);
+    let _f3 = free(used);
+    ()
+};

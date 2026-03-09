@@ -1,0 +1,104 @@
+// LU Decomposition benchmark (Doolittle's method, no pivoting)
+// Measures: triple nested loop, 2D array access, integer division
+// Workload: N=200 matrix, 100 iterations, scaled integers (x1000)
+
+fn lu_decompose(mat: i64, l_mat: i64, u_mat: i64, n: i64) -> i64 = {
+    // Initialize L to identity (diagonal = 1000 = scaled 1.0), U to zero
+    let mut i = 0;
+    while i < n {
+        let mut j = 0;
+        while j < n {
+            let _s1 = store_i64(u_mat + (i * n + j) * 8, 0);
+            let _s2 = store_i64(l_mat + (i * n + j) * 8, if i == j { 1000 } else { 0 });
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+
+    // Doolittle's algorithm
+    let mut k = 0;
+    while k < n {
+        // Compute U[k][j] for j = k..n
+        let mut j = k;
+        while j < n {
+            let mut sum_u = 0;
+            let mut s = 0;
+            while s < k {
+                let lik = load_i64(l_mat + (k * n + s) * 8);
+                let usj = load_i64(u_mat + (s * n + j) * 8);
+                set sum_u = sum_u + lik * usj / 1000;
+                set s = s + 1
+            };
+            let akj = load_i64(mat + (k * n + j) * 8);
+            let _su = store_i64(u_mat + (k * n + j) * 8, akj - sum_u);
+            set j = j + 1
+        };
+
+        // Compute L[i][k] for i = k+1..n
+        let ukk = load_i64(u_mat + (k * n + k) * 8);
+        set i = k + 1;
+        while i < n {
+            let mut sum_l = 0;
+            let mut s = 0;
+            while s < k {
+                let lis = load_i64(l_mat + (i * n + s) * 8);
+                let usk = load_i64(u_mat + (s * n + k) * 8);
+                set sum_l = sum_l + lis * usk / 1000;
+                set s = s + 1
+            };
+            let aik = load_i64(mat + (i * n + k) * 8);
+            let _sl = store_i64(l_mat + (i * n + k) * 8, (aik - sum_l) * 1000 / ukk);
+            set i = i + 1
+        };
+
+        set k = k + 1
+    };
+
+    // Checksum: sum diagonal of U
+    let mut cksum = 0;
+    set i = 0;
+    while i < n {
+        set cksum = cksum + load_i64(u_mat + (i * n + i) * 8);
+        set i = i + 1
+    };
+    cksum
+};
+
+fn main() -> () = {
+    let n = 200;
+    let iters = 100;
+    let mat = malloc(n * n * 8);
+    let l_mat = malloc(n * n * 8);
+    let u_mat = malloc(n * n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Generate random NxN matrix using LCG, values scaled by 1000
+        let mut seed = 123456789 + iter * 7;
+        let mut i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < n {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                // Values in range [1000..10000] to keep diagonal dominant
+                let val = if i == j {
+                    (seed % 9001) + 10000
+                } else {
+                    (seed % 2001) + 100
+                };
+                let _s = store_i64(mat + (i * n + j) * 8, val);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+
+        set checksum = checksum + lu_decompose(mat, l_mat, u_mat, n);
+        set iter = iter + 1
+    };
+
+    print(checksum);
+    let _f1 = free(mat);
+    let _f2 = free(l_mat);
+    let _f3 = free(u_mat)
+};

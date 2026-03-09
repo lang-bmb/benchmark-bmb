@@ -1,0 +1,39 @@
+// Matrix Addition — element-wise add two matrices
+// Measures: sequential memory access, simple arithmetic, bandwidth
+// Workload: 1000x1000 matrices, 2000 iterations
+
+fn main() -> () = {
+    let n = 1000;
+    let sz = n * n;
+    let iters = 2000;
+    let a = malloc(sz * 8);
+    let b = malloc(sz * 8);
+    let c = malloc(sz * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < sz {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s1 = store_i64(a + i * 8, seed % 1000);
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s2 = store_i64(b + i * 8, seed % 1000);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set i = 0;
+        while i < sz {
+            let _s = store_i64(c + i * 8, load_i64(a + i * 8) + load_i64(b + i * 8));
+            set i = i + 1
+        };
+        set checksum = checksum + load_i64(c) + load_i64(c + (sz - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(a);
+    let _f2 = free(b);
+    let _f3 = free(c);
+    ()
+};

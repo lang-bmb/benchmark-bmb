@@ -1,0 +1,114 @@
+// Trie insert and search benchmark — flat array trie with 26 children per node
+// Measures: pointer chasing, random memory access, branching
+// Workload: 50000 inserts + 50000 searches, 200 iterations
+
+// Node layout: 27 i64 slots per node (children[0..25] + is_end)
+// children[c] = index of child node (0 = no child)
+
+fn trie_init(trie: i64, next_node: i64) -> () = {
+    let mut i = 0;
+    while i < 27 {
+        let _s = store_i64(trie + i * 8, 0);
+        set i = i + 1
+    };
+    let _s = store_i64(next_node, 1);
+    ()
+};
+
+fn trie_insert(trie: i64, next_node: i64, word: i64, len: i64) -> () = {
+    let mut node = 0;
+    let mut i = 0;
+    while i < len {
+        let c = load_i64(word + i * 8);
+        let child_idx = node * 27 + c;
+        let _c = if load_i64(trie + child_idx * 8) == 0 {
+            let new_node = load_i64(next_node);
+            let _sn = store_i64(next_node, new_node + 1);
+            // Clear new node
+            let mut j = 0;
+            while j < 27 {
+                let _s = store_i64(trie + (new_node * 27 + j) * 8, 0);
+                set j = j + 1
+            };
+            store_i64(trie + child_idx * 8, new_node)
+        } else { 0 };
+        set node = load_i64(trie + child_idx * 8);
+        set i = i + 1
+    };
+    let _s = store_i64(trie + (node * 27 + 26) * 8, 1);
+    ()
+};
+
+fn trie_search(trie: i64, word: i64, len: i64) -> i64 = {
+    let mut node = 0;
+    let mut i = 0;
+    while i < len {
+        let c = load_i64(word + i * 8);
+        let child = load_i64(trie + (node * 27 + c) * 8);
+        let _c = if child == 0 {
+            return 0
+        } else {
+            set node = child
+        };
+        set i = i + 1
+    };
+    load_i64(trie + (node * 27 + 26) * 8)
+};
+
+fn main() -> () = {
+    let num_words = 50000;
+    let iters = 200;
+    let max_word_len = 10;
+    let max_nodes = 600000;
+    let node_size = 27;
+
+    let trie = malloc(max_nodes * node_size * 8);
+    let words = malloc(num_words * max_word_len * 8);
+    let word_lens = malloc(num_words * 8);
+    let next_node = malloc(8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 77777 + iter;
+
+        // Generate random words (length 5-10, chars 0-25)
+        let mut w = 0;
+        while w < num_words {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let wlen = 5 + (seed % 6);
+            let _sl = store_i64(word_lens + w * 8, wlen);
+            let mut c = 0;
+            while c < wlen {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let _s = store_i64(words + (w * max_word_len + c) * 8, seed % 26);
+                set c = c + 1
+            };
+            set w = w + 1
+        };
+
+        // Initialize trie and insert all words
+        trie_init(trie, next_node);
+        set w = 0;
+        while w < num_words {
+            trie_insert(trie, next_node, words + w * max_word_len * 8, load_i64(word_lens + w * 8));
+            set w = w + 1
+        };
+
+        // Search for all words
+        let mut found = 0;
+        set w = 0;
+        while w < num_words {
+            set found = found + trie_search(trie, words + w * max_word_len * 8, load_i64(word_lens + w * 8));
+            set w = w + 1
+        };
+        set checksum = checksum + found;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(trie);
+    let _f2 = free(words);
+    let _f3 = free(word_lens);
+    let _f4 = free(next_node);
+    ()
+};

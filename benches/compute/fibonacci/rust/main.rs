@@ -14,7 +14,7 @@ fn fibonacci_iter(n: i64) -> i64 {
 
 fn main() {
     let mut result: i64 = 0;
-    for _ in 0..1_000_000_000i64 {
+    for _ in 0..6_000_000_000i64 {
         result += fibonacci_iter(50);
     }
     println!("{}", result);

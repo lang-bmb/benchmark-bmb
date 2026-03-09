@@ -1,0 +1,54 @@
+// Polynomial Multiply — convolution of two polynomials
+// Measures: nested loops, multiply-accumulate, memory access
+// Workload: degree 1000 polynomials, 500 iterations
+
+fn poly_mul(a: i64, na: i64, b: i64, nb: i64, c: i64) -> () = {
+    let nc = na + nb - 1;
+    let mut i = 0;
+    while i < nc {
+        let _s = store_i64(c + i * 8, 0);
+        set i = i + 1
+    };
+    set i = 0;
+    while i < na {
+        let ai = load_i64(a + i * 8);
+        let mut j = 0;
+        while j < nb {
+            let _s = store_i64(c + (i + j) * 8, load_i64(c + (i + j) * 8) + ai * load_i64(b + j * 8));
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+    ()
+};
+
+fn main() -> () = {
+    let n = 1000;
+    let iters = 500;
+    let a = malloc(n * 8);
+    let b = malloc(n * 8);
+    let c = malloc((2 * n) * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s1 = store_i64(a + i * 8, seed % 100);
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s2 = store_i64(b + i * 8, seed % 100);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        poly_mul(a, n, b, n, c);
+        set checksum = checksum + load_i64(c) + load_i64(c + (n - 1) * 8) + load_i64(c + (2 * n - 2) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(a);
+    let _f2 = free(b);
+    let _f3 = free(c);
+    ()
+};

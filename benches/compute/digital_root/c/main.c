@@ -30,7 +30,7 @@ int64_t sum_digital_roots(int64_t n) {
 
 int main() {
     int64_t result = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 50; i++) {
         result += sum_digital_roots(100000);
     }
     printf("%lld\n", (long long)result);

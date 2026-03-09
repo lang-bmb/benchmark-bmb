@@ -1,0 +1,149 @@
+// Dijkstra shortest path benchmark — min-heap + graph traversal
+// Measures: priority queue operations, random memory access, graph algorithms
+// Workload: 20000 nodes, ~6 edges/node, weighted, 100 iterations
+
+fn dijk_swap(dist: i64, node: i64, a: i64, b: i64) -> () = {
+    let td = load_i64(dist + a * 8);
+    let _s1 = store_i64(dist + a * 8, load_i64(dist + b * 8));
+    let _s2 = store_i64(dist + b * 8, td);
+    let tn = load_i64(node + a * 8);
+    let _s3 = store_i64(node + a * 8, load_i64(node + b * 8));
+    let _s4 = store_i64(node + b * 8, tn)
+};
+
+fn dijk_up(dist: i64, node: i64, i_start: i64) -> () = {
+    let mut i = i_start;
+    while i > 0 {
+        let p = (i - 1) / 2;
+        let _x = if load_i64(dist + i * 8) < load_i64(dist + p * 8) {
+            dijk_swap(dist, node, i, p);
+            set i = p;
+            0
+        } else {
+            set i = 0 - 1;
+            0
+        };
+        0
+    };
+    ()
+};
+
+fn dijk_down(dist: i64, node: i64, size: i64, i_start: i64) -> () = {
+    let mut i = i_start;
+    let mut cont = 1;
+    while cont == 1 {
+        let mut s = i;
+        let l = 2 * i + 1;
+        let r = 2 * i + 2;
+        set s = if l < size {
+            if load_i64(dist + l * 8) < load_i64(dist + s * 8) { l } else { s }
+        } else { s };
+        set s = if r < size {
+            if load_i64(dist + r * 8) < load_i64(dist + s * 8) { r } else { s }
+        } else { s };
+        let _x = if s == i {
+            set cont = 0; 0
+        } else {
+            dijk_swap(dist, node, i, s);
+            set i = s; 0
+        };
+        0
+    };
+    ()
+};
+
+fn dijkstra(nodes: i64, adj_off: i64, adj_dst: i64, adj_wt: i64,
+            src: i64, best: i64, heap_d: i64, heap_n: i64) -> i64 = {
+    let inf = 4611686018427387903;
+    let mut i = 0;
+    while i < nodes {
+        let _s = store_i64(best + i * 8, inf);
+        set i = i + 1
+    };
+    let _s = store_i64(best + src * 8, 0);
+    let mut hsize = 0;
+    let _s2 = store_i64(heap_d, 0);
+    let _s3 = store_i64(heap_n, src);
+    set hsize = 1;
+
+    while hsize > 0 {
+        let d = load_i64(heap_d);
+        let u = load_i64(heap_n);
+        set hsize = hsize - 1;
+        let _s4 = store_i64(heap_d, load_i64(heap_d + hsize * 8));
+        let _s5 = store_i64(heap_n, load_i64(heap_n + hsize * 8));
+        let _x = if hsize > 0 {
+            dijk_down(heap_d, heap_n, hsize, 0); 0
+        } else { 0 };
+
+        let _y = if d <= load_i64(best + u * 8) {
+            let begin = load_i64(adj_off + u * 8);
+            let end = load_i64(adj_off + (u + 1) * 8);
+            let mut e = begin;
+            while e < end {
+                let v = load_i64(adj_dst + e * 8);
+                let nd = d + load_i64(adj_wt + e * 8);
+                let _z = if nd < load_i64(best + v * 8) {
+                    let _sb = store_i64(best + v * 8, nd);
+                    let _sh = store_i64(heap_d + hsize * 8, nd);
+                    let _sn = store_i64(heap_n + hsize * 8, v);
+                    dijk_up(heap_d, heap_n, hsize);
+                    set hsize = hsize + 1;
+                    0
+                } else { 0 };
+                set e = e + 1
+            };
+            0
+        } else { 0 };
+        0
+    };
+    // Return max distance
+    let mut mx = 0;
+    set i = 0;
+    while i < nodes {
+        let bi = load_i64(best + i * 8);
+        set mx = if bi != inf { if bi > mx { bi } else { mx } } else { mx };
+        set i = i + 1
+    };
+    mx
+};
+
+fn main() -> () = {
+    let nodes = 20000;
+    let edges_per = 6;
+    let iters = 100;
+
+    let total_edges = nodes * edges_per;
+    let adj_off = malloc((nodes + 1) * 8);
+    let adj_dst = malloc(total_edges * 8);
+    let adj_wt = malloc(total_edges * 8);
+    let best = malloc(nodes * 8);
+    let heap_d = malloc(nodes * 8);
+    let heap_n = malloc(nodes * 8);
+
+    // Build weighted random graph
+    let mut seed = 12345;
+    let mut i = 0;
+    while i < nodes {
+        let _s = store_i64(adj_off + i * 8, i * edges_per);
+        let mut e = 0;
+        while e < edges_per {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s2 = store_i64(adj_dst + (i * edges_per + e) * 8, seed % nodes);
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s3 = store_i64(adj_wt + (i * edges_per + e) * 8, (seed % 100) + 1);
+            set e = e + 1
+        };
+        set i = i + 1
+    };
+    let _s = store_i64(adj_off + nodes * 8, total_edges);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        set checksum = checksum + dijkstra(nodes, adj_off, adj_dst, adj_wt,
+                                           iter % nodes, best, heap_d, heap_n);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

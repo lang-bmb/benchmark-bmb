@@ -1,0 +1,71 @@
+// Array Kth Smallest — quickselect algorithm
+// Measures: partitioning, recursive selection
+// Workload: N=500000, 500 iterations
+
+fn partition(arr: i64, lo: i64, hi: i64) -> i64 = {
+    let pivot = load_i64(arr + hi * 8);
+    let mut i = lo - 1;
+    let mut j = lo;
+    while j < hi {
+        let _c = if load_i64(arr + j * 8) <= pivot {
+            set i = i + 1;
+            let t = load_i64(arr + i * 8);
+            let _s1 = store_i64(arr + i * 8, load_i64(arr + j * 8));
+            let _s2 = store_i64(arr + j * 8, t);
+            ()
+        } else { () };
+        set j = j + 1
+    };
+    set i = i + 1;
+    let t = load_i64(arr + i * 8);
+    let _s1 = store_i64(arr + i * 8, load_i64(arr + hi * 8));
+    let _s2 = store_i64(arr + hi * 8, t);
+    i
+};
+
+fn quickselect(arr: i64, lo_init: i64, hi_init: i64, k: i64) -> i64 = {
+    let mut lo = lo_init;
+    let mut hi = hi_init;
+    while lo < hi {
+        let p = partition(arr, lo, hi);
+        let _c = if p == k {
+            set lo = k;
+            set hi = k;
+            ()
+        } else {
+            let _c2 = if p < k {
+                set lo = p + 1;
+                ()
+            } else {
+                set hi = p - 1;
+                ()
+            };
+            ()
+        };
+        0
+    };
+    load_i64(arr + lo * 8)
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+        let k = n / 2;
+        set checksum = checksum + quickselect(arr, 0, n - 1, k);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

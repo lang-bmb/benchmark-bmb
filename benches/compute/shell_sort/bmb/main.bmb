@@ -1,0 +1,59 @@
+// Shell Sort benchmark — diminishing increment sort
+// Measures: strided array access, gap sequence optimization
+// Workload: N=10000 array, 200 iterations, Knuth gap sequence
+
+fn shell_sort(arr: i64, n: i64) -> () = {
+    // Compute largest gap in Knuth sequence: 1, 4, 13, 40, 121, ...
+    let mut gap = 1;
+    while gap * 3 + 1 < n {
+        set gap = gap * 3 + 1
+    };
+    while gap > 0 {
+        let mut i = gap;
+        while i < n {
+            let key = load_i64(arr + i * 8);
+            let mut insert_pos = i;
+            let mut j = i - gap;
+            while j >= 0 {
+                let _x = if load_i64(arr + j * 8) > key {
+                    let _s = store_i64(arr + (j + gap) * 8, load_i64(arr + j * 8));
+                    set insert_pos = j;
+                    set j = j - gap;
+                    0
+                } else {
+                    set j = 0 - 1;
+                    0
+                }
+            };
+            let _s = store_i64(arr + insert_pos * 8, key);
+            set i = i + 1
+        };
+        set gap = (gap - 1) / 3
+    }
+};
+
+fn main() -> () = {
+    let n = 10000;
+    let iters = 200;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % n);
+            set i = i + 1
+        };
+        shell_sort(arr, n);
+        let mut ci = 0;
+        while ci < 10 {
+            set checksum = checksum + load_i64(arr + ci * 8);
+            set ci = ci + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum)
+};

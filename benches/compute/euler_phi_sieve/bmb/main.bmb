@@ -1,0 +1,54 @@
+// Euler Phi Sieve — compute phi(1)..phi(N) using sieve method
+// Measures: sieve traversal, integer arithmetic, prime detection
+// Workload: N=5000000, 50 iterations
+
+fn euler_phi(phi: i64, n: i64) -> i64 = {
+    // Initialize phi[i] = i
+    let mut i = 0;
+    while i <= n {
+        let _s = store_i64(phi + i * 8, i);
+        set i = i + 1
+    };
+    // Sieve: for each prime p, multiply phi[j] by (p-1)/p for all multiples j
+    set i = 2;
+    while i <= n {
+        let _x = if load_i64(phi + i * 8) == i {
+            // i is prime: phi[i] = i - 1
+            let _s = store_i64(phi + i * 8, i - 1);
+            // Update all multiples of i starting from 2*i
+            let mut j = i * 2;
+            while j <= n {
+                let cur = load_i64(phi + j * 8);
+                // phi[j] = phi[j] / i * (i - 1)
+                let _s2 = store_i64(phi + j * 8, cur / i * (i - 1));
+                set j = j + i
+            };
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    // Sum all totient values
+    let mut total: i64 = 0;
+    set i = 1;
+    while i <= n {
+        set total = total + load_i64(phi + i * 8);
+        set i = i + 1
+    };
+    total
+};
+
+fn main() -> () = {
+    let n = 5000000;
+    let iters = 50;
+    let phi = malloc((n + 1) * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set checksum = checksum + euler_phi(phi, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(phi);
+    ()
+};

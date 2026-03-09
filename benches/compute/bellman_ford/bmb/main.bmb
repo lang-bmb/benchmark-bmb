@@ -1,0 +1,108 @@
+// Bellman-Ford shortest path benchmark
+// Measures: edge relaxation, sequential memory access, graph algorithms
+// Workload: 8000 vertices, 100000 edges, 300 iterations
+
+fn bellman_ford(n: i64, num_edges: i64, src_arr: i64, dst_arr: i64, wt_arr: i64, dist: i64) -> i64 = {
+    let inf = 999999999;
+    // Initialize distances
+    let mut i = 0;
+    while i < n {
+        let _s = store_i64(dist + i * 8, inf);
+        set i = i + 1
+    };
+    let _s = store_i64(dist + 0 * 8, 0);
+
+    // Relax edges V-1 times
+    let mut iter = 0;
+    while iter < n - 1 {
+        let mut changed = 0;
+        let mut e = 0;
+        while e < num_edges {
+            let u = load_i64(src_arr + e * 8);
+            let du = load_i64(dist + u * 8);
+            let _x = if du < inf {
+                let v = load_i64(dst_arr + e * 8);
+                let w = load_i64(wt_arr + e * 8);
+                let nd = du + w;
+                let dv = load_i64(dist + v * 8);
+                let _y = if nd < dv {
+                    let _s2 = store_i64(dist + v * 8, nd);
+                    set changed = 1;
+                    0
+                } else { 0 };
+                0
+            } else { 0 };
+            set e = e + 1
+        };
+        // Early exit if no changes
+        let _z = if changed == 0 {
+            set iter = n;
+            0
+        } else { 0 };
+        set iter = iter + 1
+    };
+
+    // Sum all finite distances for checksum
+    let mut sum = 0;
+    set i = 0;
+    while i < n {
+        let d = load_i64(dist + i * 8);
+        set sum = if d < inf { sum + d } else { sum };
+        set i = i + 1
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 8000;
+    let num_edges = 100000;
+    let iters = 300;
+
+    let src_arr = malloc(num_edges * 8);
+    let dst_arr = malloc(num_edges * 8);
+    let wt_arr = malloc(num_edges * 8);
+    let dist = malloc(n * 8);
+
+    // Generate random edge list with deterministic PRNG
+    let mut seed = 42;
+    let mut e = 0;
+    while e < num_edges {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let u = seed % n;
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let v = seed % n;
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let w = (seed % 100) + 1;
+        let _s1 = store_i64(src_arr + e * 8, u);
+        let _s2 = store_i64(dst_arr + e * 8, v);
+        let _s3 = store_i64(wt_arr + e * 8, w);
+        set e = e + 1
+    };
+
+    let mut checksum = 0;
+    let mut rep = 0;
+    while rep < iters {
+        // Regenerate edges each iteration with different seed for varied workloads
+        set seed = 42 + rep * 7;
+        set e = 0;
+        while e < num_edges {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let u = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let v = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let w = (seed % 100) + 1;
+            let _s1 = store_i64(src_arr + e * 8, u);
+            let _s2 = store_i64(dst_arr + e * 8, v);
+            let _s3 = store_i64(wt_arr + e * 8, w);
+            set e = e + 1
+        };
+        set checksum = checksum + bellman_ford(n, num_edges, src_arr, dst_arr, wt_arr, dist);
+        set rep = rep + 1
+    };
+    print(checksum);
+    let _f1 = free(src_arr);
+    let _f2 = free(dst_arr);
+    let _f3 = free(wt_arr);
+    let _f4 = free(dist)
+};

@@ -1,0 +1,152 @@
+// Longest Increasing Path — DFS with memoization
+// Measures: graph DFS, memoization, 2D grid traversal
+// Workload: 100x100 grid, 1000 iterations
+
+fn solve(grid: i64, dp: i64, stack_r: i64, stack_c: i64, stack_di: i64, n: i64) -> i64 = {
+    // directions: dr = {-1, 1, 0, 0}, dc = {0, 0, -1, 1}
+    let dirs = malloc(8 * 8);
+    let _s0 = store_i64(dirs, 0 - 1);
+    let _s1 = store_i64(dirs + 8, 1);
+    let _s2 = store_i64(dirs + 16, 0);
+    let _s3 = store_i64(dirs + 24, 0);
+    let _s4 = store_i64(dirs + 32, 0);
+    let _s5 = store_i64(dirs + 40, 0);
+    let _s6 = store_i64(dirs + 48, 0 - 1);
+    let _s7 = store_i64(dirs + 56, 1);
+
+    // Initialize dp to 0
+    let mut i = 0;
+    let total = n * n;
+    while i < total {
+        let _sd = store_i64(dp + i * 8, 0);
+        set i = i + 1
+    };
+
+    let mut max_path = 0;
+
+    let mut sr = 0;
+    while sr < n {
+        let mut sc = 0;
+        while sc < n {
+            let _skip = if load_i64(dp + (sr * n + sc) * 8) > 0 {
+                0
+            } else {
+                // Iterative DFS with stack
+                let mut sp = 0;
+                let _sr0 = store_i64(stack_r, sr);
+                let _sc0 = store_i64(stack_c, sc);
+                let _sd0 = store_i64(stack_di, 0);
+                set sp = 1;
+
+                while sp > 0 {
+                    let top = sp - 1;
+                    let r = load_i64(stack_r + top * 8);
+                    let c = load_i64(stack_c + top * 8);
+                    let di = load_i64(stack_di + top * 8);
+
+                    let _x = if di < 4 {
+                        let nr = r + load_i64(dirs + di * 8);
+                        let nc = c + load_i64(dirs + (di + 4) * 8);
+                        let _sdi = store_i64(stack_di + top * 8, di + 1);
+
+                        let _check = if nr >= 0 {
+                            let _c2 = if nr < n {
+                                let _c3 = if nc >= 0 {
+                                    let _c4 = if nc < n {
+                                        let _c5 = if load_i64(grid + (nr * n + nc) * 8) > load_i64(grid + (r * n + c) * 8) {
+                                            let _c6 = if load_i64(dp + (nr * n + nc) * 8) == 0 {
+                                                // Not yet computed, push onto stack
+                                                let _pr = store_i64(stack_r + sp * 8, nr);
+                                                let _pc = store_i64(stack_c + sp * 8, nc);
+                                                let _pd = store_i64(stack_di + sp * 8, 0);
+                                                set sp = sp + 1;
+                                                0
+                                            } else {
+                                                // Already computed, update current
+                                                let candidate = 1 + load_i64(dp + (nr * n + nc) * 8);
+                                                let cur_dp = load_i64(dp + (r * n + c) * 8);
+                                                let _u = if candidate > cur_dp {
+                                                    let _su = store_i64(dp + (r * n + c) * 8, candidate);
+                                                    0
+                                                } else { 0 };
+                                                0
+                                            };
+                                            0
+                                        } else { 0 };
+                                        0
+                                    } else { 0 };
+                                    0
+                                } else { 0 };
+                                0
+                            } else { 0 };
+                            0
+                        } else { 0 };
+                        0
+                    } else {
+                        // All directions explored
+                        let cur_val = load_i64(dp + (r * n + c) * 8);
+                        let _set_dp = if cur_val == 0 {
+                            let _su = store_i64(dp + (r * n + c) * 8, 1);
+                            0
+                        } else { 0 };
+                        set sp = sp - 1;
+                        // Update parent
+                        let _up = if sp > 0 {
+                            let pr = load_i64(stack_r + (sp - 1) * 8);
+                            let pc = load_i64(stack_c + (sp - 1) * 8);
+                            let candidate = 1 + load_i64(dp + (r * n + c) * 8);
+                            let par_dp = load_i64(dp + (pr * n + pc) * 8);
+                            let _upd = if candidate > par_dp {
+                                let _su = store_i64(dp + (pr * n + pc) * 8, candidate);
+                                0
+                            } else { 0 };
+                            0
+                        } else { 0 };
+                        0
+                    };
+                    0
+                };
+
+                let cell_dp = load_i64(dp + (sr * n + sc) * 8);
+                set max_path = if cell_dp > max_path { cell_dp } else { max_path };
+                0
+            };
+            set sc = sc + 1
+        };
+        set sr = sr + 1
+    };
+    let _fd = free(dirs);
+    max_path
+};
+
+fn main() -> () = {
+    let n = 100;
+    let iters = 1000;
+    let total = n * n;
+    let grid = malloc(total * 8);
+    let dp = malloc(total * 8);
+    let stack_r = malloc(total * 8);
+    let stack_c = malloc(total * 8);
+    let stack_di = malloc(total * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Fill grid with LCG random values
+        let mut seed = 12345 + iter;
+        let mut idx = 0;
+        while idx < total {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _sg = store_i64(grid + idx * 8, seed % 10000);
+            set idx = idx + 1
+        };
+        set checksum = checksum + solve(grid, dp, stack_r, stack_c, stack_di, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(grid);
+    let _f2 = free(dp);
+    let _f3 = free(stack_r);
+    let _f4 = free(stack_c);
+    let _f5 = free(stack_di)
+};

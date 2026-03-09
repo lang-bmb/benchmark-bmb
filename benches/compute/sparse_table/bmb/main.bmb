@@ -1,0 +1,90 @@
+// Sparse Table — O(1) range minimum query after O(n log n) preprocessing
+// Measures: 2D array access, logarithmic preprocessing, random queries
+// Workload: N=100000, 500000 queries, 300 iterations
+
+fn build_sparse_table(arr: i64, n: i64, table: i64, maxlog: i64) -> () = {
+    let mut i = 0;
+    while i < n {
+        let _s = store_i64(table + i * 8, load_i64(arr + i * 8));
+        set i = i + 1
+    };
+    let mut j = 1;
+    while j < maxlog {
+        let prev_row = (j - 1) * n;
+        let curr_row = j * n;
+        let half = 1 << (j - 1);
+        let span = 1 << j;
+        set i = 0;
+        while i + span <= n {
+            let a = load_i64(table + (prev_row + i) * 8);
+            let b = load_i64(table + (prev_row + i + half) * 8);
+            let _s = store_i64(table + (curr_row + i) * 8, if a < b { a } else { b });
+            set i = i + 1
+        };
+        set j = j + 1
+    }
+};
+
+fn query_rmq(table: i64, n: i64, log_table: i64, l: i64, r: i64) -> i64 = {
+    let len = r - l + 1;
+    let k = load_i64(log_table + len * 8);
+    let pow_k = 1 << k;
+    let a = load_i64(table + (k * n + l) * 8);
+    let b = load_i64(table + (k * n + r - pow_k + 1) * 8);
+    if a < b { a } else { b }
+};
+
+fn main() -> () = {
+    let n = 100000;
+    let queries = 500000;
+    let iters = 300;
+    let maxlog = 17;
+
+    let arr = malloc(n * 8);
+    let table = malloc(maxlog * n * 8);
+    let log_table = malloc((n + 1) * 8);
+
+    // Precompute log table
+    let _s0 = store_i64(log_table + 1 * 8, 0);
+    let mut i = 2;
+    while i <= n {
+        let _s = store_i64(log_table + i * 8, load_i64(log_table + (i / 2) * 8) + 1);
+        set i = i + 1
+    };
+
+    let mut seed: i64 = 42;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        set i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+        build_sparse_table(arr, n, table, maxlog);
+
+        let mut q = 0;
+        while q < queries {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let mut l = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let mut r = seed % n;
+            let _c = if l > r {
+                let tmp = l;
+                set l = r;
+                set r = tmp;
+                0
+            } else { 0 };
+            set checksum = checksum + query_rmq(table, n, log_table, l, r);
+            set q = q + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(table);
+    let _f3 = free(log_table);
+    ()
+};

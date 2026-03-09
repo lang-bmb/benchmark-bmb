@@ -1,0 +1,52 @@
+// Range Sum Query — prefix sum array for O(1) range queries
+// Measures: prefix computation, random access queries
+// Workload: N=1000000, 10000 queries, 500 iterations
+
+fn main() -> () = {
+    let n = 1000000;
+    let q = 10000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let prefix = malloc((n + 1) * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000);
+            set i = i + 1
+        };
+
+        // Build prefix sum
+        let _s = store_i64(prefix, 0);
+        set i = 0;
+        while i < n {
+            let _s = store_i64(prefix + (i + 1) * 8, load_i64(prefix + i * 8) + load_i64(arr + i * 8));
+            set i = i + 1
+        };
+
+        // Answer Q random range queries
+        let mut qi = 0;
+        while qi < q {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let mut l = seed % n;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let mut r = seed % n;
+            let _sw = if l > r {
+                let t = l;
+                set l = r;
+                set r = t;
+                ()
+            } else { () };
+            set checksum = checksum + load_i64(prefix + (r + 1) * 8) - load_i64(prefix + l * 8);
+            set qi = qi + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(prefix)
+};

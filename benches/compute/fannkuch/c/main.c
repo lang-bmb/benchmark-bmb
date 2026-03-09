@@ -59,12 +59,13 @@ int fannkuch(int n) {
         permCount++;
     }
 
-    printf("Checksum: %d\n", checksum);
+    printf("%d\n", checksum);
     return maxFlips;
 }
 
 int main() {
     int n = 10;
-    printf("Pfannkuchen(%d) = %d\n", n, fannkuch(n));
+    int result = fannkuch(n);
+    printf("%d\n", result);
     return 0;
 }

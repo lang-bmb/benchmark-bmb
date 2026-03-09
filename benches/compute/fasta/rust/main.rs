@@ -79,7 +79,7 @@ fn random_fasta(id: &str, desc: &str, table: &[(u8, f64)], n: usize) {
 }
 
 fn main() {
-    let n = 1_000_000;
+    let n = 750_000;
     repeat_fasta("ONE", "Homo sapiens alu", ALU, n * 2);
     random_fasta("TWO", "IUB ambiguity codes", &IUB, n * 3);
     random_fasta("THREE", "Homo sapiens frequency", &HOMOSAPIENS, n * 5);

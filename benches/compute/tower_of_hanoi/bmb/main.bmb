@@ -1,0 +1,38 @@
+// Tower of Hanoi benchmark — iterative simulation
+// Measures: loop performance, bitwise operations, modular arithmetic
+// Workload: N=25 disks (2^25-1 moves), 30 iterations
+// Uses iterative binary algorithm: move disk (lowest set bit of step)
+
+fn hanoi_iterative(n: i64) -> i64 = {
+    let total = (1 << n) - 1;
+    let mut move_sum = 0;
+    let mut step = 1;
+    while step <= total {
+        // Find lowest set bit position = which disk to move
+        // disk = number of trailing zeros of step
+        let mut disk = 0;
+        let mut tmp = step;
+        while (tmp band 1) == 0 {
+            set disk = disk + 1;
+            set tmp = tmp >> 1
+        };
+        // Accumulate disk number as part of checksum
+        set move_sum = move_sum + disk;
+        set step = step + 1
+    };
+    move_sum
+};
+
+fn main() -> () = {
+    let n = 25;
+    let iters = 30;
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let result = hanoi_iterative(n);
+        set checksum = checksum + result;
+        set iter = iter + 1
+    };
+    print(checksum)
+};

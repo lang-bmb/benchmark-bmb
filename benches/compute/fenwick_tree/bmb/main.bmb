@@ -1,0 +1,58 @@
+// Fenwick Tree (Binary Indexed Tree) — point update + prefix sum query
+// Measures: random access patterns, bitwise operations, branch-heavy control flow
+// Workload: N=100000 elements, 500000 mixed update/query ops, 100 iterations
+
+fn fenwick_update(tree: i64, i_arg: i64, delta: i64, n: i64) -> () = {
+    let mut i = i_arg + 1;
+    while i <= n {
+        let _s = store_i64(tree + (i - 1) * 8, load_i64(tree + (i - 1) * 8) + delta);
+        set i = i + (i band (0 - i))
+    }
+};
+
+fn fenwick_query(tree: i64, i_arg: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut i = i_arg + 1;
+    while i > 0 {
+        set sum = sum + load_i64(tree + (i - 1) * 8);
+        set i = i - (i band (0 - i))
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 100000;
+    let ops = 500000;
+    let iters = 100;
+    let tree = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Clear tree
+        let mut c = 0;
+        while c < n {
+            let _s = store_i64(tree + c * 8, 0);
+            set c = c + 1
+        };
+        let mut seed = 42 + iter;
+        let mut op = 0;
+        while op < ops {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let kind = seed % 2;
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let idx = seed % n;
+            if kind == 0 {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let delta = seed % 1000;
+                fenwick_update(tree, idx, delta, n)
+            } else {
+                let result = fenwick_query(tree, idx);
+                set checksum = checksum + result
+            };
+            set op = op + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum % 1000000007)
+};

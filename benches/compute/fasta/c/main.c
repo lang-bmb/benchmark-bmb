@@ -119,7 +119,7 @@ static const char alu[] =
     "CACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
 int main(int argc, char **argv) {
-    int n = 250000;  // Increased for measurable timing
+    int n = 750000;  // target: ~175ms
     if (argc > 1) n = atoi(argv[1]);
 
     make_repeat_fasta("ONE", "Homo sapiens alu", alu, n * 2);

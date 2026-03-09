@@ -1,0 +1,36 @@
+// Array Max Diff — find maximum difference between any two elements
+// Measures: sequential scan, min/max tracking
+// Workload: N=1000000, 5000 iterations
+
+fn main() -> () = {
+    let n = 1000000;
+    let iters = 5000;
+    let arr = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(arr + i * 8, seed);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut mn = load_i64(arr);
+        let mut mx = load_i64(arr);
+        set i = 1;
+        while i < n {
+            let v = load_i64(arr + i * 8);
+            let _c1 = if v < mn { set mn = v } else { () };
+            let _c2 = if v > mx { set mx = v } else { () };
+            set i = i + 1
+        };
+        set checksum = checksum + (mx - mn);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

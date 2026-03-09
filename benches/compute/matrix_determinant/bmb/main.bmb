@@ -1,0 +1,112 @@
+// Matrix Determinant benchmark — Gaussian elimination with partial pivoting
+// Measures: nested loops, array access, branching, integer arithmetic
+// Workload: N=200 matrix, 1000 iterations, scaled integer arithmetic (x1000)
+
+fn fill_matrix(mat: i64, n: i64, seed_in: i64) -> i64 = {
+    let mut seed = seed_in;
+    let mut i = 0;
+    while i < n {
+        let mut j = 0;
+        while j < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let val = (seed % 2001) - 1000;
+            let _s = store_i64(mat + (i * n + j) * 8, val);
+            set j = j + 1
+        };
+        set i = i + 1
+    };
+    seed
+};
+
+fn abs_val(x: i64) -> i64 =
+    if x < 0 { 0 - x } else { x };
+
+fn gaussian_det_sign(mat: i64, n: i64) -> i64 = {
+    let mut sign = 1;
+    let mut col = 0;
+    while col < n {
+        // Find pivot row
+        let mut max_val = abs_val(load_i64(mat + (col * n + col) * 8));
+        let mut max_row = col;
+        let mut r = col + 1;
+        while r < n {
+            let v = abs_val(load_i64(mat + (r * n + col) * 8));
+            let _x = if v > max_val {
+                set max_val = v;
+                set max_row = r;
+                0
+            } else { 0 };
+            set r = r + 1
+        };
+        // If pivot is zero, determinant is zero
+        let _z = if max_val == 0 {
+            set sign = 0;
+            0
+        } else { 0 };
+        // Swap rows if needed
+        let _sw = if max_row != col {
+            let mut k = 0;
+            while k < n {
+                let tmp = load_i64(mat + (col * n + k) * 8);
+                let _s1 = store_i64(mat + (col * n + k) * 8, load_i64(mat + (max_row * n + k) * 8));
+                let _s2 = store_i64(mat + (max_row * n + k) * 8, tmp);
+                set k = k + 1
+            };
+            set sign = 0 - sign;
+            0
+        } else { 0 };
+        // Eliminate below
+        let pivot = load_i64(mat + (col * n + col) * 8);
+        let _el = if pivot != 0 {
+            let mut row = col + 1;
+            while row < n {
+                let factor = load_i64(mat + (row * n + col) * 8);
+                let mut c = col;
+                while c < n {
+                    let cur = load_i64(mat + (row * n + c) * 8);
+                    let above = load_i64(mat + (col * n + c) * 8);
+                    let new_val = cur * pivot - factor * above;
+                    let _s = store_i64(mat + (row * n + c) * 8, new_val);
+                    set c = c + 1
+                };
+                set row = row + 1
+            };
+            0
+        } else { 0 };
+        set col = col + 1
+    };
+    // Check sign of diagonal product
+    let _chk = if sign != 0 {
+        let mut positive = 1;
+        let mut neg_count = 0;
+        let mut d = 0;
+        while d < n {
+            let diag = load_i64(mat + (d * n + d) * 8);
+            let _nc = if diag < 0 {
+                set neg_count = neg_count + 1;
+                0
+            } else { 0 };
+            set d = d + 1
+        };
+        set sign = if (neg_count % 2) == 0 { sign } else { 0 - sign };
+        0
+    } else { 0 };
+    sign
+};
+
+fn main() -> () = {
+    let n = 200;
+    let iters = 1000;
+    let mat = malloc(n * n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let _seed = fill_matrix(mat, n, 42 + iter * 7);
+        let s = gaussian_det_sign(mat, n);
+        set checksum = checksum + s;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(mat)
+};

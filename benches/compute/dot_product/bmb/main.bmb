@@ -1,0 +1,41 @@
+// Dot Product — multiply-accumulate over large integer vectors
+// Measures: sequential memory access, multiply-accumulate, SIMD vectorization potential
+// Workload: N=1000000 vectors, 500 iterations
+
+fn main() -> () = {
+    let n = 1000000;
+    let iters = 500;
+    let modp = 1000000007;
+    let a = malloc(n * 8);
+    let b = malloc(n * 8);
+
+    // Generate vectors using deterministic PRNG
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(a + i * 8, seed % 1000);
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s2 = store_i64(b + i * 8, seed % 1000);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Compute dot product with modular arithmetic
+        let mut dot: i64 = 0;
+        let mut j = 0;
+        while j < n {
+            set dot = (dot + load_i64(a + j * 8) * load_i64(b + j * 8)) % modp;
+            set j = j + 1
+        };
+        set checksum = (checksum + dot) % modp;
+        set iter = iter + 1
+    };
+
+    print(checksum);
+    let _f1 = free(a);
+    let _f2 = free(b);
+    ()
+};

@@ -1,0 +1,84 @@
+// Game of Life — Conway's cellular automaton
+// Measures: 2D stencil, neighbor counting, conditional update
+// Workload: 200x200 grid, 500 generations, 20 iterations
+
+fn count_neighbors(grid: i64, r: i64, c: i64) -> i64 = {
+    let w = 200;
+    let h = 200;
+    let rn = (r + h - 1) % h;
+    let rs = (r + 1) % h;
+    let cw = (c + w - 1) % w;
+    let ce = (c + 1) % w;
+    load_i64(grid + (rn * w + cw) * 8)
+    + load_i64(grid + (rn * w + c) * 8)
+    + load_i64(grid + (rn * w + ce) * 8)
+    + load_i64(grid + (r * w + cw) * 8)
+    + load_i64(grid + (r * w + ce) * 8)
+    + load_i64(grid + (rs * w + cw) * 8)
+    + load_i64(grid + (rs * w + c) * 8)
+    + load_i64(grid + (rs * w + ce) * 8)
+};
+
+fn simulate(grid: i64, tmp: i64) -> i64 = {
+    let h = 200;
+    let w = 200;
+    let gens = 500;
+    let size = h * w;
+    let mut gen = 0;
+    while gen < gens {
+        let mut r = 0;
+        while r < h {
+            let mut c = 0;
+            while c < w {
+                let n = count_neighbors(grid, r, c);
+                let alive = load_i64(grid + (r * w + c) * 8);
+                let next = if n == 3 { 1 } else { if n == 2 and alive == 1 { 1 } else { 0 } };
+                let _s = store_i64(tmp + (r * w + c) * 8, next);
+                set c = c + 1
+            };
+            set r = r + 1
+        };
+        // Copy tmp back to grid
+        let mut i = 0;
+        while i < size {
+            let _s = store_i64(grid + i * 8, load_i64(tmp + i * 8));
+            set i = i + 1
+        };
+        set gen = gen + 1
+    };
+    // Count live cells
+    let mut live = 0;
+    let mut i = 0;
+    while i < size {
+        set live = live + load_i64(grid + i * 8);
+        set i = i + 1
+    };
+    live
+};
+
+fn main() -> () = {
+    let h = 200;
+    let w = 200;
+    let iters = 20;
+    let size = h * w;
+    let grid = malloc(size * 8);
+    let tmp = malloc(size * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Initialize with LCG
+        let mut seed = 42 + iter;
+        let mut i = 0;
+        while i < size {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(grid + i * 8, if seed % 4 == 0 { 1 } else { 0 });
+            set i = i + 1
+        };
+        set checksum = checksum + simulate(grid, tmp);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(grid);
+    let _g = free(tmp)
+};

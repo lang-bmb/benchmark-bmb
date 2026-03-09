@@ -1,0 +1,71 @@
+// Heapsort benchmark — in-place heap sort
+// Measures: heap operations, array swaps, cache-unfriendly access
+// Workload: 500K elements, 100 iterations
+
+fn sift_down(arr: i64, n: i64, i_start: i64) -> () = {
+    let mut i = i_start;
+    let mut cont = 1;
+    while cont == 1 {
+        let mut largest = i;
+        let l = 2 * i + 1;
+        let r = 2 * i + 2;
+        set largest = if l < n {
+            if load_i64(arr + l * 8) > load_i64(arr + largest * 8) { l } else { largest }
+        } else { largest };
+        set largest = if r < n {
+            if load_i64(arr + r * 8) > load_i64(arr + largest * 8) { r } else { largest }
+        } else { largest };
+        let _x = if largest == i {
+            set cont = 0; 0
+        } else {
+            let tmp = load_i64(arr + i * 8);
+            let _s1 = store_i64(arr + i * 8, load_i64(arr + largest * 8));
+            let _s2 = store_i64(arr + largest * 8, tmp);
+            set i = largest; 0
+        };
+        0
+    };
+    ()
+};
+
+fn heapsort(arr: i64, n: i64) -> () = {
+    // Build max-heap
+    let mut i = n / 2 - 1;
+    while i >= 0 {
+        sift_down(arr, n, i);
+        set i = i - 1
+    };
+    // Extract elements
+    set i = n - 1;
+    while i > 0 {
+        let tmp = load_i64(arr);
+        let _s1 = store_i64(arr, load_i64(arr + i * 8));
+        let _s2 = store_i64(arr + i * 8, tmp);
+        sift_down(arr, i, 0);
+        set i = i - 1
+    };
+    ()
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 100;
+    let arr = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 27182 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed);
+            set i = i + 1
+        };
+        heapsort(arr, n);
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

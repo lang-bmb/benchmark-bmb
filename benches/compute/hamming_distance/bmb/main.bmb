@@ -1,0 +1,48 @@
+// Hamming Distance — pairwise XOR + popcount (Kernighan's method)
+// Measures: bitwise operations, branch prediction, memory access patterns
+// Workload: 50000 pairs, 500 iterations
+
+fn popcount(x: i64) -> i64 = {
+    let mut n = x;
+    let mut count = 0;
+    while n != 0 {
+        set n = n band (n - 1);
+        set count = count + 1
+    };
+    count
+};
+
+fn hamming(a: i64, b: i64) -> i64 = popcount(a bxor b);
+
+fn main() -> () = {
+    let num_pairs = 50000;
+    let num_values = num_pairs * 2;
+    let iters = 500;
+    let arr = malloc(num_values * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Fill array with PRNG values
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < num_values {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed);
+            set i = i + 1
+        };
+        // Compute pairwise hamming distances for consecutive pairs
+        let mut sum_val: i64 = 0;
+        let mut p = 0;
+        while p < num_pairs {
+            let a = load_i64(arr + (p * 2) * 8);
+            let b = load_i64(arr + (p * 2 + 1) * 8);
+            set sum_val = sum_val + hamming(a, b);
+            set p = p + 1
+        };
+        set checksum = checksum + sum_val;
+        set iter = iter + 1
+    };
+    free(arr);
+    print(checksum)
+};

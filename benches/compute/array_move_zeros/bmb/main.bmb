@@ -1,0 +1,46 @@
+// Array Move Zeros — move all zeros to end maintaining order
+// Measures: two-pointer, register carry (write_pos)
+// Workload: N=2000000, 1000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 1000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate array with ~20% zeros
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 5);
+            set i = i + 1
+        };
+
+        // Move zeros to end, maintain order of non-zeros
+        let mut write_pos: i64 = 0;
+        set i = 0;
+        while i < n {
+            let _c = if load_i64(arr + i * 8) != 0 {
+                let _s = store_i64(arr + write_pos * 8, load_i64(arr + i * 8));
+                set write_pos = write_pos + 1;
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        // Fill remaining with zeros
+        set i = write_pos;
+        while i < n {
+            let _s = store_i64(arr + i * 8, 0);
+            set i = i + 1
+        };
+
+        set checksum = checksum + write_pos;
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

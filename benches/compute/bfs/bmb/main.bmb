@@ -1,0 +1,75 @@
+// BFS benchmark — breadth-first search on random graph
+// Measures: queue operations, random memory access, graph traversal
+// Workload: 50000 nodes, ~4 edges/node, 100 iterations
+
+fn bfs(nodes: i64, adj_off: i64, adj_data: i64, start: i64, dist: i64, queue: i64) -> i64 = {
+    let mut i = 0;
+    while i < nodes {
+        let _s = store_i64(dist + i * 8, 0 - 1);
+        set i = i + 1
+    };
+    let _s = store_i64(dist + start * 8, 0);
+    let mut head = 0;
+    let mut tail = 0;
+    let _s2 = store_i64(queue + tail * 8, start);
+    set tail = tail + 1;
+
+    let mut max_dist = 0;
+    while head < tail {
+        let u = load_i64(queue + head * 8);
+        set head = head + 1;
+        let d = load_i64(dist + u * 8);
+        let begin = load_i64(adj_off + u * 8);
+        let end = load_i64(adj_off + (u + 1) * 8);
+        let mut e = begin;
+        while e < end {
+            let v = load_i64(adj_data + e * 8);
+            let _x = if load_i64(dist + v * 8) == (0 - 1) {
+                let _s3 = store_i64(dist + v * 8, d + 1);
+                let _s4 = store_i64(queue + tail * 8, v);
+                set tail = tail + 1;
+                set max_dist = if d + 1 > max_dist { d + 1 } else { max_dist };
+                0
+            } else { 0 };
+            set e = e + 1
+        };
+        0
+    };
+    max_dist
+};
+
+fn main() -> () = {
+    let nodes = 50000;
+    let edges_per = 4;
+    let iters = 100;
+
+    let total_edges = nodes * edges_per;
+    let adj_off = malloc((nodes + 1) * 8);
+    let adj_data = malloc(total_edges * 8);
+    let dist = malloc(nodes * 8);
+    let queue = malloc(nodes * 8);
+
+    // Build random graph with LCG
+    let mut seed = 42;
+    let mut i = 0;
+    while i < nodes {
+        let _s = store_i64(adj_off + i * 8, i * edges_per);
+        let mut e = 0;
+        while e < edges_per {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s2 = store_i64(adj_data + (i * edges_per + e) * 8, seed % nodes);
+            set e = e + 1
+        };
+        set i = i + 1
+    };
+    let _s = store_i64(adj_off + nodes * 8, total_edges);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let start = iter % nodes;
+        set checksum = checksum + bfs(nodes, adj_off, adj_data, start, dist, queue);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

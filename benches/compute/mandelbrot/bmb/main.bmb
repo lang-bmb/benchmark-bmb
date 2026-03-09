@@ -17,27 +17,44 @@ fn square_fp(x: i64) -> i64 = mul_fp(x, x);
 // Threshold for escape: |z|^2 > 4 (in fixed-point: 4 * scale^2)
 @const fn threshold() -> i64 = 400000000;
 
-// Check if point escapes Mandelbrot set - tail recursive for early exit
-// Note: While loop version has syntax complexity; tail recursion with TCO is idiomatic BMB
-@inline
-fn iterate(cr: i64, ci: i64, zr: i64, zi: i64, iter: i64, max_iter: i64) -> i64 =
-    if iter >= max_iter { max_iter }
-    else {
-        let zr2 = square_fp(zr);
-        let zi2 = square_fp(zi);
-        let mag = zr2 + zi2;
-        if mag > threshold() { iter }
-        else {
-            let new_zr = zr2 - zi2 + cr;
-            let new_zi = 2 * mul_fp(zr, zi) + ci;
-            iterate(cr, ci, new_zr, new_zi, iter + 1, max_iter)
+// Check if point escapes Mandelbrot set - while loop for optimal codegen
+fn iterate(cr: i64, ci: i64, max_iter: i64) -> i64 = {
+    let mut zr: i64 = 0;
+    let mut zi: i64 = 0;
+    let mut iter: i64 = 0;
+    let mut result: i64 = max_iter;
+    let mut cont: i64 = 1;
+
+    while cont == 1 { {
+        if iter >= max_iter {
+            cont = 0;
+            ()
+        } else {
+            let zr2 = square_fp(zr);
+            let zi2 = square_fp(zi);
+            let mag = zr2 + zi2;
+            if mag > threshold() {
+                result = iter;
+                cont = 0;
+                ()
+            } else {
+                let new_zr = zr2 - zi2 + cr;
+                let new_zi = 2 * mul_fp(zr, zi) + ci;
+                zr = new_zr;
+                zi = new_zi;
+                iter = iter + 1;
+                ()
+            }
         }
-    };
+    } };
+
+    result
+};
 
 fn mandelbrot_point(x: i64, y: i64, width: i64, height: i64, max_iter: i64) -> i64 = {
     let cr = (x * 4 * scale() / width) - 2 * scale();
     let ci = (y * 4 * scale() / height) - 2 * scale();
-    iterate(cr, ci, 0, 0, 0, max_iter)
+    iterate(cr, ci, max_iter)
 };
 
 // Count escaping points - using nested while loops

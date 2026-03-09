@@ -1,0 +1,36 @@
+// Division-by-Zero Check Elimination — NO CONTRACT version
+// Same dynamic divisors, but without pre/post conditions
+// In --safe mode, divzero checks will REMAIN
+
+fn div_op(a: i64, b: i64) -> i64
+= a / b;
+
+fn mod_op(a: i64, b: i64) -> i64
+= a % b;
+
+fn get_divisor(n: i64) -> i64
+= {
+    let r = n % 7;
+    if r == 0 { 1 } else { r }
+};
+
+fn div_chain(x: i64, d: i64) -> i64
+= {
+    let a = div_op(x, d);
+    let b = mod_op(x, d);
+    div_op(a + b, d)
+};
+
+fn repeat_div(n: i64, acc: i64) -> i64
+= if n <= 0 { acc }
+  else {
+      let d = get_divisor(n);
+      let r = div_chain(n * 100 + 42, d);
+      repeat_div(n - 1, acc + r)
+  };
+
+fn main() -> i64 = {
+    let result = repeat_div(10000000, 0);
+    let _u = println(result);
+    0
+};

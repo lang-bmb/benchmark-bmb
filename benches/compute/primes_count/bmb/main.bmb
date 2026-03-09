@@ -1,41 +1,41 @@
-// Prime Counting Benchmark
+// Prime Counting Benchmark v0.95
 // Measures: modulo operations, nested loops, early termination
 // Counts primes up to N using trial division
+// v0.95: While loop for trial division (enables LLVM loop unrolling)
 
-fn is_prime(n: i64) -> i64 = {
-    let mut result: i64 = 1;
-    if n < 2 {
-        result = 0;
-    } else {
+fn is_prime(n: i64) -> i64 =
+    if n < 2 { 0 }
+    else {
         let mut d: i64 = 2;
+        let mut result: i64 = 1;
         while d * d <= n {
-            if n % d == 0 {
-                result = 0;
-                d = n;
-            } else {
-                d = d + 1;
-            };
+            let _chk = if n % d == 0 {
+                { result = 0 };
+                { d = n }; // break: set d past loop bound
+                0
+            } else { 0 };
+            { d = d + 1 }
         };
+        result
     };
-    result
-};
 
 fn count_primes(n: i64) -> i64 = {
     let mut count: i64 = 0;
     let mut i: i64 = 2;
     while i <= n {
-        count = count + is_prime(i);
-        i = i + 1;
+        { count = count + is_prime(i) };
+        { i = i + 1 }
     };
     count
 };
 
 fn main() -> i64 = {
+    // 40 iterations (target: ~175ms)
     let mut result: i64 = 0;
     let mut i: i64 = 0;
-    while i < 10 {
-        result = result + count_primes(50000);
-        i = i + 1;
+    while i < 40 {
+        { result = result + count_primes(50000) };
+        { i = i + 1 }
     };
     let _p = println(result);
     0

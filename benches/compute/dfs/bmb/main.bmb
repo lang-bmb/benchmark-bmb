@@ -1,0 +1,69 @@
+// Depth-First Search — iterative with explicit stack
+// Measures: graph traversal, stack operations, adjacency list access
+// Workload: N=2000 nodes, ~10000 edges, 200 iterations
+
+fn dfs(adj: i64, deg: i64, n: i64, start: i64, visited: i64, stack: i64) -> i64 = {
+    let mut i = 0;
+    while i < n {
+        let _s = store_i64(visited + i * 8, 0);
+        set i = i + 1
+    };
+    let mut sp = 0;
+    let _s = store_i64(stack, start);
+    set sp = 1;
+    let _sv = store_i64(visited + start * 8, 1);
+    let mut count = 0;
+    while sp > 0 {
+        set sp = sp - 1;
+        let node = load_i64(stack + sp * 8);
+        set count = count + 1;
+        let d = load_i64(deg + node * 8);
+        let base = node * 10;
+        let mut j = 0;
+        while j < d {
+            let neighbor = load_i64(adj + (base + j) * 8);
+            let _x = if load_i64(visited + neighbor * 8) == 0 {
+                let _sv2 = store_i64(visited + neighbor * 8, 1);
+                let _sp = store_i64(stack + sp * 8, neighbor);
+                set sp = sp + 1;
+                0
+            } else { 0 };
+            set j = j + 1
+        };
+        0
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 2000;
+    let max_deg = 10;
+    let iters = 3000;
+    let adj = malloc(n * max_deg * 8);
+    let deg = malloc(n * 8);
+    let visited = malloc(n * 8);
+    let stack = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 31337 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let d = (seed % 5) + 1;
+            let _sd = store_i64(deg + i * 8, d);
+            let base = i * max_deg;
+            let mut j = 0;
+            while j < d {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let _s = store_i64(adj + (base + j) * 8, seed % n);
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        set checksum = checksum + dfs(adj, deg, n, 0, visited, stack);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

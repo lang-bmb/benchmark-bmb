@@ -1,0 +1,57 @@
+// Zigzag Matrix Traversal — traverse matrix in zigzag order
+// Measures: irregular access pattern, branch prediction, direction changes
+// Workload: 500x500 matrix, 3000 iterations
+
+fn zigzag_sum(mat: i64, rows: i64, cols: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut d = 0;
+    while d < rows + cols - 1 {
+        let r_start = if d < cols { 0 } else { d - cols + 1 };
+        let r_end = if d < rows { d } else { rows - 1 };
+        let _c = if d % 2 == 0 {
+            // Up-right
+            let mut r = r_end;
+            while r >= r_start {
+                set sum = sum + load_i64(mat + (r * cols + (d - r)) * 8);
+                set r = r - 1
+            };
+            0
+        } else {
+            // Down-left
+            let mut r = r_start;
+            while r <= r_end {
+                set sum = sum + load_i64(mat + (r * cols + (d - r)) * 8);
+                set r = r + 1
+            };
+            0
+        };
+        set d = d + 1
+    };
+    sum
+};
+
+fn main() -> () = {
+    let rows = 500;
+    let cols = 500;
+    let iters = 10000;
+    let mat = malloc(rows * cols * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < rows * cols {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(mat + i * 8, seed % 100);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set checksum = checksum + zigzag_sum(mat, rows, cols);
+        let _s = store_i64(mat, (load_i64(mat) + iter) % 100);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(mat);
+    ()
+};

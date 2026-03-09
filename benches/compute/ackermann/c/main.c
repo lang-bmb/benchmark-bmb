@@ -12,7 +12,7 @@ int64_t ackermann(int64_t m, int64_t n) {
 
 int main() {
     int64_t result = 0;
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 3000; i++) {
         result += ackermann(3, 10);
     }
     printf("%lld\n", (long long)result);

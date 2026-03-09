@@ -1,0 +1,57 @@
+// Matrix Chain Multiplication — O(n^3) DP
+// Measures: 2D array access (triangular), triple nested loop, min tracking
+// Workload: N=500 matrices, 100 iterations
+
+fn matrix_chain(dims: i64, n: i64, dp: i64) -> i64 = {
+    // dp[i*n+j] = min cost to multiply matrices i..j
+    // dims[i] = rows of matrix i, dims[i+1] = cols
+    let mut i = 0;
+    while i < n * n {
+        let _s = store_i64(dp + i * 8, 0);
+        set i = i + 1
+    };
+    // chain length l from 2 to n
+    let mut l = 2;
+    while l <= n {
+        let mut start = 0;
+        while start <= n - l {
+            let end = start + l - 1;
+            let _s = store_i64(dp + (start * n + end) * 8, 9223372036854775807);
+            let mut k = start;
+            while k < end {
+                let cost = load_i64(dp + (start * n + k) * 8)
+                    + load_i64(dp + ((k + 1) * n + end) * 8)
+                    + load_i64(dims + start * 8) * load_i64(dims + (k + 1) * 8) * load_i64(dims + (end + 1) * 8);
+                let _u = if cost < load_i64(dp + (start * n + end) * 8) {
+                    store_i64(dp + (start * n + end) * 8, cost)
+                } else { 0 };
+                set k = k + 1
+            };
+            set start = start + 1
+        };
+        set l = l + 1
+    };
+    load_i64(dp + (n - 1) * 8)
+};
+
+fn main() -> () = {
+    let n = 500;
+    let iters = 100;
+    let dims = malloc((n + 1) * 8);
+    let dp = malloc(n * n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 7777 + iter;
+        let mut i = 0;
+        while i <= n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(dims + i * 8, (seed % 50) + 1);
+            set i = i + 1
+        };
+        set checksum = checksum + (matrix_chain(dims, n, dp) % 1000000007);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

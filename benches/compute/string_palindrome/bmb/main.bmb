@@ -1,0 +1,53 @@
+// String Palindrome — check if i64 arrays are palindromes
+// Measures: two-pointer scan, comparison, early exit
+// Workload: N=10000 array, 5000000 iterations
+
+fn is_palindrome(arr: i64, n: i64) -> i64 = {
+    let mut lo: i64 = 0;
+    let mut hi = n - 1;
+    while lo < hi {
+        let _c = if load_i64(arr + lo * 8) != load_i64(arr + hi * 8) {
+            return 0
+        } else { () };
+        set lo = lo + 1;
+        set hi = hi - 1
+    };
+    1
+};
+
+fn main() -> () = {
+    let n = 10000;
+    let iters = 5000000;
+    let arr = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(arr + i * 8, seed % 100);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Make it a palindrome every 1000th iteration
+        let _c = if iter % 1000 == 0 {
+            set i = 0;
+            while i < n / 2 {
+                let _s = store_i64(arr + (n - 1 - i) * 8, load_i64(arr + i * 8));
+                set i = i + 1
+            };
+            ()
+        } else {
+            // Slight modification to prevent full palindrome
+            let _s = store_i64(arr + (n / 2) * 8, iter % 200);
+            ()
+        };
+        set checksum = checksum + is_palindrome(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

@@ -1,0 +1,49 @@
+// Matrix Trace — sum of diagonal elements with matrix operations
+// Measures: strided access (diagonal), sequential fill, cache behavior
+// Workload: 500x500 matrix, 5000 iterations with accumulation
+
+fn matrix_trace(mat: i64, n: i64) -> i64 = {
+    let mut sum: i64 = 0;
+    let mut i = 0;
+    while i < n {
+        set sum = sum + load_i64(mat + (i * n + i) * 8);
+        set i = i + 1
+    };
+    sum
+};
+
+fn matrix_add_scalar(mat: i64, n: i64, scalar: i64) -> () = {
+    let total = n * n;
+    let mut i = 0;
+    while i < total {
+        let _s = store_i64(mat + i * 8, load_i64(mat + i * 8) + scalar);
+        set i = i + 1
+    }
+};
+
+fn main() -> () = {
+    let n = 500;
+    let iters = 30000;
+    let mat = malloc(n * n * 8);
+
+    // Initialize
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n * n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(mat + i * 8, seed % 1000);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let tr = matrix_trace(mat, n);
+        set checksum = checksum + tr;
+        matrix_add_scalar(mat, n, iter % 7);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(mat);
+    ()
+};

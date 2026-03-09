@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SEQ_LEN 100000
+#define SEQ_LEN 500000
 
 // Character constants
 #define CHAR_A 65

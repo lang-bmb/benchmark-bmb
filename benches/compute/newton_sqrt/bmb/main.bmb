@@ -1,0 +1,36 @@
+// Newton's Square Root — integer square root via Newton's method
+// Measures: integer division, convergence loop, branch prediction
+// Workload: N=500000 values, 500 iterations
+
+fn isqrt(n: i64) -> i64 = {
+    let _c = if n <= 1 { return n } else { 0 };
+    let mut x = n;
+    let mut y = (x + 1) / 2;
+    while y < x {
+        set x = y;
+        set y = (x + n / x) / 2
+    };
+    x
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 150;
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let val = seed % 1000000000 + 1;
+            set checksum = checksum + isqrt(val);
+            set i = i + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

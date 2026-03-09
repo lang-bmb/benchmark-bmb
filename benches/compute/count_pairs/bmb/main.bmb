@@ -1,0 +1,152 @@
+// Count Pairs — count pairs with difference equal to target
+// Measures: sorting + two-pointer search
+// Workload: N=200000, 500 iterations
+
+fn insertion_sort_range(arr: i64, lo: i64, hi: i64) -> () = {
+    let mut i = lo + 1;
+    while i <= hi {
+        let key = load_i64(arr + i * 8);
+        let mut j = i - 1;
+        let mut done = 0;
+        while done == 0 {
+            let _x = if j >= lo {
+                let aj = load_i64(arr + j * 8);
+                let _y = if aj > key {
+                    let _s = store_i64(arr + (j + 1) * 8, aj);
+                    set j = j - 1;
+                    ()
+                } else {
+                    set done = 1;
+                    ()
+                };
+                ()
+            } else {
+                set done = 1;
+                ()
+            }
+        };
+        let _s = store_i64(arr + (j + 1) * 8, key);
+        set i = i + 1
+    }
+};
+
+fn quicksort(arr: i64, lo: i64, hi: i64) -> () = {
+    let mut lo_m = lo;
+    let mut hi_m = hi;
+    let mut cont = 1;
+    while cont != 0 {
+        let _x = if lo_m >= hi_m {
+            set cont = 0;
+            ()
+        } else {
+            let _y = if hi_m - lo_m < 16 {
+                insertion_sort_range(arr, lo_m, hi_m);
+                set cont = 0;
+                ()
+            } else {
+                // Median-of-three
+                let mid = lo_m + (hi_m - lo_m) / 2;
+                let _m1 = if load_i64(arr + mid * 8) < load_i64(arr + lo_m * 8) {
+                    let t = load_i64(arr + lo_m * 8);
+                    let _s1 = store_i64(arr + lo_m * 8, load_i64(arr + mid * 8));
+                    let _s2 = store_i64(arr + mid * 8, t);
+                    ()
+                } else { () };
+                let _m2 = if load_i64(arr + hi_m * 8) < load_i64(arr + lo_m * 8) {
+                    let t = load_i64(arr + lo_m * 8);
+                    let _s1 = store_i64(arr + lo_m * 8, load_i64(arr + hi_m * 8));
+                    let _s2 = store_i64(arr + hi_m * 8, t);
+                    ()
+                } else { () };
+                let _m3 = if load_i64(arr + mid * 8) < load_i64(arr + hi_m * 8) {
+                    let t = load_i64(arr + mid * 8);
+                    let _s1 = store_i64(arr + mid * 8, load_i64(arr + hi_m * 8));
+                    let _s2 = store_i64(arr + hi_m * 8, t);
+                    ()
+                } else { () };
+                let pivot = load_i64(arr + hi_m * 8);
+
+                let mut i2 = lo_m - 1;
+                let mut j2 = lo_m;
+                while j2 < hi_m {
+                    let _z = if load_i64(arr + j2 * 8) <= pivot {
+                        set i2 = i2 + 1;
+                        let t = load_i64(arr + i2 * 8);
+                        let _s1 = store_i64(arr + i2 * 8, load_i64(arr + j2 * 8));
+                        let _s2 = store_i64(arr + j2 * 8, t);
+                        ()
+                    } else { () };
+                    set j2 = j2 + 1
+                };
+                set i2 = i2 + 1;
+                let t = load_i64(arr + i2 * 8);
+                let _s1 = store_i64(arr + i2 * 8, load_i64(arr + hi_m * 8));
+                let _s2 = store_i64(arr + hi_m * 8, t);
+
+                let _tail = if i2 - lo_m < hi_m - i2 {
+                    quicksort(arr, lo_m, i2 - 1);
+                    set lo_m = i2 + 1;
+                    ()
+                } else {
+                    quicksort(arr, i2 + 1, hi_m);
+                    set hi_m = i2 - 1;
+                    ()
+                };
+                ()
+            };
+            ()
+        }
+    }
+};
+
+fn main() -> () = {
+    let n = 200000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 100000);
+            set i = i + 1
+        };
+        let target = 42 + iter % 100;
+
+        quicksort(arr, 0, n - 1);
+
+        // Two-pointer count pairs with difference == target
+        let mut count: i64 = 0;
+        let mut left: i64 = 0;
+        let mut right: i64 = 1;
+        while right < n {
+            let diff = load_i64(arr + right * 8) - load_i64(arr + left * 8);
+            let _c = if diff == target {
+                set count = count + 1;
+                set right = right + 1;
+                0
+            } else {
+                let _c2 = if diff < target {
+                    set right = right + 1;
+                    ()
+                } else {
+                    set left = left + 1;
+                    let _c3 = if left == right {
+                        set right = right + 1;
+                        ()
+                    } else { () };
+                    ()
+                };
+                0
+            };
+            0
+        };
+        set checksum = checksum + count;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

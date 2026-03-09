@@ -1,0 +1,50 @@
+// XOR Cipher — encrypt/decrypt array with repeating key
+// Measures: sequential access, bitwise XOR, modular arithmetic
+// Workload: N=1000000 array, 3000 iterations
+
+fn xor_encrypt(arr: i64, n: i64, key: i64, keylen: i64) -> i64 = {
+    let mut checksum: i64 = 0;
+    let mut i = 0;
+    while i < n {
+        let k = load_i64(key + (i % keylen) * 8);
+        let v = load_i64(arr + i * 8) bxor k;
+        let _s = store_i64(arr + i * 8, v);
+        set checksum = checksum + v;
+        set i = i + 1
+    };
+    checksum
+};
+
+fn main() -> () = {
+    let n = 1000000;
+    let iters = 3000;
+    let keylen = 16;
+    let arr = malloc(n * 8);
+    let key = malloc(keylen * 8);
+
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < keylen {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(key + i * 8, seed);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut j = 0;
+        while j < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + j * 8, seed);
+            set j = j + 1
+        };
+        set checksum = checksum + xor_encrypt(arr, n, key, keylen);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    let _f2 = free(key);
+    ()
+};

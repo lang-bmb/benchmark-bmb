@@ -1,0 +1,35 @@
+// Count Divisors — count divisors for numbers 1..N
+// Measures: nested loop, modulo, branch prediction
+// Workload: N=30000, 500 iterations
+
+fn count_divs(n: i64) -> i64 = {
+    let mut count: i64 = 0;
+    let mut i: i64 = 1;
+    while i * i <= n {
+        let _c = if n % i == 0 {
+            let add = if i * i == n { 1 } else { 2 };
+            set count = count + add
+        } else { () };
+        set i = i + 1
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 30000;
+    let iters = 500;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut sum: i64 = 0;
+        let mut i: i64 = 1;
+        while i <= n {
+            set sum = sum + count_divs(i);
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

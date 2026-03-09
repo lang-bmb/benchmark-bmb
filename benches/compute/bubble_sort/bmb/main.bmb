@@ -1,0 +1,50 @@
+// Bubble Sort — in-place with early termination
+// Measures: sequential comparison+swap, branch prediction
+// Workload: N=3000 array, 200 iterations
+
+fn bubble_sort(arr: i64, n: i64) -> () = {
+    let mut i = 0;
+    while i < n - 1 {
+        let mut j = 0;
+        let mut prev = load_i64(arr);
+        while j < n - 1 - i {
+            let next = load_i64(arr + (j + 1) * 8);
+            let _x = if prev > next {
+                let _s1 = store_i64(arr + j * 8, next);
+                let _s2 = store_i64(arr + (j + 1) * 8, prev);
+                set prev = prev;
+                0
+            } else {
+                set prev = next;
+                0
+            };
+            set j = j + 1
+        };
+        set i = i + 1
+    }
+};
+
+fn main() -> () = {
+    let n = 3000;
+    let iters = 200;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % n);
+            set i = i + 1
+        };
+        bubble_sort(arr, n);
+        let mut ci = 0;
+        while ci < 10 {
+            set checksum = checksum + load_i64(arr + ci * 8);
+            set ci = ci + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum)
+};

@@ -1,0 +1,43 @@
+// Array Weighted Average — weighted sum and weight accumulation
+// Measures: dual array sequential scan, two accumulators
+// Workload: N=2000000, 500 iterations, two arrays (values, weights)
+
+fn weighted_average(vals: i64, wts: i64, n: i64) -> i64 = {
+    let mut weighted_sum: i64 = 0;
+    let mut weight_total: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        set weighted_sum = weighted_sum + load_i64(vals + i * 8) * load_i64(wts + i * 8);
+        set weight_total = weight_total + load_i64(wts + i * 8);
+        set i = i + 1
+    };
+    if weight_total == 0 { 0 } else { weighted_sum / weight_total }
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let vals = malloc(n * 8);
+    let wts = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i: i64 = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s1 = store_i64(vals + i * 8, seed % 10000);
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s2 = store_i64(wts + i * 8, 1 + (seed % 100));
+            set i = i + 1
+        };
+        set checksum = checksum + weighted_average(vals, wts, n);
+        set iter = iter + 1
+    };
+    print(checksum % 1000000007);
+    let _f1 = free(vals);
+    let _f2 = free(wts);
+    ()
+};

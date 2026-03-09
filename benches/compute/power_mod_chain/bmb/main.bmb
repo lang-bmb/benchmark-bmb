@@ -1,0 +1,32 @@
+// Power Mod Chain — chained modular exponentiation
+// Measures: multiplication, modulo, loop iteration
+// Workload: 10000000 iterations of chained modpow
+
+fn powmod(base0: i64, exp0: i64, modulus: i64) -> i64 = {
+    let mut result: i64 = 1;
+    let mut b = base0 % modulus;
+    let mut e = exp0;
+    while e > 0 {
+        let _c = if (e band 1) == 1 {
+            set result = (result * b) % modulus
+        } else { () };
+        set e = e >> 1;
+        set b = (b * b) % modulus
+    };
+    result
+};
+
+fn main() -> () = {
+    let iters = 10000000;
+    let modulus: i64 = 1000000007;
+    let mut val: i64 = 3;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        set val = powmod(val, 13, modulus);
+        set checksum = checksum + val;
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

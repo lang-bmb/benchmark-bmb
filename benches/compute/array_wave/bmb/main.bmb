@@ -1,0 +1,52 @@
+// Array Wave — arrange array in wave form (a[0]>=a[1]<=a[2]>=a[3]...)
+// Measures: swap operations, sequential access
+// Workload: N=500000, 3000 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 3000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+
+        // Wave sort: at even indices, element should be >= neighbors
+        set i = 0;
+        while i < n {
+            let ai = load_i64(arr + i * 8);
+            let _c1 = if i > 0 {
+                let prev = load_i64(arr + (i - 1) * 8);
+                let _sw = if ai < prev {
+                    let _s1 = store_i64(arr + i * 8, prev);
+                    let _s2 = store_i64(arr + (i - 1) * 8, ai);
+                    ()
+                } else { () };
+                ()
+            } else { () };
+            let _c2 = if i < n - 1 {
+                let cur = load_i64(arr + i * 8);
+                let next = load_i64(arr + (i + 1) * 8);
+                let _sw = if cur < next {
+                    let _s1 = store_i64(arr + i * 8, next);
+                    let _s2 = store_i64(arr + (i + 1) * 8, cur);
+                    ()
+                } else { () };
+                ()
+            } else { () };
+            set i = i + 2
+        };
+
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

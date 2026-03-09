@@ -11,9 +11,9 @@ fn sum_squares(n: i64) -> i64 {
 }
 
 fn main() {
-    // Sum squares from 1 to 100000, 1000 iterations
+    // Sum squares from 1 to 100000, 6000 iterations (target: ~175ms)
     let mut result: i64 = 0;
-    for _ in 0..1000 {
+    for _ in 0..6000 {
         result += sum_squares(100000);
     }
     println!("{}", result);

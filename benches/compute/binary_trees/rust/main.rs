@@ -26,7 +26,7 @@ fn check(tree: &Tree) -> i64 {
 
 fn main() {
     let min_depth = 4;
-    let max_depth = 17;
+    let max_depth = 14;
     let stretch_depth = max_depth + 1;
 
     let stretch_tree = make(stretch_depth);

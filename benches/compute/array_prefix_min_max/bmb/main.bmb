@@ -1,0 +1,38 @@
+// Prefix Min Max — compute prefix min and prefix max simultaneously
+// Measures: register-carry (running min/max), dual accumulator
+// Workload: N=2000000, 2000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 100000);
+            set i = i + 1
+        };
+
+        let first = load_i64(arr);
+        let mut pmin: i64 = first;
+        let mut pmax: i64 = first;
+        let mut sum_range: i64 = 0;
+        set i = 1;
+        while i < n {
+            let val = load_i64(arr + i * 8);
+            set pmin = if val < pmin { val } else { pmin };
+            set pmax = if val > pmax { val } else { pmax };
+            set sum_range = sum_range + pmax - pmin;
+            set i = i + 1
+        };
+        set checksum = checksum + sum_range % 1000000007;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

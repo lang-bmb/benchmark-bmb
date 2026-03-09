@@ -1,0 +1,33 @@
+// Array Min Max — find both min and max in single pass
+// Measures: branch prediction, conditional updates
+// Workload: N=1000000, 5000 iterations
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+int main() {
+    int64_t N = 1000000;
+    int64_t ITERS = 5000;
+    int64_t* arr = (int64_t*)malloc(N * sizeof(int64_t));
+    int64_t checksum = 0;
+    int64_t seed = 42;
+
+    for (int64_t iter = 0; iter < ITERS; iter++) {
+        for (int64_t i = 0; i < N; i++) {
+            seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+            arr[i] = seed;
+        }
+
+        int64_t min_val = arr[0];
+        int64_t max_val = arr[0];
+        for (int64_t i = 1; i < N; i++) {
+            if (arr[i] < min_val) min_val = arr[i];
+            if (arr[i] > max_val) max_val = arr[i];
+        }
+        checksum += max_val - min_val;
+    }
+    printf("%lld\n", (long long)checksum);
+    free(arr);
+    return 0;
+}

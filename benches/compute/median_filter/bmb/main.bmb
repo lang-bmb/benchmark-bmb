@@ -1,0 +1,92 @@
+// 1D Median Filter — sliding window of size 5
+// Measures: memory access patterns, compare-and-swap, data-dependent branching
+// Workload: N=100000 array, 5000 iterations
+
+fn min2(a: i64, b: i64) -> i64 = {
+    if a < b { a } else { b }
+};
+
+fn max2(a: i64, b: i64) -> i64 = {
+    if a > b { a } else { b }
+};
+
+// Sorting network for 5 elements — returns median (3rd element)
+// Uses optimal 9-comparison network
+fn median5(a0: i64, a1: i64, a2: i64, a3: i64, a4: i64) -> i64 = {
+    // Step 1: sort pairs (0,1) and (3,4)
+    let lo01 = min2(a0, a1);
+    let hi01 = max2(a0, a1);
+    let lo34 = min2(a3, a4);
+    let hi34 = max2(a3, a4);
+
+    // Step 2: sort (lo01, lo34) to get global min candidate, (hi01, hi34) to get global max candidate
+    let lo_lo = min2(lo01, lo34);
+    let hi_lo = max2(lo01, lo34);
+    let lo_hi = min2(hi01, hi34);
+    let hi_hi = max2(hi01, hi34);
+
+    // Step 3: The median is among {hi_lo, lo_hi, a2}
+    // We need the median of these 3
+    // lo_lo is <= all, hi_hi is >= all, so discard them
+    let m0 = hi_lo;
+    let m1 = lo_hi;
+    let m2 = a2;
+
+    // Median of 3: sort and take middle
+    let s01a = min2(m0, m1);
+    let s01b = max2(m0, m1);
+    let s02a = max2(s01a, m2);
+    let result = min2(s01b, s02a);
+    result
+};
+
+fn main() -> () = {
+    let n = 100000;
+    let iters = 5000;
+    let half_w = 2;
+
+    // Allocate input and output arrays
+    let input_arr = malloc(n * 8);
+    let output_arr = malloc(n * 8);
+
+    // Generate input using deterministic PRNG
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let _s = store_i64(input_arr + i * 8, seed % 10000);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Apply median filter: for positions half_w to n-half_w-1
+        let mut j = half_w;
+        let out_len = n - half_w - half_w;
+        while j < n - half_w {
+            let v0 = load_i64(input_arr + (j - 2) * 8);
+            let v1 = load_i64(input_arr + (j - 1) * 8);
+            let v2 = load_i64(input_arr + j * 8);
+            let v3 = load_i64(input_arr + (j + 1) * 8);
+            let v4 = load_i64(input_arr + (j + 2) * 8);
+            let med = median5(v0, v1, v2, v3, v4);
+            let _s = store_i64(output_arr + (j - half_w) * 8, med);
+            set j = j + 1
+        };
+
+        // Accumulate checksum from output
+        let mut k = 0;
+        while k < out_len {
+            set checksum = checksum + load_i64(output_arr + k * 8);
+            set k = k + 1
+        };
+
+        set iter = iter + 1
+    };
+
+    print(checksum);
+    let _f1 = free(input_arr);
+    let _f2 = free(output_arr);
+    ()
+};

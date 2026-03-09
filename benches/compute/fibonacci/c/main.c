@@ -17,9 +17,9 @@ int64_t fibonacci_iter(int64_t n) {
 }
 
 int main() {
-    // Run fibonacci(50) 1000000000 times for stable measurement (target: ~120ms after LICM)
+    // Run fibonacci(50) 6000000000 times for stable measurement (target: ~175ms)
     int64_t result = 0;
-    for (long i = 0; i < 1000000000; i++) {
+    for (long long i = 0; i < 6000000000LL; i++) {
         result += fibonacci_iter(50);
     }
     printf("%lld\n", (long long)result);

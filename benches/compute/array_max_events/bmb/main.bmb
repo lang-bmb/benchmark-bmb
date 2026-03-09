@@ -1,0 +1,83 @@
+// Array Max Events — maximum non-overlapping events (greedy by end time)
+// Measures: sort + greedy sweep, register carry (last_end)
+// Workload: N=100000, 500 iterations
+// Uses counting sort on end times for O(n+R) sort
+
+fn main() -> () = {
+    let n = 100000;
+    let iters = 500;
+    let range = 100000;
+    let starts = malloc(n * 8);
+    let ends = malloc(n * 8);
+    let cnt = malloc((range + 1) * 8);
+    let sorted_starts = malloc(n * 8);
+    let sorted_ends = malloc(n * 8);
+
+    // Generate events: start in [0, range-1000), duration in [1, 1000]
+    let mut seed: i64 = 42;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let st = seed % (range - 1000);
+        let _s = store_i64(starts + i * 8, st);
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let dur = (seed % 1000) + 1;
+        let _s2 = store_i64(ends + i * 8, st + dur);
+        set i = i + 1
+    };
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Counting sort by end time
+        let mut t = 0;
+        while t <= range {
+            let _s = store_i64(cnt + t * 8, 0);
+            set t = t + 1
+        };
+        set i = 0;
+        while i < n {
+            let e = load_i64(ends + i * 8);
+            let _s = store_i64(cnt + e * 8, load_i64(cnt + e * 8) + 1);
+            set i = i + 1
+        };
+        // Prefix sum
+        set t = 1;
+        while t <= range {
+            let _s = store_i64(cnt + t * 8, load_i64(cnt + t * 8) + load_i64(cnt + (t - 1) * 8));
+            set t = t + 1
+        };
+        // Place in sorted order (reverse scan)
+        set i = n - 1;
+        while i >= 0 {
+            let e = load_i64(ends + i * 8);
+            let pos = load_i64(cnt + e * 8) - 1;
+            let _s = store_i64(cnt + e * 8, pos);
+            let _s2 = store_i64(sorted_starts + pos * 8, load_i64(starts + i * 8));
+            let _s3 = store_i64(sorted_ends + pos * 8, e);
+            set i = i - 1
+        };
+
+        // Greedy: pick events sorted by end time
+        let mut last_end: i64 = 0 - 1;
+        let mut selected: i64 = 0;
+        set i = 0;
+        while i < n {
+            let _c = if load_i64(sorted_starts + i * 8) >= last_end {
+                set selected = selected + 1;
+                set last_end = load_i64(sorted_ends + i * 8);
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        set checksum = checksum + selected;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(starts);
+    let _f2 = free(ends);
+    let _f3 = free(cnt);
+    let _f4 = free(sorted_starts);
+    let _f5 = free(sorted_ends);
+    ()
+};

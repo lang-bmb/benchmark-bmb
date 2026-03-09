@@ -1,0 +1,124 @@
+// Integer FFT (Cooley-Tukey) benchmark — butterfly operations on scaled integers
+// Measures: bit-reversal permutation, butterfly pattern, integer arithmetic
+// Workload: N=1024, 5000 iterations, scaled by 1000
+
+fn bit_reverse(x: i64, bits: i64) -> i64 = {
+    let mut result = 0;
+    let mut xx = x;
+    let mut i = 0;
+    while i < bits {
+        set result = (result << 1) bor (xx band 1);
+        set xx = xx >> 1;
+        set i = i + 1
+    };
+    result
+};
+
+fn fft(real: i64, imag: i64, n: i64, bits: i64, cos_tbl: i64, sin_tbl: i64) -> () = {
+    // Bit-reversal permutation
+    let mut i = 0;
+    while i < n {
+        let j = bit_reverse(i, bits);
+        let _s = if j > i {
+            let tmp_r = load_i64(real + i * 8);
+            let tmp_i = load_i64(imag + i * 8);
+            let _s1 = store_i64(real + i * 8, load_i64(real + j * 8));
+            let _s2 = store_i64(imag + i * 8, load_i64(imag + j * 8));
+            let _s3 = store_i64(real + j * 8, tmp_r);
+            store_i64(imag + j * 8, tmp_i)
+        } else { 0 };
+        set i = i + 1
+    };
+    // Butterfly operations
+    let mut len = 2;
+    while len <= n {
+        let half = len / 2;
+        let step = n / len;
+        set i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < half {
+                let idx = j * step;
+                let wr = load_i64(cos_tbl + idx * 8);
+                let wi = load_i64(sin_tbl + idx * 8);
+                let pos_a = i + j;
+                let pos_b = i + j + half;
+                let ur = load_i64(real + pos_a * 8);
+                let ui = load_i64(imag + pos_a * 8);
+                let tr = (wr * load_i64(real + pos_b * 8) - wi * load_i64(imag + pos_b * 8)) / 1000;
+                let ti = (wr * load_i64(imag + pos_b * 8) + wi * load_i64(real + pos_b * 8)) / 1000;
+                let _s1 = store_i64(real + pos_a * 8, ur + tr);
+                let _s2 = store_i64(imag + pos_a * 8, ui + ti);
+                let _s3 = store_i64(real + pos_b * 8, ur - tr);
+                let _s4 = store_i64(imag + pos_b * 8, ui - ti);
+                set j = j + 1
+            };
+            set i = i + len
+        };
+        set len = len * 2
+    };
+    ()
+};
+
+fn main() -> () = {
+    let n = 1024;
+    let bits = 10;
+    let iters = 5000;
+
+    let real_arr = malloc(n * 8);
+    let imag_arr = malloc(n * 8);
+    let cos_tbl = malloc(n * 8);
+    let sin_tbl = malloc(n * 8);
+
+    // Build twiddle factor tables
+    let mut k = 0;
+    while k < n {
+        let a_raw = 2 * 3141593 * k / n;
+        let mut a = a_raw;
+        // Normalize to [-pi, pi] in micro-radians
+        let _n1 = if a > 3141593 { set a = a - 2 * 3141593; 0 } else { 0 };
+        let xm = a / 1000;
+        let xm2 = xm * xm;
+        let xm3 = xm2 * xm / 1000;
+        let xm5 = xm3 * xm2 / 1000000;
+        let s = xm - xm3 / 6 + xm5 / 120;
+        let xm4 = xm2 * xm2 / 1000000;
+        let c = 1000 - xm2 / 2000 + xm4 / 24000;
+        let _s1 = store_i64(cos_tbl + k * 8, c);
+        let _s2 = store_i64(sin_tbl + k * 8, 0 - s);
+        set k = k + 1
+    };
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 9999 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s1 = store_i64(real_arr + i * 8, (seed % 2001) - 1000);
+            let _s2 = store_i64(imag_arr + i * 8, 0);
+            set i = i + 1
+        };
+        fft(real_arr, imag_arr, n, bits, cos_tbl, sin_tbl);
+        // Checksum: sum of absolute values of first 16 elements
+        let mut sum = 0;
+        set i = 0;
+        while i < 16 {
+            let r = load_i64(real_arr + i * 8);
+            let im = load_i64(imag_arr + i * 8);
+            let ar = if r < 0 { 0 - r } else { r };
+            let ai = if im < 0 { 0 - im } else { im };
+            set sum = sum + ar + ai;
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(real_arr);
+    let _f2 = free(imag_arr);
+    let _f3 = free(cos_tbl);
+    let _f4 = free(sin_tbl);
+    ()
+};

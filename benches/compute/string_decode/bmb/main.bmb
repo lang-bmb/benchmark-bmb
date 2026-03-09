@@ -1,0 +1,52 @@
+// String Decode — run-length decode simulation
+// Measures: sequential scan, accumulator pattern
+// Workload: N=1000000 encoded, 500 iterations
+
+fn main() -> () = {
+    let n = 1000000;
+    let iters = 500;
+    let encoded = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate encoded pairs
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s1 = store_i64(encoded + i * 8, seed % 5 + 1);
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s2 = store_i64(encoded + (i + 1) * 8, seed % 100);
+            set i = i + 2
+        };
+
+        // Decode and compute stats
+        let mut total: i64 = 0;
+        let mut decoded_len: i64 = 0;
+        let mut max_val: i64 = 0;
+        let mut prev_val: i64 = 0 - 1;
+        let mut transitions: i64 = 0;
+
+        set i = 0;
+        while i < n {
+            let count = load_i64(encoded + i * 8);
+            let value = load_i64(encoded + (i + 1) * 8);
+            set total = total + count * value;
+            set decoded_len = decoded_len + count;
+            set max_val = if value > max_val { value } else { max_val };
+            let _t = if prev_val != 0 - 1 {
+                if prev_val != value {
+                    set transitions = transitions + 1;
+                    ()
+                } else { () }
+            } else { () };
+            set prev_val = value;
+            set i = i + 2
+        };
+        set checksum = checksum + total + decoded_len + max_val + transitions;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(encoded)
+};

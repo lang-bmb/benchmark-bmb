@@ -10,10 +10,21 @@ fn gcd(mut a: i64, mut b: i64) -> i64 {
     a
 }
 
-fn main() {
-    let mut sum: i64 = 0;
-    for i in 1..50_000_000i64 {
-        sum += gcd(i, i + 7);
+fn sum_gcds(n: i64) -> i64 {
+    let mut acc: i64 = 0;
+    for i in 1..=n {
+        for j in 1..=n {
+            acc += gcd(i, j);
+        }
     }
-    println!("{}", sum);
+    acc
+}
+
+fn main() {
+    // 100 iterations for stable measurement
+    let mut result: i64 = 0;
+    for _ in 0..100 {
+        result += sum_gcds(300);
+    }
+    println!("{}", result);
 }

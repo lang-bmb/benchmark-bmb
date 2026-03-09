@@ -1,0 +1,102 @@
+// Fannkuch-redux benchmark - Stack array version with swap algorithm
+// Same algorithm as C version + main.bmb, but uses stack arrays instead of heap
+// Tests whether stack vs heap allocation affects performance
+
+fn max_val(a: i64, b: i64) -> i64 = if a > b { a } else { b };
+
+fn fannkuch(n: i64) -> i64 = {
+    // Stack-allocated arrays (max n=12)
+    let perm_arr: [i64; 12] = [0; 12];
+    let perm1_arr: [i64; 12] = [0; 12];
+    let count_arr: [i64; 12] = [0; 12];
+
+    // Cast to pointers for indexed access
+    let perm = perm_arr as *i64;
+    let perm1 = perm1_arr as *i64;
+    let count = count_arr as *i64;
+
+    let mut maxFlips: i64 = 0;
+    let mut checksum: i64 = 0;
+    let mut permCount: i64 = 0;
+    let mut i: i64 = 0;
+    let mut flips: i64 = 0;
+    let mut first: i64 = 0;
+    let mut lo: i64 = 0;
+    let mut hi: i64 = 0;
+    let mut tmp: i64 = 0;
+    let mut c: i64 = 0;
+    let mut running: i64 = 1;
+    let mut delta: i64 = 0;
+
+    // Initialize arrays
+    { i = 0 };
+    while i < n {
+        let _a = { set perm1[i] = i; 0 };
+        { set count[i] = i + 1 };
+        { i = i + 1 };
+    };
+
+    // Main permutation loop
+    while running != 0 {
+        // Copy perm1 to perm
+        { i = 0 };
+        while i < n {
+            { set perm[i] = perm1[i] };
+            { i = i + 1 };
+        };
+
+        // Count flips
+        { flips = 0 };
+        { first = perm[0] };
+        while first != 0 {
+            // Reverse prefix: swap perm[lo] and perm[hi] while lo < hi
+            { lo = 0 };
+            { hi = first };
+            while lo < hi {
+                { tmp = perm[lo] };
+                { set perm[lo] = perm[hi] };
+                { set perm[hi] = tmp };
+                { lo = lo + 1 };
+                { hi = hi - 1 };
+            };
+            { flips = flips + 1 };
+            { first = perm[0] };
+        };
+
+        // Update results
+        { maxFlips = max_val(maxFlips, flips) };
+        { delta = if (permCount band 1) == 0 { flips } else { 0 - flips } };
+        { checksum = checksum + delta };
+
+        // Generate next permutation - SWAP algorithm (same as C)
+        { i = 1 };
+        { running = 0 };
+        while i < n {
+            // Swap perm1[i] and perm1[i-1]
+            { tmp = perm1[i] };
+            { set perm1[i] = perm1[i - 1] };
+            { set perm1[i - 1] = tmp };
+
+            { c = count[i] - 1 };
+            { set count[i] = c };
+            if c != 0 {
+                let _r = { running = 1 };
+                let _p = { permCount = permCount + 1 };
+                break
+            } else {
+                let _s = { set count[i] = i + 1; 0 };
+                { i = i + 1 }
+            }
+        };
+    };
+
+    let _p = println(checksum);
+    maxFlips
+};
+
+fn main() -> i64 = {
+    let n = 10;
+    let result = fannkuch(n);
+    let _u = println(result);
+    0
+};

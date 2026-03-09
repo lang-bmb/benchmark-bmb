@@ -1,0 +1,72 @@
+// Wave Equation — 1D finite difference
+// Measures: stencil computation, sequential array access
+// Workload: N=10000, T=2000, 50 iterations
+
+fn main() -> () = {
+    let n = 10000;
+    let time_steps = 2000;
+    let iters = 50;
+    let c2 = 250;
+
+    let mut u_prev = malloc(n * 8);
+    let mut u_curr = malloc(n * 8);
+    let mut u_next = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Initialize arrays to zero
+        let mut i = 0;
+        while i < n {
+            let _s1 = store_i64(u_prev + i * 8, 0);
+            let _s2 = store_i64(u_curr + i * 8, 0);
+            let _s3 = store_i64(u_next + i * 8, 0);
+            set i = i + 1
+        };
+        // Initial condition: pulse at center
+        let _s = store_i64(u_curr + (n / 2) * 8, 1000);
+
+        // Time stepping
+        let mut t = 0;
+        while t < time_steps {
+            // Compute u_next for interior points
+            set i = 1;
+            while i < n - 1 {
+                let curr_i = load_i64(u_curr + i * 8);
+                let prev_i = load_i64(u_prev + i * 8);
+                let curr_ip1 = load_i64(u_curr + (i + 1) * 8);
+                let curr_im1 = load_i64(u_curr + (i - 1) * 8);
+                let val = 2 * curr_i - prev_i + c2 * (curr_ip1 - 2 * curr_i + curr_im1) / 1000;
+                let _s = store_i64(u_next + i * 8, val);
+                set i = i + 1
+            };
+            // Boundary conditions
+            let _b1 = store_i64(u_next, 0);
+            let _b2 = store_i64(u_next + (n - 1) * 8, 0);
+
+            // Rotate arrays: prev <- curr, curr <- next, next <- prev
+            let old_prev = u_prev;
+            set u_prev = u_curr;
+            set u_curr = u_next;
+            set u_next = old_prev;
+
+            set t = t + 1
+        };
+
+        // Checksum: sum of abs(u_curr[i])
+        set i = 0;
+        while i < n {
+            let v = load_i64(u_curr + i * 8);
+            let abs_v = if v < 0 { 0 - v } else { v };
+            set checksum = checksum + abs_v;
+            set i = i + 1
+        };
+
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(u_prev);
+    let _f2 = free(u_curr);
+    let _f3 = free(u_next);
+    ()
+};

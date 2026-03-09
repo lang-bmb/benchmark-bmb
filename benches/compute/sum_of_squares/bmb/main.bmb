@@ -1,27 +1,28 @@
-// Sum of Squares Benchmark v0.60.123
+// Sum of Squares Benchmark v0.95
 // Measures: arithmetic operations, loop performance
 // Computes sum of squares from 1 to N
-// v0.60.123: Add @inline to prevent parameter narrowing
+// v0.95: While loops instead of recursion for LLVM loop unrolling
 
-@inline
-fn sum_squares(n: i64) -> i64 =
-    sum_squares_acc(n, 1, 0);
-
-@inline
-fn sum_squares_acc(n: i64, i: i64, acc: i64) -> i64 =
-    if i > n { acc }
-    else { sum_squares_acc(n, i + 1, acc + i * i) };
-
-fn run_benchmark(n: i64, iterations: i64, acc: i64, i: i64) -> i64 =
-    if i >= iterations { acc }
-    else {
-        let result = sum_squares(n);
-        run_benchmark(n, iterations, acc + result, i + 1)
+fn sum_squares(n: i64) -> i64 = {
+    let mut i: i64 = 1;
+    let mut acc: i64 = 0;
+    while i <= n {
+        { acc = acc + i * i };
+        { i = i + 1 }
     };
+    acc
+};
 
 fn main() -> i64 = {
-    // Sum squares from 1 to 100000, 1000 iterations
-    let result = run_benchmark(100000, 1000, 0, 0);
+    // Sum squares from 1 to N, varying N to prevent constant folding
+    let base = 100000;
+    let iters = 6000;
+    let mut result: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        { result = result + sum_squares(base + (iter % 10)) };
+        { iter = iter + 1 }
+    };
     let _p = println(result);
     0
 };

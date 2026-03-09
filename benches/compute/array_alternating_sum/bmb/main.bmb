@@ -1,0 +1,36 @@
+// Alternating Sum — alternating prefix sum with max tracking
+// Measures: accumulator, register tracking
+// Workload: N=2000000, 2000 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        let mut sum: i64 = 0;
+        let mut max_prefix: i64 = 0;
+        set i = 0;
+        while i < n {
+            let val = load_i64(arr + i * 8);
+            let add = if i % 2 == 0 { val } else { 0 - val };
+            set sum = sum + add;
+            set max_prefix = if sum > max_prefix { sum } else { max_prefix };
+            set i = i + 1
+        };
+        set checksum = checksum + max_prefix;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

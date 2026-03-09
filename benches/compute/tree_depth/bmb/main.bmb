@@ -1,0 +1,72 @@
+// Tree Depth — iterative BFS max depth
+// Measures: queue operations, tree traversal, indirect indexing
+// Workload: N=10000 nodes, 5000 iterations
+
+fn max_depth_bfs(n: i64, left: i64, right: i64, queue: i64, depth: i64) -> i64 = {
+    // BFS from root (node 0)
+    let mut head = 0;
+    let mut tail = 0;
+    let _s = store_i64(queue + tail * 8, 0);
+    set tail = tail + 1;
+    let _s2 = store_i64(depth + 0 * 8, 0);
+
+    let mut max_d = 0;
+    while head < tail {
+        let u = load_i64(queue + head * 8);
+        set head = head + 1;
+        let d = load_i64(depth + u * 8);
+        let l = load_i64(left + u * 8);
+        let r = load_i64(right + u * 8);
+        let _x = if l != (0 - 1) {
+            let _s3 = store_i64(depth + l * 8, d + 1);
+            let _s4 = store_i64(queue + tail * 8, l);
+            set tail = tail + 1;
+            set max_d = if d + 1 > max_d { d + 1 } else { max_d };
+            0
+        } else { 0 };
+        let _y = if r != (0 - 1) {
+            let _s5 = store_i64(depth + r * 8, d + 1);
+            let _s6 = store_i64(queue + tail * 8, r);
+            set tail = tail + 1;
+            set max_d = if d + 1 > max_d { d + 1 } else { max_d };
+            0
+        } else { 0 };
+        0
+    };
+    max_d
+};
+
+fn main() -> () = {
+    let n = 10000;
+    let iters = 20000;
+
+    let left  = malloc(n * 8);
+    let right = malloc(n * 8);
+    let val   = malloc(n * 8);
+    let queue = malloc(n * 8);
+    let depth = malloc(n * 8);
+
+    // Build complete-ish binary tree
+    let mut i = 0;
+    while i < n {
+        let l = 2 * i + 1;
+        let r = 2 * i + 2;
+        let _s = store_i64(left + i * 8, if l < n { l } else { 0 - 1 });
+        let _s2 = store_i64(right + i * 8, if r < n { r } else { 0 - 1 });
+        set i = i + 1
+    };
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Permute values each iteration
+        let mut j = 0;
+        while j < n {
+            let _sv = store_i64(val + j * 8, (j + iter) % n);
+            set j = j + 1
+        };
+        set checksum = checksum + max_depth_bfs(n, left, right, queue, depth);
+        set iter = iter + 1
+    };
+    print(checksum)
+};

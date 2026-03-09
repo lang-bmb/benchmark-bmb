@@ -1,0 +1,83 @@
+// Merge sort benchmark — divide-and-conquer + array merging
+// Measures: recursive splitting, sequential merge, memory copy patterns
+// Workload: 500K elements, 100 iterations
+
+fn ms_merge(arr: i64, tmp: i64, lo: i64, mid: i64, hi: i64) -> () = {
+    // Copy to tmp
+    let mut i = lo;
+    while i <= hi {
+        let _s = store_i64(tmp + i * 8, load_i64(arr + i * 8));
+        set i = i + 1
+    };
+    // Merge: 3-loop pattern (matches C for optimal branch prediction)
+    set i = lo;
+    let mut j = mid + 1;
+    let mut k = lo;
+    // Loop 1: merge while both sides have elements
+    let mut cont = 1;
+    while cont == 1 {
+        let _x = if i <= mid {
+            let _y = if j <= hi {
+                let _z = if load_i64(tmp + i * 8) <= load_i64(tmp + j * 8) {
+                    let _s = store_i64(arr + k * 8, load_i64(tmp + i * 8));
+                    set i = i + 1; 0
+                } else {
+                    let _s = store_i64(arr + k * 8, load_i64(tmp + j * 8));
+                    set j = j + 1; 0
+                };
+                set k = k + 1; 0
+            } else { set cont = 0; 0 };
+            0
+        } else { set cont = 0; 0 };
+        0
+    };
+    // Loop 2: copy remaining left
+    while i <= mid {
+        let _s = store_i64(arr + k * 8, load_i64(tmp + i * 8));
+        set i = i + 1;
+        set k = k + 1
+    };
+    // Loop 3: copy remaining right
+    while j <= hi {
+        let _s = store_i64(arr + k * 8, load_i64(tmp + j * 8));
+        set j = j + 1;
+        set k = k + 1
+    };
+    ()
+};
+
+fn mergesort(arr: i64, tmp: i64, lo: i64, hi: i64) -> () = {
+    let _x = if lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        mergesort(arr, tmp, lo, mid);
+        mergesort(arr, tmp, mid + 1, hi);
+        ms_merge(arr, tmp, lo, mid, hi);
+        0
+    } else { 0 };
+    ()
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 100;
+    let arr = malloc(n * 8);
+    let tmp = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let mut seed = 31415 + iter;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed);
+            set i = i + 1
+        };
+        mergesort(arr, tmp, 0, n - 1);
+        set checksum = checksum + load_i64(arr) + load_i64(arr + (n / 2) * 8) + load_i64(arr + (n - 1) * 8);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(tmp)
+};

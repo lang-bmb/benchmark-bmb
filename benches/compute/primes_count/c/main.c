@@ -22,7 +22,7 @@ int64_t count_primes(int64_t n) {
 
 int main() {
     int64_t result = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 40; i++) {
         result += count_primes(50000);
     }
     printf("%lld\n", (long long)result);

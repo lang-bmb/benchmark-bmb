@@ -1,0 +1,73 @@
+// Array Inversion Pairs — count pairs (i,j) where i<j and arr[i]>arr[j]
+// Measures: merge sort, recursive divide-and-conquer, register carry (count)
+// Workload: N=50000 array, 500 iterations
+
+fn merge_count(arr: i64, tmp: i64, left: i64, right: i64) -> i64 = {
+    let _c = if right - left <= 1 { return 0 } else { 0 };
+    let mid = left + (right - left) / 2;
+    let mut count: i64 = 0;
+    set count = count + merge_count(arr, tmp, left, mid);
+    set count = count + merge_count(arr, tmp, mid, right);
+
+    let mut i = left;
+    let mut j = mid;
+    let mut k = left;
+    while i < mid {
+        let _c2 = if j >= right { break } else { 0 };
+        let _c3 = if load_i64(arr + i * 8) <= load_i64(arr + j * 8) {
+            let _s = store_i64(tmp + k * 8, load_i64(arr + i * 8));
+            set k = k + 1;
+            set i = i + 1;
+            0
+        } else {
+            let _s = store_i64(tmp + k * 8, load_i64(arr + j * 8));
+            set k = k + 1;
+            set j = j + 1;
+            set count = count + (mid - i);
+            0
+        };
+        0
+    };
+    while i < mid {
+        let _s = store_i64(tmp + k * 8, load_i64(arr + i * 8));
+        set k = k + 1;
+        set i = i + 1
+    };
+    while j < right {
+        let _s = store_i64(tmp + k * 8, load_i64(arr + j * 8));
+        set k = k + 1;
+        set j = j + 1
+    };
+    let mut x = left;
+    while x < right {
+        let _s = store_i64(arr + x * 8, load_i64(tmp + x * 8));
+        set x = x + 1
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 50000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let tmp = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 100000);
+            set i = i + 1
+        };
+        set checksum = checksum + merge_count(arr, tmp, 0, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(tmp);
+    ()
+};

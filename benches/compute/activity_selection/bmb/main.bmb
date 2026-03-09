@@ -1,0 +1,88 @@
+// Activity Selection benchmark — greedy algorithm
+// Measures: sorting, greedy selection, array access patterns
+// Workload: N=10000 activities, 500 iterations
+// Sort by end time (quicksort), greedily select non-overlapping activities
+
+fn generate_activities(starts: i64, ends: i64, n: i64, seed_in: i64) -> i64 = {
+    let mut seed = seed_in;
+    let mut i = 0;
+    while i < n {
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let s = seed % 100000;
+        set seed = (seed * 1103515245 + 12345) band 2147483647;
+        let duration = (seed % 1000) + 1;
+        let _s1 = store_i64(starts + i * 8, s);
+        let _s2 = store_i64(ends + i * 8, s + duration);
+        set i = i + 1
+    };
+    seed
+};
+
+fn swap_pair(starts: i64, ends: i64, i: i64, j: i64) -> () = {
+    let tmp_s = load_i64(starts + i * 8);
+    let tmp_e = load_i64(ends + i * 8);
+    let _s1 = store_i64(starts + i * 8, load_i64(starts + j * 8));
+    let _s2 = store_i64(ends + i * 8, load_i64(ends + j * 8));
+    let _s3 = store_i64(starts + j * 8, tmp_s);
+    let _s4 = store_i64(ends + j * 8, tmp_e)
+};
+
+fn qs_partition(starts: i64, ends: i64, lo: i64, hi: i64) -> i64 = {
+    let pivot = load_i64(ends + hi * 8);
+    let mut i = lo;
+    let mut j = lo;
+    while j < hi {
+        let _x = if load_i64(ends + j * 8) <= pivot {
+            swap_pair(starts, ends, i, j);
+            set i = i + 1;
+            0
+        } else { 0 };
+        set j = j + 1
+    };
+    swap_pair(starts, ends, i, hi);
+    i
+};
+
+fn quicksort(starts: i64, ends: i64, lo: i64, hi: i64) -> () = {
+    let _x = if lo < hi {
+        let p = qs_partition(starts, ends, lo, hi);
+        let _a = if p > lo { quicksort(starts, ends, lo, p - 1); 0 } else { 0 };
+        quicksort(starts, ends, p + 1, hi);
+        0
+    } else { 0 }
+};
+
+fn greedy_select(starts: i64, ends: i64, n: i64) -> i64 = {
+    let mut count = 1;
+    let mut last_end = load_i64(ends + 0);
+    let mut i = 1;
+    while i < n {
+        let _x = if load_i64(starts + i * 8) >= last_end {
+            set count = count + 1;
+            set last_end = load_i64(ends + i * 8);
+            0
+        } else { 0 };
+        set i = i + 1
+    };
+    count
+};
+
+fn main() -> () = {
+    let n = 10000;
+    let iters = 500;
+    let starts = malloc(n * 8);
+    let ends = malloc(n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        let _seed = generate_activities(starts, ends, n, 12345 + iter * 3);
+        quicksort(starts, ends, 0, n - 1);
+        let selected = greedy_select(starts, ends, n);
+        set checksum = checksum + selected;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(starts);
+    let _f2 = free(ends)
+};

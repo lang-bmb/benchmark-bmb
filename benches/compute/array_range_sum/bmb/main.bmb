@@ -1,0 +1,43 @@
+// Range Sum — sum of (max-min) across sliding windows
+// Measures: register tracking, small window scan
+// Workload: N=2000000, 500 iterations, window=16
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let k = 16;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 100000);
+            set i = i + 1
+        };
+
+        let mut total: i64 = 0;
+        set i = 0;
+        while i <= n - k {
+            let first = load_i64(arr + i * 8);
+            let mut mn: i64 = first;
+            let mut mx: i64 = first;
+            let mut j = 1;
+            while j < k {
+                let v = load_i64(arr + (i + j) * 8);
+                set mn = if v < mn { v } else { mn };
+                set mx = if v > mx { v } else { mx };
+                set j = j + 1
+            };
+            set total = total + mx - mn;
+            set i = i + 1
+        };
+        set checksum = checksum + total % 1000000007;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};

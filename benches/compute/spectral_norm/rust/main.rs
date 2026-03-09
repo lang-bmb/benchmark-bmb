@@ -29,12 +29,12 @@ fn multiply_atav(n: usize, v: &[f64], atav: &mut [f64], tmp: &mut [f64]) {
 }
 
 fn main() {
-    let n: usize = 2000;
+    let n: usize = 1000;
     let mut u = vec![1.0_f64; n];
     let mut v = vec![0.0_f64; n];
     let mut tmp = vec![0.0_f64; n];
 
-    for _ in 0..10 {
+    for _ in 0..30 {
         multiply_atav(n, &u, &mut v, &mut tmp);
         multiply_atav(n, &v, &mut u, &mut tmp);
     }

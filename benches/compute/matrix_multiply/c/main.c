@@ -37,7 +37,7 @@ int main() {
     int64_t n = 128;
     int64_t result = 0;
 
-    for (int iter = 0; iter < 10; iter++) {
+    for (int iter = 0; iter < 40; iter++) {
         int64_t* a = (int64_t*)malloc(n * n * sizeof(int64_t));
         int64_t* b = (int64_t*)malloc(n * n * sizeof(int64_t));
         int64_t* c = (int64_t*)malloc(n * n * sizeof(int64_t));

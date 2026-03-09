@@ -1,0 +1,50 @@
+// Largest Rectangle in Histogram — stack-based O(n)
+// Measures: stack operations, area tracking
+// Workload: N=500000, 500 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 500;
+    let heights = malloc(n * 8);
+    let stack = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(heights + i * 8, seed % 1000 + 1);
+            set i = i + 1
+        };
+
+        let mut max_area: i64 = 0;
+        let mut top: i64 = 0 - 1;
+
+        set i = 0;
+        while i <= n {
+            let h = if i == n { 0 } else { load_i64(heights + i * 8) };
+            while top >= 0 {
+                let st = load_i64(stack + top * 8);
+                let _x = if load_i64(heights + st * 8) > h {
+                    let height = load_i64(heights + st * 8);
+                    set top = top - 1;
+                    let width = if top < 0 { i } else { i - load_i64(stack + top * 8) - 1 };
+                    let area = height * width;
+                    set max_area = if area > max_area { area } else { max_area };
+                    ()
+                } else { break };
+                0
+            };
+            set top = top + 1;
+            let _s = store_i64(stack + top * 8, i);
+            set i = i + 1
+        };
+        set checksum = checksum + max_area;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(heights);
+    let _f2 = free(stack)
+};

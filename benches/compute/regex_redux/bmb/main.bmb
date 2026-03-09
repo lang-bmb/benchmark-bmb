@@ -161,7 +161,7 @@ fn generate_dna(buf: i64, len: i64) -> i64 = {
 };
 
 fn main() -> i64 = {
-    let seq_len: i64 = 100000;
+    let seq_len: i64 = 500000;
 
     // Allocate and generate DNA sequence
     let buf = buffer_new(seq_len);

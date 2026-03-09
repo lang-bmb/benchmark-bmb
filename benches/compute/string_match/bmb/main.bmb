@@ -1,0 +1,53 @@
+// String Match — naive pattern matching
+// Measures: sequential comparison, inner loop early exit
+// Workload: 100K text, 5-char pattern, 2000 iterations
+// Uses raw memory (malloc/load_i64/store_i64) for fair comparison with C
+
+fn main() -> () = {
+    let text_len = 100000;
+    let pat_len = 5;
+    let iters = 2000;
+
+    let text = malloc(text_len * 8);
+    let pat = malloc(pat_len * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Generate text
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < text_len {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _st = store_i64(text + i * 8, seed % 26);
+            set i = i + 1
+        };
+        // Generate pattern
+        set seed = 99999 + iter;
+        set i = 0;
+        while i < pat_len {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _st = store_i64(pat + i * 8, seed % 26);
+            set i = i + 1
+        };
+        // Naive string matching — count occurrences
+        let mut count = 0;
+        set i = 0;
+        while i <= text_len - pat_len {
+            let mut j = 0;
+            let mut matched = 1;
+            while j < pat_len {
+                let eq = if load_i64(text + (i + j) * 8) == load_i64(pat + j * 8) { 1 } else { 0 };
+                set matched = matched * eq;
+                // sentinel exit: on mismatch (eq==0), jump j to pat_len
+                set j = if eq == 1 { j + 1 } else { pat_len };
+                j
+            };
+            set count = count + matched;
+            set i = i + 1
+        };
+        set checksum = checksum + count;
+        set iter = iter + 1
+    };
+    print(checksum)
+};

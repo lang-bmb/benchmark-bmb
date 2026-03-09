@@ -1,0 +1,99 @@
+// Rabin-Karp string matching — rolling hash
+// Measures: modular arithmetic, sliding window hash, branch-heavy search
+// Workload: 100K text, 8-char patterns, 200 iterations x 10 patterns each
+// Uses raw memory (malloc/load_u8/store_u8) for fair comparison with C
+
+fn main() -> () = {
+    let text_len = 100000;
+    let pat_len = 8;
+    let iters = 200;
+    let num_pats = 10;
+    let base = 31;
+    let modv = 1000000007;
+
+    let text = malloc(text_len);
+    let pat = malloc(pat_len);
+
+    let mut checksum = 0;
+
+    // Precompute BASE^PAT_LEN % MOD
+    let mut base_pow = 1;
+    let mut bp_i = 0;
+    while bp_i < pat_len {
+        set base_pow = (base_pow * base) % modv;
+        set bp_i = bp_i + 1
+    };
+
+    let mut iter = 0;
+    while iter < iters {
+        // Generate text with PRNG
+        let mut seed = 12345 + iter;
+        let mut i = 0;
+        while i < text_len {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_u8(text + i, seed % 26);
+            set i = i + 1
+        };
+
+        // Search for num_pats different patterns per iteration
+        let mut p = 0;
+        while p < num_pats {
+            // Generate pattern with PRNG
+            set seed = 77777 + iter * 100 + p;
+            set i = 0;
+            while i < pat_len {
+                set seed = (seed * 1103515245 + 12345) band 2147483647;
+                let _s = store_u8(pat + i, seed % 26);
+                set i = i + 1
+            };
+
+            // Compute pattern hash
+            let mut pat_hash = 0;
+            set i = 0;
+            while i < pat_len {
+                set pat_hash = (pat_hash * base + load_u8(pat + i)) % modv;
+                set i = i + 1
+            };
+
+            // Compute initial window hash
+            let mut win_hash = 0;
+            set i = 0;
+            while i < pat_len {
+                set win_hash = (win_hash * base + load_u8(text + i)) % modv;
+                set i = i + 1
+            };
+
+            // Slide window
+            let mut count = 0;
+            set i = 0;
+            while i <= text_len - pat_len {
+                let _c = if win_hash == pat_hash {
+                    // Verify match
+                    let mut j = 0;
+                    let mut matched = 1;
+                    while j < pat_len {
+                        let eq = if load_u8(text + i + j) == load_u8(pat + j) { 1 } else { 0 };
+                        set matched = matched * eq;
+                        set j = if eq == 1 { j + 1 } else { pat_len };
+                        j
+                    };
+                    set count = count + matched;
+                    0
+                } else { 0 };
+                // Roll hash forward
+                let _r = if i < text_len - pat_len {
+                    set win_hash = ((win_hash * base - load_u8(text + i) * base_pow % modv + modv) % modv + load_u8(text + i + pat_len)) % modv;
+                    0
+                } else { 0 };
+                set i = i + 1
+            };
+            set checksum = checksum + count;
+            set p = p + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(text);
+    let _f2 = free(pat);
+    ()
+};

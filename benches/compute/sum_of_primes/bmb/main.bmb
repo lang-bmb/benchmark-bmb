@@ -1,0 +1,36 @@
+// Sum of Primes — sum all primes up to N using trial division
+// Measures: nested loop, modulo, branch prediction
+// Workload: sum primes up to 50000, 3000 iterations
+
+fn is_prime(n: i64) -> i64 = {
+    let _c = if n < 2 { return 0 } else { 0 };
+    let _c2 = if n < 4 { return 1 } else { 0 };
+    let _c3 = if n % 2 == 0 { return 0 } else { 0 };
+    let mut i: i64 = 3;
+    while i * i <= n {
+        let _c4 = if n % i == 0 { return 0 } else { () };
+        set i = i + 2
+    };
+    1
+};
+
+fn main() -> () = {
+    let limit = 50000;
+    let iters = 3000;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut sum: i64 = 0;
+        let mut n = 2;
+        while n <= limit {
+            let _c = if is_prime(n) == 1 {
+                set sum = sum + n
+            } else { () };
+            set n = n + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    ()
+};

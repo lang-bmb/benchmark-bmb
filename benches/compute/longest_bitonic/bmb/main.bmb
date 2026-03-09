@@ -1,0 +1,78 @@
+// Longest Bitonic Subsequence — two-pass DP (LIS + LDS)
+// Measures: sequential DP, register tracking
+// Workload: N=5000, 500 iterations
+
+fn main() -> () = {
+    let n = 5000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let lis = malloc(n * 8);
+    let lds = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10000);
+            set i = i + 1
+        };
+
+        // LIS: longest increasing subsequence ending at i
+        set i = 0;
+        while i < n {
+            let _s = store_i64(lis + i * 8, 1);
+            let ai = load_i64(arr + i * 8);
+            let mut j = 0;
+            while j < i {
+                let aj = load_i64(arr + j * 8);
+                let lj = load_i64(lis + j * 8);
+                let li = load_i64(lis + i * 8);
+                let _u = if aj < ai {
+                    if lj + 1 > li {
+                        store_i64(lis + i * 8, lj + 1)
+                    } else { 0 }
+                } else { 0 };
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+
+        // LDS: longest decreasing subsequence starting at i
+        set i = n - 1;
+        while i >= 0 {
+            let _s = store_i64(lds + i * 8, 1);
+            let ai = load_i64(arr + i * 8);
+            let mut j = i + 1;
+            while j < n {
+                let aj = load_i64(arr + j * 8);
+                let ldj = load_i64(lds + j * 8);
+                let ldi = load_i64(lds + i * 8);
+                let _u = if aj < ai {
+                    if ldj + 1 > ldi {
+                        store_i64(lds + i * 8, ldj + 1)
+                    } else { 0 }
+                } else { 0 };
+                set j = j + 1
+            };
+            set i = i - 1
+        };
+
+        // Find max bitonic length
+        let mut max_len: i64 = 0;
+        set i = 0;
+        while i < n {
+            let len = load_i64(lis + i * 8) + load_i64(lds + i * 8) - 1;
+            set max_len = if len > max_len { len } else { max_len };
+            set i = i + 1
+        };
+        set checksum = checksum + max_len;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(lis);
+    let _f3 = free(lds)
+};

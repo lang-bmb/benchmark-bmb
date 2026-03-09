@@ -1,0 +1,25 @@
+// Josephus Problem Benchmark
+// Measures: modular arithmetic, tight loop performance
+// O(n) formula: J(1)=0, J(n)=(J(n-1)+k)%n
+// Workload: n=10000000, k=2..101 (100 iterations)
+
+fn josephus(n: i64, k: i64) -> i64 = {
+    let mut pos: i64 = 0;
+    let mut i: i64 = 2;
+    while i <= n {
+        set pos = (pos + k) % i;
+        set i = i + 1
+    };
+    pos
+};
+
+fn main() -> () = {
+    let n = 10000000;
+    let mut checksum: i64 = 0;
+    let mut k: i64 = 2;
+    while k <= 101 {
+        set checksum = checksum + josephus(n, k);
+        set k = k + 1
+    };
+    print(checksum)
+};

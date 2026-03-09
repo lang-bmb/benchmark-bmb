@@ -1,0 +1,21 @@
+// Bounds Check Elimination — NO CONTRACT version
+// Same dynamic indices, but without pre-conditions
+// In --safe mode, bounds checks will REMAIN
+
+fn get(arr: &[i64; 10], idx: i64) -> i64
+= arr[idx];
+
+fn dynamic_sum(arr: &[i64; 10], n: i64, acc: i64) -> i64
+= if n <= 0 { acc }
+  else {
+    let idx = n % 10;
+    let val = get(arr, idx);
+    dynamic_sum(arr, n - 1, acc + val)
+  };
+
+fn main() -> i64 = {
+    let arr: [i64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let result = dynamic_sum(&arr, 10000000, 0);
+    let _u = println(result);
+    0
+};

@@ -1,0 +1,54 @@
+// String to Int (atoi) — parse integers from digit arrays
+// Measures: character processing, multiplication, sequential scan
+// Workload: N=500000 strings, 1000 iterations
+
+fn atoi(buf: i64, len: i64) -> i64 = {
+    let mut result: i64 = 0;
+    let mut i = 0;
+    while i < len {
+        set result = result * 10 + load_i64(buf + i * 8);
+        set i = i + 1
+    };
+    result
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 1000;
+    let maxdigits = 10;
+    let buf = malloc(maxdigits * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let val = seed % 1000000000;
+            let mut tmp = val;
+            let mut len: i64 = 0;
+            while tmp > 0 {
+                let _s = store_i64(buf + len * 8, tmp % 10);
+                set tmp = tmp / 10;
+                set len = len + 1
+            };
+            let mut lo = 0;
+            let mut hi = len - 1;
+            while lo < hi {
+                let t = load_i64(buf + lo * 8);
+                let _s1 = store_i64(buf + lo * 8, load_i64(buf + hi * 8));
+                let _s2 = store_i64(buf + hi * 8, t);
+                set lo = lo + 1;
+                set hi = hi - 1
+            };
+            set checksum = checksum + atoi(buf, len);
+            set i = i + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(buf);
+    ()
+};

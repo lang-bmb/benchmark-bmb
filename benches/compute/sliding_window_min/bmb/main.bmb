@@ -1,0 +1,61 @@
+// Sliding Window Minimum — deque-based sliding window min
+// Measures: deque operations, index arithmetic
+// Workload: N=500000, window=1000, 500 iterations
+
+fn main() -> () = {
+    let n = 500000;
+    let w = 1000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+    let deque = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 1000000);
+            set i = i + 1
+        };
+
+        let mut front: i64 = 0;
+        let mut back: i64 = 0;
+        let mut sum: i64 = 0;
+
+        set i = 0;
+        while i < n {
+            // Remove elements outside window
+            while front < back {
+                let _x = if load_i64(deque + front * 8) <= i - w {
+                    set front = front + 1;
+                    ()
+                } else { break };
+                0
+            };
+            // Remove elements larger than arr[i] from back
+            let ai = load_i64(arr + i * 8);
+            while front < back {
+                let _x = if load_i64(arr + load_i64(deque + (back - 1) * 8) * 8) >= ai {
+                    set back = back - 1;
+                    ()
+                } else { break };
+                0
+            };
+            let _s = store_i64(deque + back * 8, i);
+            set back = back + 1;
+            // After first window is full, accumulate min
+            let _a = if i >= w - 1 {
+                set sum = sum + load_i64(arr + load_i64(deque + front * 8) * 8);
+                ()
+            } else { () };
+            set i = i + 1
+        };
+        set checksum = checksum + sum;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(deque)
+};

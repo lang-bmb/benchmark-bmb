@@ -1,0 +1,70 @@
+// Wave Sort Check — check if array is wave-sorted (a[0]>=a[1]<=a[2]>=...)
+// Measures: sequential scan, alternating comparisons
+// Workload: N=500000, 10000 iterations
+
+fn is_wave_sorted(arr: i64, n: i64) -> i64 = {
+    let mut i = 0;
+    while i < n - 1 {
+        let a = load_i64(arr + i * 8);
+        let b = load_i64(arr + (i + 1) * 8);
+        let _c = if i % 2 == 0 {
+            let _c2 = if a < b { return 0 } else { () };
+            0
+        } else {
+            let _c2 = if a > b { return 0 } else { () };
+            0
+        };
+        set i = i + 1
+    };
+    1
+};
+
+fn wave_sort(arr: i64, n: i64) -> () = {
+    let mut i = 0;
+    while i < n - 1 {
+        let _c = if i % 2 == 0 {
+            let _c2 = if load_i64(arr + i * 8) < load_i64(arr + (i + 1) * 8) {
+                let t = load_i64(arr + i * 8);
+                let _s1 = store_i64(arr + i * 8, load_i64(arr + (i + 1) * 8));
+                let _s2 = store_i64(arr + (i + 1) * 8, t);
+                0
+            } else { 0 };
+            0
+        } else {
+            let _c2 = if load_i64(arr + i * 8) > load_i64(arr + (i + 1) * 8) {
+                let t = load_i64(arr + i * 8);
+                let _s1 = store_i64(arr + i * 8, load_i64(arr + (i + 1) * 8));
+                let _s2 = store_i64(arr + (i + 1) * 8, t);
+                0
+            } else { 0 };
+            0
+        };
+        set i = i + 1
+    };
+    ()
+};
+
+fn main() -> () = {
+    let n = 500000;
+    let iters = 10000;
+    let arr = malloc(n * 8);
+
+    let mut seed: i64 = 42;
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % 10000);
+            set i = i + 1
+        };
+        wave_sort(arr, n);
+        set checksum = checksum + is_wave_sorted(arr, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

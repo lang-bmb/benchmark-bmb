@@ -1,0 +1,84 @@
+// Floyd-Warshall all-pairs shortest path benchmark
+// Measures: triple nested loop, 2D array access, min operations
+// Workload: 500 nodes, ~30% edge density, 20 iterations
+
+fn floyd_warshall(dist: i64, n: i64) -> i64 = {
+    let inf = 999999999;
+    let mut k = 0;
+    while k < n {
+        let mut i = 0;
+        while i < n {
+            let dik = load_i64(dist + (i * n + k) * 8);
+            let _x = if dik < inf {
+                let mut j = 0;
+                while j < n {
+                    let dkj = load_i64(dist + (k * n + j) * 8);
+                    let via_k = dik + dkj;
+                    let cur = load_i64(dist + (i * n + j) * 8);
+                    let _s = if via_k < cur {
+                        store_i64(dist + (i * n + j) * 8, via_k); 0
+                    } else { 0 };
+                    set j = j + 1
+                };
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        set k = k + 1
+    };
+    // Sum all finite distances
+    let mut sum = 0;
+    let mut idx = 0;
+    let total = n * n;
+    while idx < total {
+        let d = load_i64(dist + idx * 8);
+        set sum = if d < inf { sum + d } else { sum };
+        set idx = idx + 1
+    };
+    sum
+};
+
+fn main() -> () = {
+    let n = 500;
+    let iters = 20;
+    let dist = malloc(n * n * 8);
+
+    let mut checksum = 0;
+    let mut iter = 0;
+    while iter < iters {
+        // Initialize: INF everywhere, 0 on diagonal
+        let inf = 999999999;
+        let mut i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < n {
+                let _s = store_i64(dist + (i * n + j) * 8, if i == j { 0 } else { inf });
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        // Add random edges (~30% density)
+        let mut seed = 77777 + iter;
+        set i = 0;
+        while i < n {
+            let mut j = 0;
+            while j < n {
+                let _x = if i != j {
+                    set seed = (seed * 1103515245 + 12345) band 2147483647;
+                    let _y = if seed % 100 < 30 {
+                        set seed = (seed * 1103515245 + 12345) band 2147483647;
+                        let _s = store_i64(dist + (i * n + j) * 8, (seed % 100) + 1);
+                        0
+                    } else { 0 };
+                    0
+                } else { 0 };
+                set j = j + 1
+            };
+            set i = i + 1
+        };
+        set checksum = checksum + floyd_warshall(dist, n);
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(dist)
+};

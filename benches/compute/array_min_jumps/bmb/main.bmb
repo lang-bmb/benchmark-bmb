@@ -1,0 +1,54 @@
+// array_min_jumps — Minimum jumps to reach end (greedy BFS)
+// Measures: register-carried cur_end/farthest/jumps tracking
+// Workload: N=2000000, 500 iterations
+
+fn min_jumps(arr: i64, n: i64) -> i64 = {
+    if n <= 1 { 0 } else {
+        let mut jumps: i64 = 0;
+        let mut cur_end: i64 = 0;
+        let mut farthest: i64 = 0;
+        let mut i = 0;
+        let limit = n - 1;
+        let mut done = 0;
+        while i < limit {
+            let _d = if done == 0 {
+                let reach = i + load_i64(arr + i * 8);
+                let _r = if reach > farthest { set farthest = reach; 0 } else { 0 };
+                let _j = if i == cur_end {
+                    set jumps = jumps + 1;
+                    set cur_end = farthest;
+                    let _b = if cur_end >= limit { set done = 1; 0 } else { 0 };
+                    0
+                } else { 0 };
+                0
+            } else { 0 };
+            set i = i + 1
+        };
+        jumps
+    }
+};
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let arr = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+    let mut iter: i64 = 0;
+
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, (seed % 10) + 1);
+            set i = i + 1
+        };
+        set checksum = checksum + min_jumps(arr, n);
+        set seed = (seed + iter) band 2147483647;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr);
+    ()
+};

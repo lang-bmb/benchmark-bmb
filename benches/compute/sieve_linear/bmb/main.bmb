@@ -1,0 +1,46 @@
+// Sieve Linear — linear sieve of Eratosthenes
+// Measures: sequential writes, random access, branch prediction
+// Workload: sieve up to 2000000, 500 iterations
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 500;
+    let is_prime = malloc(n * 8);
+
+    let mut checksum: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            let _s = store_i64(is_prime + i * 8, 1);
+            set i = i + 1
+        };
+        let _s0 = store_i64(is_prime, 0);
+        let _s1 = store_i64(is_prime + 8, 0);
+
+        set i = 2;
+        while i * i < n {
+            let _c = if load_i64(is_prime + i * 8) == 1 {
+                let mut j = i * i;
+                while j < n {
+                    let _s2 = store_i64(is_prime + j * 8, 0);
+                    set j = j + i
+                };
+                ()
+            } else { () };
+            set i = i + 1
+        };
+
+        let mut count: i64 = 0;
+        set i = 0;
+        while i < n {
+            set count = count + load_i64(is_prime + i * 8);
+            set i = i + 1
+        };
+        set checksum = checksum + count;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(is_prime);
+    ()
+};

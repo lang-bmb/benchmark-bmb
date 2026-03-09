@@ -1,0 +1,51 @@
+// Pangram Check — check if array contains all values in range [0,K)
+// Measures: boolean array marking, early exit
+// Workload: N=100000, K=256, 20000 iterations
+
+fn main() -> () = {
+    let n = 100000;
+    let k = 256;
+    let iters = 20000;
+    let arr = malloc(n * 8);
+    let seen = malloc(k * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let _s = store_i64(arr + i * 8, seed % k);
+            set i = i + 1
+        };
+
+        // Clear seen
+        set i = 0;
+        while i < k {
+            let _s = store_i64(seen + i * 8, 0);
+            set i = i + 1
+        };
+
+        let mut unique: i64 = 0;
+        set i = 0;
+        while i < n {
+            let val = load_i64(arr + i * 8);
+            let _c = if load_i64(seen + val * 8) == 0 {
+                let _s = store_i64(seen + val * 8, 1);
+                set unique = unique + 1;
+                let _b = if unique == k {
+                    set i = n;
+                    ()
+                } else { () };
+                ()
+            } else { () };
+            set i = i + 1
+        };
+        set checksum = checksum + unique;
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f1 = free(arr);
+    let _f2 = free(seen)
+};

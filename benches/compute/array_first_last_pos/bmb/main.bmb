@@ -1,0 +1,69 @@
+// First and Last Position — binary search for range
+// Measures: binary search, register tracking
+// Workload: N=2000000, 2000 iterations, sorted array
+
+fn main() -> () = {
+    let n = 2000000;
+    let iters = 2000;
+    let arr = malloc(n * 8);
+    let mut checksum: i64 = 0;
+    let mut seed: i64 = 42;
+
+    let mut iter: i64 = 0;
+    while iter < iters {
+        // Generate sorted array with duplicates
+        let mut val: i64 = 0;
+        let mut i = 0;
+        while i < n {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            set val = val + seed % 3;
+            let _s = store_i64(arr + i * 8, val);
+            set i = i + 1
+        };
+
+        // Search for multiple targets
+        let mut t = 0;
+        while t < 100 {
+            set seed = (seed * 1103515245 + 12345) band 2147483647;
+            let target = seed % (val + 1);
+
+            // Find first position
+            let mut lo: i64 = 0;
+            let mut hi: i64 = n;
+            while lo < hi {
+                let mid = lo + (hi - lo) / 2;
+                let _x = if load_i64(arr + mid * 8) < target {
+                    set lo = mid + 1;
+                    ()
+                } else {
+                    set hi = mid;
+                    ()
+                };
+                0
+            };
+            let first = lo;
+
+            // Find last position
+            set lo = 0;
+            set hi = n;
+            while lo < hi {
+                let mid = lo + (hi - lo) / 2;
+                let _x = if load_i64(arr + mid * 8) <= target {
+                    set lo = mid + 1;
+                    ()
+                } else {
+                    set hi = mid;
+                    ()
+                };
+                0
+            };
+            let last = lo - 1;
+
+            set checksum = if first <= last { checksum + last - first + 1 } else { checksum };
+            set t = t + 1
+        };
+        set iter = iter + 1
+    };
+    print(checksum);
+    let _f = free(arr)
+};
