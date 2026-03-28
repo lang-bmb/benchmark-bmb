@@ -8,16 +8,16 @@ fn sort_by_end(starts: i64, ends: i64, weights: i64, n: i64) -> () = {
         let es = load_i64(starts + i * 8);
         let ee = load_i64(ends + i * 8);
         let ew = load_i64(weights + i * 8);
-        let mut j = i - 1;
+        let mut k = i;
         let mut done = 0;
         while done == 0 {
-            let _x = if j >= 0 {
-                let ej = load_i64(ends + j * 8);
-                let _y = if ej > ee {
-                    let _s1 = store_i64(starts + (j + 1) * 8, load_i64(starts + j * 8));
-                    let _s2 = store_i64(ends + (j + 1) * 8, ej);
-                    let _s3 = store_i64(weights + (j + 1) * 8, load_i64(weights + j * 8));
-                    set j = j - 1;
+            let _x = if k > 0 {
+                let ek = load_i64(ends + (k - 1) * 8);
+                let _y = if ek > ee {
+                    let _s1 = store_i64(starts + k * 8, load_i64(starts + (k - 1) * 8));
+                    let _s2 = store_i64(ends + k * 8, ek);
+                    let _s3 = store_i64(weights + k * 8, load_i64(weights + (k - 1) * 8));
+                    set k = k - 1;
                     ()
                 } else {
                     set done = 1;
@@ -29,9 +29,9 @@ fn sort_by_end(starts: i64, ends: i64, weights: i64, n: i64) -> () = {
                 ()
             }
         };
-        let _s1 = store_i64(starts + (j + 1) * 8, es);
-        let _s2 = store_i64(ends + (j + 1) * 8, ee);
-        let _s3 = store_i64(weights + (j + 1) * 8, ew);
+        let _s1 = store_i64(starts + k * 8, es);
+        let _s2 = store_i64(ends + k * 8, ee);
+        let _s3 = store_i64(weights + k * 8, ew);
         set i = i + 1
     }
 };

@@ -17,18 +17,8 @@ fn leading_zeros(x: i64) -> i64 =
         let mut count = 0;
         // Check from bit 30 down (31-bit LCG values)
         let mut bit = 30;
-        let mut found = 0;
-        while bit >= 0 {
-            let _c = if found == 0 {
-                let mask = 1 << bit;
-                if (x band mask) != 0 {
-                    set found = 1;
-                    0
-                } else {
-                    set count = count + 1;
-                    0
-                }
-            } else { 0 };
+        while bit >= 0 and (x band (1 << bit)) == 0 {
+            set count = count + 1;
             set bit = bit - 1
         };
         count

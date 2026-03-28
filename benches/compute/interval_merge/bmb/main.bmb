@@ -8,16 +8,16 @@ fn insertion_sort(n: i64, starts: i64, ends: i64) -> i64 = {
         let ks = load_i64(starts + i * 8);
         let ke = load_i64(ends + i * 8);
         let mut insert_pos = i;
-        let mut j = i - 1;
-        while j >= 0 {
-            let _x = if load_i64(starts + j * 8) > ks {
-                let _s1 = store_i64(starts + (j + 1) * 8, load_i64(starts + j * 8));
-                let _s2 = store_i64(ends + (j + 1) * 8, load_i64(ends + j * 8));
-                set insert_pos = j;
-                set j = j - 1;
+        let mut k = i;
+        while k >= 1 {
+            let _x = if load_i64(starts + (k - 1) * 8) > ks {
+                let _s1 = store_i64(starts + k * 8, load_i64(starts + (k - 1) * 8));
+                let _s2 = store_i64(ends + k * 8, load_i64(ends + (k - 1) * 8));
+                set insert_pos = k - 1;
+                set k = k - 1;
                 0
             } else {
-                set j = 0 - 1;
+                set k = 0;
                 0
             }
         };

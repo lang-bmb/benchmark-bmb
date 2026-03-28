@@ -1,47 +1,57 @@
-// Purity optimization benchmark
-// Measures: pure function memoization and common subexpression elimination
-// BMB's purity contracts enable aggressive optimization
+// Purity optimization benchmark — Contract-driven CSE
+// @pure → memory(none) → LLVM CSE/LICM even without body analysis
+// pre/post → llvm.assume → range propagation
 
-// Pure function (can be memoized/CSE'd)
+// Pure computation: accumulates i*i/(i+1) with extra work to prevent trivial inlining
+@pure
 fn expensive_pure(x: i64) -> i64
   pre x >= 0
   post ret >= 0
 = expensive_iter(x, 0, 1);
 
 fn expensive_iter(n: i64, i: i64, acc: i64) -> i64 =
-    if i >= n { acc } else { expensive_iter(n, i + 1, acc + (i * i) / (i + 1)) };
+    if i >= n { acc }
+    else {
+        let term = (i * i) / (i + 1);
+        let extra = if i > 5 { (i * 3 + 7) / (i + 2) } else { i + 1 };
+        expensive_iter(n, i + 1, acc + term + extra)
+    };
 
-// Multiple calls to same pure function (CSE opportunity)
+// Three calls to same pure function → CSE eliminates 2
+@pure
 fn compute_with_redundancy(x: i64) -> i64
   pre x >= 0
 = {
-  let a = expensive_pure(x);    // First call
-  let b = expensive_pure(x);    // Identical call (can be eliminated)
-  let c = expensive_pure(x);    // Identical call (can be eliminated)
+  let a = expensive_pure(x);
+  let b = expensive_pure(x);
+  let c = expensive_pure(x);
   a + b + c
 };
 
-// Loop with invariant pure computation
+// Loop-invariant pure computation → LICM hoists it out
+@pure
 fn loop_with_invariant(n: i64, constant: i64) -> i64
   pre n >= 0 and constant >= 0
 = loop_iter(n, constant, 0);
 
+@pure
 fn loop_iter(remaining: i64, constant: i64, acc: i64) -> i64 =
     if remaining <= 0 { acc } else {
-        let pure_result = expensive_pure(constant);  // Loop invariant
+        let pure_result = expensive_pure(constant);
         loop_iter(remaining - 1, constant, acc + pure_result)
     };
 
-// Benchmark: many redundant pure calls
+// 100000 iterations for measurable timing
+@pure
 fn run_benchmark(n: i64, acc: i64) -> i64 =
     if n <= 0 { acc } else {
-        let result = compute_with_redundancy(n / 10);
+        let result = compute_with_redundancy(n / 100);
         run_benchmark(n - 1, acc + result)
     };
 
 fn main() -> i64 = {
-    let pure_test = run_benchmark(1000, 0);
-    let loop_test = loop_with_invariant(1000, 50);
+    let pure_test = run_benchmark(100000, 0);
+    let loop_test = loop_with_invariant(100000, 50);
     let result = pure_test + loop_test;
     let _u = println(result);
     0

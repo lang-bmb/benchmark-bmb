@@ -3,18 +3,18 @@
 // Workload: N=500000, 200 iterations
 
 fn insert_sorted(buf: i64, size: i64, val: i64) -> () = {
-    let mut j: i64 = size - 1;
-    while j >= 0 {
-        let bj = load_i64(buf + j * 8);
-        let _c = if bj > val {
-            let _s = store_i64(buf + (j + 1) * 8, bj);
+    let mut k: i64 = size;
+    while k >= 1 {
+        let bk = load_i64(buf + (k - 1) * 8);
+        let _c = if bk > val {
+            let _s = store_i64(buf + k * 8, bk);
             0
         } else {
             break
         };
-        set j = j - 1
+        set k = k - 1
     };
-    let _s = store_i64(buf + (j + 1) * 8, val);
+    let _s = store_i64(buf + k * 8, val);
     ()
 };
 

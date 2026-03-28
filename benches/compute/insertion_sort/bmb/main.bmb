@@ -7,15 +7,15 @@ fn insertion_sort(arr: i64, n: i64) -> () = {
     while i < n {
         let key = load_i64(arr + i * 8);
         let mut insert_pos = i;
-        let mut j = i - 1;
-        while j >= 0 {
-            let _x = if load_i64(arr + j * 8) > key {
-                let _s = store_i64(arr + (j + 1) * 8, load_i64(arr + j * 8));
-                set insert_pos = j;
-                set j = j - 1;
+        let mut k = i;
+        while k >= 1 {
+            let _x = if load_i64(arr + (k - 1) * 8) > key {
+                let _s = store_i64(arr + k * 8, load_i64(arr + (k - 1) * 8));
+                set insert_pos = k - 1;
+                set k = k - 1;
                 0
             } else {
-                set j = 0 - 1;
+                set k = 0;
                 0
             }
         };

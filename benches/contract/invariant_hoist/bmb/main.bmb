@@ -16,9 +16,12 @@ fn digit_char(d: i64) -> String =
     else { "9" };
 
 // Expensive computation that is loop-invariant
+// @pure → memory(none) → LLVM LICM can hoist this out of loops
+@pure
 fn expensive_compute(x: i64, y: i64) -> i64 =
     expensive_compute_loop(x, y, 0, 0);
 
+@pure
 fn expensive_compute_loop(x: i64, y: i64, i: i64, acc: i64) -> i64 =
     if i >= 100 { acc }
     else { expensive_compute_loop(x, y, i + 1, acc + (x * x + y * y) / (i + 1)) };
@@ -66,23 +69,11 @@ fn multiple_invariants_iter(n: i64, a: i64, b: i64, c: i64, i: i64, sum: i64) ->
     };
 
 fn main() -> i64 = {
-    let u1 = printline("Invariant Hoist Benchmark");
-    let u2 = printline("");
-
-    // Test loop with invariant
-    let result1 = loop_with_invariant(100, 5, 7);
-    let u3 = printline("Loop with invariant: " + int_to_string(result1));
-
-    // Test nested with invariant
-    let result2 = nested_with_invariant(10, 10, 3);
-    let u4 = printline("Nested with invariant: " + int_to_string(result2));
-
-    // Test multiple invariants
-    let result3 = multiple_invariants(100, 3, 5, 7);
-    let u5 = printline("Multiple invariants: " + int_to_string(result3));
-
+    // Scaled up for measurable timing
+    let result1 = loop_with_invariant(10000, 5, 7);
+    let result2 = nested_with_invariant(100, 100, 3);
+    let result3 = multiple_invariants(10000, 3, 5, 7);
     let total = result1 + result2 + result3;
-    let u6 = printline("");
-    let u7 = printline("Total: " + int_to_string(total));
-    printline("Done.")
+    let _u = println(total);
+    0
 };

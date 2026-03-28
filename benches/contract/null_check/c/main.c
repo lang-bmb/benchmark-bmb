@@ -3,17 +3,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct {
     int has_value;
-    long value;
+    int64_t value;
 } Option;
 
 Option none() {
     return (Option){0, 0};
 }
 
-Option some(long value) {
+Option some(int64_t value) {
     return (Option){1, value};
 }
 
@@ -21,7 +22,7 @@ int is_some(Option opt) {
     return opt.has_value;
 }
 
-long unwrap(Option opt) {
+int64_t unwrap(Option opt) {
     if (!opt.has_value) {
         fprintf(stderr, "Unwrap on None\n");
         exit(1);
@@ -29,7 +30,7 @@ long unwrap(Option opt) {
     return opt.value;
 }
 
-long unwrap_or(Option opt, long default_val) {
+int64_t unwrap_or(Option opt, int64_t default_val) {
     return opt.has_value ? opt.value : default_val;
 }
 
@@ -40,7 +41,7 @@ Option map_double(Option opt) {
     return none();
 }
 
-long process_chain(long value) {
+int64_t process_chain(int64_t value) {
     Option step1 = some(value);
     Option step2 = map_double(step1);  // Runtime check
     Option step3 = map_double(step2);  // Runtime check
@@ -49,10 +50,10 @@ long process_chain(long value) {
 }
 
 int main() {
-    long acc = 0;
+    int64_t acc = 0;
     for (int n = 10000; n > 0; n--) {
         acc += process_chain(n);
     }
-    printf("%ld\n", acc);
+    printf("%lld\n", (long long)acc);
     return 0;
 }

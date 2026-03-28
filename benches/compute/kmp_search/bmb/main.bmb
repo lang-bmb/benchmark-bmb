@@ -34,12 +34,8 @@ fn main() -> () = {
         let mut k: i64 = 0;
         set i = 1;
         while i < pat_len {
-            while k > 0 {
-                let _x = if load_i64(pat + k * 8) != load_i64(pat + i * 8) {
-                    set k = load_i64(fail + (k - 1) * 8);
-                    ()
-                } else { break };
-                0
+            while k > 0 and load_i64(pat + k * 8) != load_i64(pat + i * 8) {
+                set k = load_i64(fail + (k - 1) * 8)
             };
             let _u = if load_i64(pat + k * 8) == load_i64(pat + i * 8) {
                 set k = k + 1;
@@ -55,12 +51,8 @@ fn main() -> () = {
         set i = 0;
         while i < text_len {
             let ti = load_i64(text + i * 8);
-            while j > 0 {
-                let _x = if load_i64(pat + j * 8) != ti {
-                    set j = load_i64(fail + (j - 1) * 8);
-                    ()
-                } else { break };
-                0
+            while j > 0 and load_i64(pat + j * 8) != ti {
+                set j = load_i64(fail + (j - 1) * 8)
             };
             let _u = if load_i64(pat + j * 8) == ti {
                 set j = j + 1;

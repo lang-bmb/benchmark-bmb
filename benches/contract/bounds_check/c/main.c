@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 
 // Bounds Check - contract optimization benchmark
 // In C: runtime bounds checking required
@@ -16,8 +17,8 @@ int safe_access(int* arr, int size, int index) {
     return arr[index];
 }
 
-long long sum_array(int* arr, int size) {
-    long long sum = 0;
+int64_t sum_array(int* arr, int size) {
+    int64_t sum = 0;
     for (int i = 0; i < size; i++) {
         sum += safe_access(arr, size, i);
     }
@@ -30,11 +31,11 @@ int main() {
         array[i] = i + 1;
     }
 
-    long long total = 0;
+    int64_t total = 0;
     for (int iter = 0; iter < ITERATIONS; iter++) {
         total += sum_array(array, SIZE);
     }
 
-    printf("Sum: %lld\n", total);
+    printf("Sum: %lld\n", (long long)total);
     return 0;
 }

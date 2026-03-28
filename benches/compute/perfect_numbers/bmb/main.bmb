@@ -7,8 +7,8 @@ fn sum_divisors(n: i64) -> i64 = {
     let mut d: i64 = 1;
     let mut acc: i64 = 0;
     while d < n {
-        let _add = if n % d == 0 { { acc = acc + d }; 0 } else { 0 };
-        { d = d + 1 }
+        let _add = if n % d == 0 { set acc = acc + d; 0 } else { 0 };
+        set d = d + 1
     };
     acc
 };
@@ -22,8 +22,8 @@ fn count_perfect(n: i64) -> i64 = {
     let mut i: i64 = 2;
     let mut count: i64 = 0;
     while i <= n {
-        let _c = if is_perfect(i) == 1 { { count = count + 1 }; 0 } else { 0 };
-        { i = i + 1 }
+        let _c = if is_perfect(i) == 1 { set count = count + 1; 0 } else { 0 };
+        set i = i + 1
     };
     count
 };
@@ -33,8 +33,8 @@ fn main() -> i64 = {
     let mut result: i64 = 0;
     let mut iter: i64 = 0;
     while iter < 10 {
-        { result = result + count_perfect(10000) };
-        { iter = iter + 1 }
+        set result = result + count_perfect(10000);
+        set iter = iter + 1
     };
     let _p = println(result);
     0

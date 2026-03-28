@@ -1,41 +1,44 @@
-// Purity optimization benchmark (C version - no automatic CSE)
-// Compiler may optimize some cases, but not as reliably as contract-based
+// Purity optimization benchmark (C version)
+// C compiler can analyze purity through interprocedural analysis
+// when everything is in one file — this is a fair comparison
 
 #include <stdio.h>
+#include <stdint.h>
 
-long expensive_pure(long x) {
-    long acc = 1;
-    for (long i = 0; i < x; i++) {
-        acc += (i * i) / (i + 1);
+int64_t expensive_pure(int64_t x) {
+    int64_t acc = 1;
+    for (int64_t i = 0; i < x; i++) {
+        int64_t term = (i * i) / (i + 1);
+        int64_t extra = (i > 5) ? (i * 3 + 7) / (i + 2) : i + 1;
+        acc += term + extra;
     }
     return acc;
 }
 
-long compute_with_redundancy(long x) {
-    long a = expensive_pure(x);  // First call
-    long b = expensive_pure(x);  // Compiler may or may not eliminate
-    long c = expensive_pure(x);  // Compiler may or may not eliminate
+int64_t compute_with_redundancy(int64_t x) {
+    int64_t a = expensive_pure(x);
+    int64_t b = expensive_pure(x);
+    int64_t c = expensive_pure(x);
     return a + b + c;
 }
 
-long loop_with_invariant(long n, long constant) {
-    long acc = 0;
-    for (long i = 0; i < n; i++) {
-        // Loop invariant - compiler may or may not hoist
-        long pure_result = expensive_pure(constant);
+int64_t loop_with_invariant(int64_t n, int64_t constant) {
+    int64_t acc = 0;
+    for (int64_t i = 0; i < n; i++) {
+        int64_t pure_result = expensive_pure(constant);
         acc += pure_result;
     }
     return acc;
 }
 
 int main() {
-    long pure_test = 0;
-    for (int n = 1000; n > 0; n--) {
-        pure_test += compute_with_redundancy(n / 10);
+    int64_t pure_test = 0;
+    for (int64_t n = 100000; n > 0; n--) {
+        pure_test += compute_with_redundancy(n / 100);
     }
 
-    long loop_test = loop_with_invariant(1000, 50);
+    int64_t loop_test = loop_with_invariant(100000, 50);
 
-    printf("%ld\n", pure_test + loop_test);
+    printf("%lld\n", (long long)(pure_test + loop_test));
     return 0;
 }
