@@ -1,9 +1,10 @@
-// Purity optimization benchmark — Contract-driven CSE
-// @pure → memory(none) → LLVM CSE/LICM even without body analysis
-// pre/post → llvm.assume → range propagation
+// Purity optimization benchmark — Contract-driven CSE with @noinline
+// @pure + @noinline → noinline + memory(none) in LLVM IR
+// LLVM GVN eliminates redundant calls via memory(none) WITHOUT seeing function body
+// C has NO equivalent: noinline functions are opaque → no CSE possible
 
-// Pure computation: accumulates i*i/(i+1) with extra work to prevent trivial inlining
 @pure
+@noinline
 fn expensive_pure(x: i64) -> i64
   pre x >= 0
   post ret >= 0
@@ -17,8 +18,7 @@ fn expensive_iter(n: i64, i: i64, acc: i64) -> i64 =
         expensive_iter(n, i + 1, acc + term + extra)
     };
 
-// Three calls to same pure function → CSE eliminates 2
-@pure
+// Three calls to same pure function → GVN eliminates 2 (via memory(none))
 fn compute_with_redundancy(x: i64) -> i64
   pre x >= 0
 = {
@@ -28,21 +28,17 @@ fn compute_with_redundancy(x: i64) -> i64
   a + b + c
 };
 
-// Loop-invariant pure computation → LICM hoists it out
-@pure
+// Loop-invariant pure computation → LICM hoists it out (via memory(none))
 fn loop_with_invariant(n: i64, constant: i64) -> i64
   pre n >= 0 and constant >= 0
 = loop_iter(n, constant, 0);
 
-@pure
 fn loop_iter(remaining: i64, constant: i64, acc: i64) -> i64 =
     if remaining <= 0 { acc } else {
         let pure_result = expensive_pure(constant);
         loop_iter(remaining - 1, constant, acc + pure_result)
     };
 
-// 100000 iterations for measurable timing
-@pure
 fn run_benchmark(n: i64, acc: i64) -> i64 =
     if n <= 0 { acc } else {
         let result = compute_with_redundancy(n / 100);

@@ -1,0 +1,79 @@
+// Pure CSE Benchmark — Contract-driven optimization proof
+// Demonstrates: @pure @noinline → memory(none) → LLVM GVN eliminates redundant calls
+// C cannot do this: noinline functions are opaque, no CSE possible
+//
+// This benchmark models a real-world scenario:
+//   A library function is pure but cannot be inlined (separate compilation unit).
+//   BMB's @pure annotation enables the optimizer to eliminate redundant calls.
+
+// Library function: pure computation (would be in a separate module)
+@pure
+@noinline
+fn compute_hash(seed: i64, data: i64) -> i64
+  pre seed >= 0 and data >= 0
+  post ret >= 0
+= hash_iter(seed, data, 0, seed);
+
+// Recursive implementation — C compilers cannot prove purity of recursive noinline functions
+fn hash_iter(seed: i64, data: i64, i: i64, acc: i64) -> i64 =
+    if i >= 100 { acc }
+    else {
+        let step1 = acc + data + i * seed;
+        let step2 = (step1 * 31 + 17) % 1000000007;
+        hash_iter(seed, data, i + 1, step2)
+    };
+
+// Pattern 1: Triple redundant call (CSE should eliminate 2)
+fn triple_hash(seed: i64, data: i64) -> i64
+  pre seed >= 0 and data >= 0
+= {
+    let h1 = compute_hash(seed, data);
+    let h2 = compute_hash(seed, data);
+    let h3 = compute_hash(seed, data);
+    h1 + h2 + h3
+};
+
+// Pattern 2: Loop with invariant (LICM should hoist)
+fn loop_hash(n: i64, seed: i64, data: i64) -> i64
+  pre n >= 0 and seed >= 0 and data >= 0
+= loop_hash_iter(n, seed, data, 0);
+
+fn loop_hash_iter(remaining: i64, seed: i64, data: i64, acc: i64) -> i64 =
+    if remaining <= 0 { acc }
+    else {
+        let h = compute_hash(seed, data);
+        loop_hash_iter(remaining - 1, seed, data, acc + h)
+    };
+
+// Heavy redundancy: 10 calls to same pure function, each worth 100 iterations
+fn heavy_redundancy(seed: i64, data: i64) -> i64
+  pre seed >= 0 and data >= 0
+= {
+    let h1 = compute_hash(seed, data);
+    let h2 = compute_hash(seed, data);
+    let h3 = compute_hash(seed, data);
+    let h4 = compute_hash(seed, data);
+    let h5 = compute_hash(seed, data);
+    let h6 = compute_hash(seed, data);
+    let h7 = compute_hash(seed, data);
+    let h8 = compute_hash(seed, data);
+    let h9 = compute_hash(seed, data);
+    let h10 = compute_hash(seed, data);
+    h1 + h2 + h3 + h4 + h5 + h6 + h7 + h8 + h9 + h10
+};
+
+// Main benchmark — focuses on redundant calls
+fn run_benchmark(n: i64, acc: i64) -> i64 =
+    if n <= 0 { acc }
+    else {
+        let seed = (n % 50) + 1;
+        let data = (n % 100) + 1;
+        let r = heavy_redundancy(seed, data);
+        run_benchmark(n - 1, acc + r)
+    };
+
+fn main() -> i64 = {
+    let result = run_benchmark(100000, 0);
+    let _u = println(result);
+    0
+};
