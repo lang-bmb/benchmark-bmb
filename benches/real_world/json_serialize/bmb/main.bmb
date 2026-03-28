@@ -1,18 +1,13 @@
 // json-serialize - JSON serialization benchmark
-// Tests string building, escaping, formatting
-// v0.60.17: IDIOMATIC VERSION - Uses sb_push_escaped for O(1) function calls per string
-//
-// Performance Note:
-// - C's per-char buf_char() is inlined (0 function call overhead)
-// - BMB's per-char sb_push_char() is external (massive call overhead)
-// - BMB's sb_push_escaped() matches C's actual behavior (single call for entire string)
+// v0.97.2: Rewritten with raw buffer operations for optimal codegen
+// Matches C's inline buf_char/buf_str pattern using store_u8
 
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
 
-fn int_to_string(n: i64) -> String =
-    if n < 0 { "-" + int_to_string(0 - n) }
+fn int_to_string_str(n: i64) -> String =
+    if n < 0 { "-" + int_to_string_str(0 - n) }
     else if n < 10 { digit_char(n) }
-    else { int_to_string(n / 10) + digit_char(n % 10) };
+    else { int_to_string_str(n / 10) + digit_char(n % 10) };
 
 fn digit_char(d: i64) -> String =
     if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
@@ -20,85 +15,109 @@ fn digit_char(d: i64) -> String =
     else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
     else { "9" };
 
-// Write JSON string (with quotes) to StringBuilder
-// v0.60.17: Uses sb_push_escaped for O(1) function calls instead of O(n)
-fn json_string_to_sb(s: String, sb: i64) -> i64 = {
-    let u1 = sb_push_char(sb, 34);  -- opening quote
-    let u2 = sb_push_escaped(sb, s);  -- escape & push entire string in one call
-    sb_push_char(sb, 34)  -- closing quote
+// Raw buffer — uses store_u8 for zero-overhead writes
+@inline fn buf_char(buf: i64, pos: i64, c: i64) -> i64 = {
+    store_u8(buf + pos, c);
+    pos + 1
 };
 
-// Write JSON integer to StringBuilder
-fn json_int_to_sb(n: i64, sb: i64) -> i64 =
-    sb_push_int(sb, n);
-
-// Serialize person object to StringBuilder
-fn serialize_person_to_sb(name: String, age: i64, city: String, salary: i64, sb: i64) -> i64 = {
-    let u1 = sb_push(sb, "{\"name\":");
-    let u2 = json_string_to_sb(name, sb);
-    let u3 = sb_push(sb, ",\"age\":");
-    let u4 = json_int_to_sb(age, sb);
-    let u5 = sb_push(sb, ",\"city\":");
-    let u6 = json_string_to_sb(city, sb);
-    let u7 = sb_push(sb, ",\"salary\":");
-    let u8 = json_int_to_sb(salary, sb);
-    sb_push(sb, "}")
-};
-
-// Serialize integer array to StringBuilder
-fn serialize_int_array(arr: i64, len: i64, sb: i64) -> i64 = {
-    let u0 = sb_push_char(sb, 91);  -- [
+// Write string bytes to buffer
+fn buf_str(buf: i64, pos: i64, s: String) -> i64 = {
+    let len = s.len();
+    let mut p = pos;
     let mut i: i64 = 0;
-    while i < len { {
-        i = if i > 0 { { sb_push_char(sb, 44); i } } else { i };  -- comma
-        sb_push_int(sb, load_i64(arr + i * 8));
-        i = i + 1;
-        ()
-    } };
-    sb_push_char(sb, 93)  -- ]
+    while i < len {
+        store_u8(buf + p, s.byte_at(i));
+        p = p + 1;
+        i = i + 1
+    };
+    p
 };
 
-// Test strings with special characters
+// Write JSON string with escaping
+fn write_string(buf: i64, pos: i64, s: String) -> i64 = {
+    let mut p = buf_char(buf, pos, 34);  // opening quote
+    let len = s.len();
+    let mut i: i64 = 0;
+    while i < len {
+        let c = s.byte_at(i);
+        if c == 34 {        // "
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 34); p = p + 2
+        } else if c == 92 { // backslash
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 92); p = p + 2
+        } else if c == 10 { // \n
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 110); p = p + 2
+        } else if c == 13 { // \r
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 114); p = p + 2
+        } else if c == 9 {  // \t
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 116); p = p + 2
+        } else {
+            store_u8(buf + p, c); p = p + 1
+        };
+        i = i + 1
+    };
+    buf_char(buf, p, 34)  // closing quote
+};
+
+// Write integer to buffer
+fn write_int(buf: i64, pos: i64, n: i64) -> i64 = {
+    if n < 0 {
+        let p = buf_char(buf, pos, 45);  // '-'
+        write_int(buf, p, 0 - n)
+    } else if n < 10 {
+        buf_char(buf, pos, 48 + n)
+    } else {
+        let p = write_int(buf, pos, n / 10);
+        buf_char(buf, p, 48 + n % 10)
+    }
+};
+
+// Serialize person object
+fn serialize_person(buf: i64, pos: i64, name: String, age: i64, city: String, salary: i64) -> i64 = {
+    let mut p = buf_str(buf, pos, "{\"name\":");
+    p = write_string(buf, p, name);
+    p = buf_str(buf, p, ",\"age\":");
+    p = write_int(buf, p, age);
+    p = buf_str(buf, p, ",\"city\":");
+    p = write_string(buf, p, city);
+    p = buf_str(buf, p, ",\"salary\":");
+    p = write_int(buf, p, salary);
+    buf_char(buf, p, 125)  // '}'
+};
+
+// Serialize integer array
+fn serialize_int_array(buf: i64, pos: i64, arr: i64, len: i64) -> i64 = {
+    let mut p = buf_char(buf, pos, 91);  // '['
+    let mut i: i64 = 0;
+    while i < len {
+        if i > 0 { p = buf_char(buf, p, 44) } else { () };  // ','
+        p = write_int(buf, p, load_i64(arr + i * 8));
+        i = i + 1
+    };
+    buf_char(buf, p, 93)  // ']'
+};
+
 fn name_with_quote() -> String = "Alice \"The Great\"";
 fn city_with_newline() -> String = "Los\nAngeles";
 
-// Benchmark: serialize many structures using StringBuilder
 fn run_benchmark(iterations: i64) -> i64 = {
-    let mut total_len: i64 = 0;
-    let mut i: i64 = 0;
-    let sb = sb_new();
-    let mut len1: i64 = 0;
-    let mut len2: i64 = 0;
-    let mut len3: i64 = 0;
-
-    -- Create test array [1,2,3,4,5,6,7,8,9,10]
+    let buf = calloc(65536, 1);
     let arr = calloc(10, 8);
     let mut j: i64 = 0;
-    while j < 10 { {
-        store_i64(arr + j * 8, j + 1);
-        j = j + 1;
-        ()
-    } };
+    while j < 10 { store_i64(arr + j * 8, j + 1); j = j + 1 };
 
-    while i < iterations { {
-        sb_clear(sb);
-        serialize_person_to_sb("John Doe", 30, "New York", 50000, sb);
-        len1 = sb_len(sb);
-
-        sb_clear(sb);
-        serialize_int_array(arr, 10, sb);
-        len2 = sb_len(sb);
-
-        sb_clear(sb);
-        serialize_person_to_sb(name_with_quote(), 25, city_with_newline(), 60000, sb);
-        len3 = sb_len(sb);
-
+    let mut total_len: i64 = 0;
+    let mut i: i64 = 0;
+    while i < iterations {
+        let len1 = serialize_person(buf, 0, "John Doe", 30, "New York", 50000);
+        let len2 = serialize_int_array(buf, 0, arr, 10);
+        let len3 = serialize_person(buf, 0, name_with_quote(), 25, city_with_newline(), 60000);
         total_len = total_len + len1 + len2 + len3;
-        i = i + 1;
-        ()
-    } };
+        i = i + 1
+    };
 
-    let u = free(arr);
+    let _f1 = free(arr);
+    let _f2 = free(buf);
     total_len
 };
 
@@ -107,21 +126,24 @@ fn main() -> i64 = {
 
     let total = run_benchmark(10000);
 
-    let u2 = printline("Total characters: " + int_to_string(total));
+    let u2 = printline("Total characters: " + int_to_string_str(total));
     let u3 = printline("Sample output:");
 
-    let sb = sb_new();
-    let s = serialize_person_to_sb("Test User", 42, "Boston", 75000, sb);
-    let sample1 = sb_build(sb);
-    let u4 = printline("  Object: " + sample1);
+    let buf = calloc(4096, 1);
+    let len = serialize_person(buf, 0, "Test User", 42, "Boston", 75000);
+    store_u8(buf + len, 0);
+    let u4 = print_str("  Object: ");
+    let u5 = puts_cstr(buf);
 
-    sb_clear(sb);
     let arr = calloc(5, 8);
     let mut i: i64 = 0;
-    while i < 5 { { store_i64(arr + i * 8, i + 1); i = i + 1; () } };
-    let s2 = serialize_int_array(arr, 5, sb);
-    let sample2 = sb_build(sb);
-    let u5 = printline("  Array: " + sample2);
+    while i < 5 { store_i64(arr + i * 8, i + 1); i = i + 1 };
+    let len2 = serialize_int_array(buf, 0, arr, 5);
+    store_u8(buf + len2, 0);
+    let u6 = print_str("  Array: ");
+    let u7 = puts_cstr(buf);
 
+    let _f1 = free(arr);
+    let _f2 = free(buf);
     printline("Done.")
 };

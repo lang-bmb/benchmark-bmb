@@ -1,39 +1,39 @@
 // Memory Benchmark: SIMD Sum
 // Goal: Measure auto-vectorization potential
-//
-// Simple array sum that should be auto-vectorized by LLVM
-// BMB's pure/no-aliasing semantics should enable full SIMD
-// v0.52: Use array references to avoid O(n) copy per recursive call
+// v0.97.2: Rewritten with while loops for SIMD-friendly codegen
 
 // Sum array elements - SIMD-friendly pattern
-fn sum_array(arr: &[i64; 64], idx: i64, acc: i64) -> i64
-  pre idx >= 0
-= if idx >= 64 { acc } else { sum_array(arr, idx + 1, acc + arr[idx]) };
+fn sum_array(arr: &[i64; 64]) -> i64 = {
+    let mut acc: i64 = 0;
+    for i in 0..64 {
+        acc = acc + arr[i]
+    };
+    acc
+};
 
 // Sum with unrolled access (4 elements at a time)
-fn sum_unrolled(arr: &[i64; 64], idx: i64, acc: i64) -> i64
-  pre idx >= 0
-= if idx >= 64 {
+fn sum_unrolled(arr: &[i64; 64]) -> i64 = {
+    let mut acc: i64 = 0;
+    let mut i: i64 = 0;
+    while i + 3 < 64 {
+        acc = acc + arr[i] + arr[i + 1] + arr[i + 2] + arr[i + 3];
+        i = i + 4
+    };
+    while i < 64 {
+        acc = acc + arr[i];
+        i = i + 1
+    };
     acc
-  } else if idx + 3 >= 64 {
-    sum_array(arr, idx, acc)
-  } else {
-    sum_unrolled(arr, idx + 4, acc + arr[idx] + arr[idx + 1] + arr[idx + 2] + arr[idx + 3])
-  };
+};
 
 // Dot product - classic SIMD operation
-fn dot_product(a: &[i64; 64], b: &[i64; 64], idx: i64, acc: i64) -> i64
-  pre idx >= 0
-= if idx >= 64 { acc } else { dot_product(a, b, idx + 1, acc + a[idx] * b[idx]) };
-
-// Run iterations
-fn run_iterations(arr: &[i64; 64], remaining: i64, acc: i64) -> i64 =
-  if remaining <= 0 { acc } else {
-    let sum1 = sum_array(arr, 0, 0);
-    let sum2 = sum_unrolled(arr, 0, 0);
-    let dot = dot_product(arr, arr, 0, 0);
-    run_iterations(arr, remaining - 1, acc + sum1 + sum2 + dot)
-  };
+fn dot_product(a: &[i64; 64], b: &[i64; 64]) -> i64 = {
+    let mut acc: i64 = 0;
+    for i in 0..64 {
+        acc = acc + a[i] * b[i]
+    };
+    acc
+};
 
 // Main entry point
 fn main() -> i64 = {
@@ -43,7 +43,15 @@ fn main() -> i64 = {
         33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
         49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
     ];
-    let result = run_iterations(&arr, 10000, 0);
-    let _u = println(result);
+    let mut total: i64 = 0;
+    let mut iter: i64 = 0;
+    while iter < 10000 {
+        let sum1 = sum_array(&arr);
+        let sum2 = sum_unrolled(&arr);
+        let dot = dot_product(&arr, &arr);
+        total = total + sum1 + sum2 + dot;
+        iter = iter + 1
+    };
+    let _u = println(total);
     0
 };

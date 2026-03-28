@@ -119,24 +119,20 @@ fn run_tests_once() -> i64 = {
     0
 };
 
-// Run benchmark loop (no output) - 10x for ~50ms execution
-fn run_benchmark_loop(n: i64) -> i64 =
-    if n <= 0 { 0 }
-    else {
-        let _h = interpret(hello_world());
-        let _n = interpret(nested_loops());
-        let _a = interpret(add_test());
-        run_benchmark_loop(n - 1)
-    };
-
 fn main() -> i64 = {
     let _u1 = printline("Brainfuck Interpreter Benchmark");
 
     -- Show output once
     let _t = run_tests_once();
 
-    -- Run benchmark 10x for measurable timing (~50ms)
-    let _b = run_benchmark_loop(9);
+    -- Run benchmark 9x more for measurable timing
+    let mut i: i64 = 0;
+    while i < 9 {
+        let _h = interpret(hello_world());
+        let _n = interpret(nested_loops());
+        let _a = interpret(add_test());
+        i = i + 1
+    };
 
     let _u11 = printline("Done.");
     0
