@@ -1,0 +1,45 @@
+// Contract Optimization: Pure function in hot loop
+// Real-world scenario: configuration/lookup function called per iteration
+// BMB: @pure @noinline → LLVM hoists and folds the call
+// C (separate .o): must call every iteration
+
+@pure @noinline
+fn get_threshold(config_id: i64) -> i64 = {
+    // Simulate complex config lookup
+    let mut h: i64 = config_id * 2654435761;
+    let mut i: i64 = 0;
+    while i < 30 {
+        h = h bxor (h >> 16);
+        h = h * 2246822507;
+        h = h bxor (h >> 13);
+        h = h * 3266489917;
+        h = h bxor (h >> 16);
+        i = i + 1
+    };
+    (h band 255) + 1
+};
+
+@pure @noinline
+fn get_scale_factor(mode: i64) -> i64 = {
+    let mut s: i64 = mode;
+    let mut i: i64 = 0;
+    while i < 20 {
+        s = (s * 48271) band 2147483647;
+        i = i + 1
+    };
+    (s band 15) + 1
+};
+
+fn main() -> i64 = {
+    let mut total: i64 = 0;
+    let mut i: i64 = 0;
+    while i < 100000000 {
+        // Both calls have constant args → @pure enables LICM + constant folding
+        let threshold = get_threshold(7);
+        let scale = get_scale_factor(3);
+        total = total + (i band threshold) * scale;
+        i = i + 1
+    };
+    let _u = println(total);
+    0
+};
