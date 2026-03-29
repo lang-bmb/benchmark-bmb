@@ -1,0 +1,16 @@
+// Separate compilation unit: pure library function
+// This file is compiled to lib.o separately.
+// The @pure annotation generates memory(none) in the IR,
+// allowing callers (even in separate compilation units) to CSE/LICM calls.
+
+@pure @noinline
+fn compute_heavy(x: i64) -> i64 = {
+    // Deliberately non-trivial computation to prevent constant folding
+    let mut acc: i64 = x;
+    let mut i: i64 = 0;
+    while i < 100 {
+        acc = ((acc * 1103515245 + 12345) >> 16) band 32767;
+        i = i + 1
+    };
+    acc
+};

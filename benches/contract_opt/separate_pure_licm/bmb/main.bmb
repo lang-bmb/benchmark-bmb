@@ -1,0 +1,33 @@
+// Contract Optimization: LICM (Loop-Invariant Code Motion)
+//
+// A @pure function called inside a loop with loop-invariant arguments
+// can be hoisted OUT of the loop by LLVM (memory(none) guarantees no side effects).
+//
+// C (separate .o): Cannot hoist — must call every iteration.
+
+@pure @noinline
+fn expensive_lookup(key: i64) -> i64 = {
+    // Simulate expensive computation (hash-like)
+    let mut h: i64 = key;
+    let mut i: i64 = 0;
+    while i < 50 {
+        h = h bxor (h << 13);
+        h = h bxor (h >> 7);
+        h = h bxor (h << 17);
+        i = i + 1
+    };
+    h band 255
+};
+
+fn main() -> i64 = {
+    let key: i64 = 42;
+    let mut total: i64 = 0;
+    let mut i: i64 = 0;
+    // expensive_lookup(key) is loop-invariant — @pure allows LICM
+    while i < 50000000 {
+        total = total + expensive_lookup(key) + i;
+        i = i + 1
+    };
+    let _u = println(total);
+    0
+};

@@ -1,0 +1,35 @@
+// Contract Optimization: Pure Function Reuse Across Loop Iterations
+//
+// A @pure @noinline function called with the same argument across
+// multiple loop bodies can have its result cached by LLVM.
+// With memory(none), LLVM knows the function has no state changes
+// between iterations, so repeated calls with same args are redundant.
+//
+// C: Must call every time — function might modify global state.
+
+@pure @noinline
+fn hash_key(key: i64) -> i64 = {
+    let mut h: i64 = key;
+    let mut i: i64 = 0;
+    while i < 80 {
+        h = h bxor (h << 13);
+        h = h bxor (h >> 7);
+        h = h bxor (h << 17);
+        h = h band 1073741823;
+        i = i + 1
+    };
+    h
+};
+
+fn main() -> i64 = {
+    let mut total: i64 = 0;
+    let mut i: i64 = 0;
+    // hash_key(100) is called every iteration, but @pure allows
+    // LLVM to compute it once and reuse the result
+    while i < 20000000 {
+        total = total + hash_key(100) + hash_key(200) + hash_key(300);
+        i = i + 1
+    };
+    let _u = println(total);
+    0
+};
