@@ -1,0 +1,108 @@
+// Binary trees benchmark — Vec<i64>-arena variant (Cycle 356).
+//
+// Uses a single VecG<i64> as a flat node arena instead of per-node
+// malloc'd *Node. Each node occupies two Vec slots (left_idx, right_idx)
+// with -1 meaning null. This demonstrates that BMB's generic VecG<T>
+// plus turbofish can replace raw-pointer tree workloads while
+// preserving the benchmark's depth/iteration shape.
+//
+// Allocation pattern vs the raw-pointer version:
+//   main.bmb:     N mallocs (one per node), each 16 bytes
+//   main_vec.bmb: ~log2(N) reallocs (amortized auto-grow) on one Vec
+//
+// Output is identical to main.bmb because the counts only depend on
+// tree depth.
+
+use core::vec::vecg_with_capacity;
+use core::vec::vec_push_i64;
+use core::vec::vec_get_i64;
+use core::vec::vec_set_i64;
+use core::vec::vecg_len;
+use core::vec::vecg_clear;
+
+// Build a tree rooted at the next free slot pair, returning the
+// updated arena. The root index is always `root_idx` (captured by the
+// caller before the call); grow-induced moves keep slot indices valid.
+fn build(v: VecG<i64>, depth: i64) -> VecG<i64> = {
+    let self_idx = vecg_len(v);
+    let v1 = vec_push_i64(v, -1);   // our left slot
+    let v2 = vec_push_i64(v1, -1);  // our right slot
+    if depth > 0 {
+        let left_idx = vecg_len(v2);
+        let v3 = build(v2, depth - 1);
+        let right_idx = vecg_len(v3);
+        let v4 = build(v3, depth - 1);
+        let v5 = vec_set_i64(v4, self_idx, left_idx);
+        let v6 = vec_set_i64(v5, self_idx + 1, right_idx);
+        v6
+    } else {
+        v2
+    }
+};
+
+// Count nodes rooted at `idx`.
+fn check(v: VecG<i64>, idx: i64) -> i64 = {
+    let left_idx = vec_get_i64(v, idx);
+    if left_idx < 0 {
+        1
+    } else {
+        let right_idx = vec_get_i64(v, idx + 1);
+        1 + check(v, left_idx) + check(v, right_idx)
+    }
+};
+
+@inline
+fn shift_left(x: i64, n: i64) -> i64 = x << n;
+
+fn run_iterations(depth: i64, iterations: i64) -> i64 = {
+    // Pre-size the arena so vec_push never needs to reallocate during
+    // tree construction. Auto-growing mid-build currently segfaults on
+    // native when the realloc happens inside deep recursion — see
+    // Carry-Forward of cycles 341-360 for root-cause investigation.
+    let mut v = vecg_with_capacity::<i64>(0, 131072);
+    let mut i: i64 = 0;
+    let mut total: i64 = 0;
+    while i < iterations {
+        v = vecg_clear(v);
+        let built = build(v, depth);
+        // Root is always at slot 0 because the arena was just cleared.
+        total = total + check(built, 0);
+        v = built;
+        i = i + 1;
+    };
+    total
+};
+
+fn main() -> i64 = {
+    let min_depth = 4;
+    let max_depth = 14;
+    let stretch_depth = max_depth + 1;
+
+    // Stretch tree (one-off arena — root at slot 0).
+    let stretch_arena = vecg_with_capacity::<i64>(0, 131072);
+    let stretch_built = build(stretch_arena, stretch_depth);
+    let stretch_check = check(stretch_built, 0);
+    let _p1 = println(stretch_check);
+
+    // Long-lived tree (persists through all depth iterations — root at 0).
+    let long_arena = vecg_with_capacity::<i64>(0, 65536);
+    let long_built = build(long_arena, max_depth);
+
+    // Depth sweep.
+    let mut depth: i64 = min_depth;
+    let mut total: i64 = 0;
+    while depth <= max_depth {
+        let iterations = shift_left(1, max_depth - depth + 4);
+        let check_sum = run_iterations(depth, iterations);
+        let _p = println(check_sum);
+        total = total + check_sum;
+        depth = depth + 2;
+    };
+
+    let long_check = check(long_built, 0);
+    let _p2 = println(long_check);
+
+    let result = total + long_check;
+    let _u = println(result);
+    0
+};
