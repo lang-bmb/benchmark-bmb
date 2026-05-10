@@ -1,0 +1,48 @@
+// N-Queens Problem Benchmark (in-process timing)
+// Cycle 2661: time_ns() based harness — startup overhead 제거
+
+fn solve(n: i64, row: i64, cols: i64, diag1: i64, diag2: i64) -> i64 =
+    if row == n { 1 }
+    else {
+        let all_ones = (1 << n) - 1;
+        let not_cols = bnot(cols);
+        let not_diag1 = bnot(diag1);
+        let not_diag2 = bnot(diag2);
+        let available = all_ones band (not_cols band (not_diag1 band not_diag2));
+        count_solutions(n, row, cols, diag1, diag2, available, 0)
+    };
+
+fn count_solutions(n: i64, row: i64, cols: i64, diag1: i64, diag2: i64, available: i64, count: i64) -> i64 =
+    if available == 0 { count }
+    else {
+        let pos = available band (0 - available);
+        let new_available = available - pos;
+        let new_cols = cols bor pos;
+        let new_diag1 = (diag1 bor pos) << 1;
+        let new_diag2 = (diag2 bor pos) >> 1;
+        let sub_count = solve(n, row + 1, new_cols, new_diag1, new_diag2);
+        count_solutions(n, row, cols, diag1, diag2, new_available, count + sub_count)
+    };
+
+fn nqueens(n: i64) -> i64 = solve(n, 0, 0, 0, 0);
+
+// black_box(n_seed)을 매 iter마다 호출해 LLVM이 nqueens(n)을 fold 못하게 강제
+fn run_benchmark(n_seed: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let n = bmb_black_box(n_seed);
+        let count = nqueens(n);
+        run_benchmark(n_seed, iterations, acc + bmb_black_box(count), i + 1)
+    };
+
+fn main() -> i64 = {
+    let warmup_n = bmb_black_box(15);
+    let _w = bmb_black_box(nqueens(warmup_n));
+    let t0 = time_ns();
+    let result = run_benchmark(15, 10, 0, 0);
+    let t1 = time_ns();
+    let elapsed_us = (t1 - t0) / 1000;
+    let _r = println(result);
+    let _e = println(elapsed_us);
+    0
+};
