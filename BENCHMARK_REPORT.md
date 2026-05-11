@@ -1,5 +1,23 @@
 # BMB Performance Benchmark Report
 
+> ⚠️ **STALE — 3.5개월 경과** (측정: 2026-01-25 / v0.51.22 → 현재: 2026-05-11 / v0.98)
+> **현재 측정값**: `claudedocs/ROADMAP.md` § 5 (P 축 — Cycle 2725 historic + 2685-2695 inproc)
+> 이 문서는 **historical snapshot** (v0.51.22 era). 신규 의사결정은 ROADMAP 우선.
+>
+> | 최신 P-track 요약 (v0.98) | 값 |
+> |---------------------------|----|
+> | Tier 1 6/6 ratio range | 0.910x – 1.085x ✅ |
+> | M1 가설 ≤1.05x | 16/16 PASS |
+> | sorting (Tier 3) | **0.910x — BMB 9% FASTER** (v0.51.22 1.10x → v0.98 0.910x, 19 pp 개선) |
+> | lexer (Tier 3) | 1.000x parity (v0.51.22 1.09x → v0.98 1.000x) |
+> | brainfuck (Tier 3) | 1.036x (v0.51.22 1.11x → v0.98 1.036x) |
+>
+> 측정 source: `target/benchmarks/v098-historic.json` (2026-05-02 5-run) + `v098-tier3-10runs.json` (2026-05-01 noise-gated).
+>
+> ---
+>
+> ## Historical Snapshot (v0.51.22 — 2026-01-25)
+
 > **Date**: 2026-01-25
 > **Version**: v0.51.22
 > **Environment**: Windows 11, Clang 21.1.8 (LLVM)

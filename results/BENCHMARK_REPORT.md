@@ -1,5 +1,11 @@
 # BMB Benchmark Report (v0.50.51)
 
+> ⚠️ **STALE — 3.5개월 경과** (측정: 2026-01-21 / v0.50.51 → 현재: 2026-05-11 / v0.98)
+> **현재 측정값**: `claudedocs/ROADMAP.md` § 5 (P 축)
+> 이 문서는 **historical snapshot** (v0.50.51 contract-overhead era). 신규 의사결정은 ROADMAP 우선.
+>
+> ---
+
 **Date**: 2026-01-21
 **BMB Version**: v0.50.51
 **Test Platform**: Windows x86_64, GCC -O2, LLVM/Clang backend
