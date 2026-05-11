@@ -1,0 +1,38 @@
+// Fibonacci iterative — in-process timing harness (Cycle 2686)
+// Pattern: time_ns + bmb_black_box (LLVM constant-fold 차단)
+// Comparable: c/main_inproc.c with same iterations / black_box.
+
+@pure
+fn fibonacci_iter(n: i64) -> i64 = {
+    let mut a: i64 = 0;
+    let mut b: i64 = 1;
+    let mut i: i64 = 0;
+    while i < n {
+        let temp = a + b;
+        { a = b };
+        { b = temp };
+        { i = i + 1 }
+    };
+    a
+};
+
+// black_box(n_seed)을 매 iter마다 호출해 LLVM이 fibonacci(50)을 fold 못하게 강제
+fn run_benchmark(n_seed: i64, iterations: i64, acc: i64, i: i64) -> i64 =
+    if i >= iterations { acc }
+    else {
+        let n = bmb_black_box(n_seed);
+        let fib = fibonacci_iter(n);
+        run_benchmark(n_seed, iterations, acc + bmb_black_box(fib), i + 1)
+    };
+
+fn main() -> i64 = {
+    let warmup_n = bmb_black_box(50);
+    let _w = bmb_black_box(fibonacci_iter(warmup_n));
+    let t0 = time_ns();
+    let result = run_benchmark(50, 100000000, 0, 0);
+    let t1 = time_ns();
+    let elapsed_us = (t1 - t0) / 1000;
+    let _r = println(result);
+    let _e = println(elapsed_us);
+    0
+};
