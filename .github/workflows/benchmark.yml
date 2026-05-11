@@ -68,7 +68,7 @@ jobs:
           for dir in benches/*/*/c; do
             if [ -f "$dir/main.c" ]; then
               echo "Compiling $dir..."
-              clang -O3 -o "$dir/main" "$dir/main.c" -lm || echo "Failed: $dir"
+              clang -O3 -march=native -o "$dir/main" "$dir/main.c" -lm || echo "Failed: $dir"
             fi
           done
 
@@ -115,7 +115,7 @@ jobs:
           # Compile C with Clang
           for dir in benches/*/*/c; do
             if [ -f "$dir/main.c" ]; then
-              clang -O3 -o "$dir/main" "$dir/main.c" -lm 2>/dev/null || true
+              clang -O3 -march=native -o "$dir/main" "$dir/main.c" -lm 2>/dev/null || true
             fi
           done
 

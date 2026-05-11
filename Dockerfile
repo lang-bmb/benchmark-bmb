@@ -68,7 +68,7 @@ RUN for dir in benches/*/*/c; do \
 # Compile C benchmarks with Clang
 RUN for dir in benches/*/*/c; do \
         if [ -f "$dir/main.c" ]; then \
-            clang -O3 -o "$dir/main_clang" "$dir/main.c" -lm 2>/dev/null || true; \
+            clang -O3 -march=native -o "$dir/main_clang" "$dir/main.c" -lm 2>/dev/null || true; \
         fi; \
     done
 

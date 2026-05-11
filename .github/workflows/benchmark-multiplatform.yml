@@ -93,7 +93,7 @@ jobs:
               echo "Compiling $dir with GCC..."
               gcc -O3 -march=native -o "$dir/main_gcc" "$dir/main.c" -lm 2>/dev/null || true
               echo "Compiling $dir with Clang..."
-              clang -O3 -o "$dir/main_clang" "$dir/main.c" -lm 2>/dev/null || true
+              clang -O3 -march=native -o "$dir/main_clang" "$dir/main.c" -lm 2>/dev/null || true
             fi
           done
 
@@ -129,7 +129,7 @@ jobs:
           for dir in benches/*/*/c; do
             if [ -f "$dir/main.c" ]; then
               echo "Compiling $dir with MinGW GCC..."
-              if gcc -O3 -o "$dir/main_mingw.exe" "$dir/main.c" -lm 2>/dev/null; then
+              if gcc -O3 -march=native -o "$dir/main_mingw.exe" "$dir/main.c" -lm 2>/dev/null; then
                 compiled=$((compiled + 1))
               fi
             fi
