@@ -17,9 +17,10 @@ int64_t fibonacci_iter(int64_t n) {
 }
 
 int main() {
-    // Run fibonacci(50) 6000000000 times for stable measurement (target: ~175ms)
+    // Run fibonacci(50) 100000000 times for stable measurement (target: ~1-3s on -O2)
+    // 6B was too slow (~60-180s) for verify_bench_outputs 60s timeout.
     int64_t result = 0;
-    for (long long i = 0; i < 6000000000LL; i++) {
+    for (long long i = 0; i < 100000000LL; i++) {
         result += fibonacci_iter(50);
     }
     printf("%lld\n", (long long)result);
