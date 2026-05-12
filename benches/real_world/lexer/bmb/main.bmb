@@ -1,7 +1,5 @@
-// lexer - Token generation benchmark v0.60.123
-// Tests character processing, state machine, keyword matching
-// Self-contained with embedded source code
-// v0.60.123: Add @inline to hot helper functions
+// lexer - Token generation benchmark v0.60.124
+// Fix: proper keyword detection, all 7 token types tracked with tuple-packed return
 
 @inline
 fn printline(s: String) -> i64 = { let u = println_str(s); 0 };
@@ -55,7 +53,7 @@ fn is_punct_char(c: i64) -> i64 =
     if c == 40 or c == 41 or c == 123 or c == 125 or c == 91 or c == 93 or
        c == 59 or c == 58 or c == 44 or c == 46 { 1 } else { 0 };
 
-// Get byte at position (v0.51.44: use byte_at directly instead of ord(char_at()))
+// Get byte at position
 @inline
 fn peek(src: String, pos: i64) -> i64 =
     if pos >= src.len() { 0 } else { src.byte_at(pos) };
@@ -67,17 +65,37 @@ fn skip_ws(src: String, pos: i64) -> i64 =
     else if is_whitespace(peek(src, pos)) == 1 { skip_ws(src, pos + 1) }
     else { pos };
 
-// Check for keyword (simplified: just check length and first char)
+// Full keyword check matching C's keyword list (fn, let, if, else, while, for,
+// return, true, false, null, struct, enum, match)
+// Each check uses at least 2 chars to avoid false positives within same length.
 @inline
 fn is_keyword_at(src: String, start: i64, len: i64) -> i64 =
-    if len == 2 and peek(src, start) == 102 and peek(src, start + 1) == 110 { 1 }      -- fn
-    else if len == 3 and peek(src, start) == 108 and peek(src, start + 1) == 101 { 1 } -- let
-    else if len == 2 and peek(src, start) == 105 and peek(src, start + 1) == 102 { 1 } -- if
-    else if len == 4 and peek(src, start) == 101 { 1 }  -- else
-    else if len == 5 and peek(src, start) == 119 { 1 }  -- while
-    else if len == 6 and peek(src, start) == 114 { 1 }  -- return
-    else if len == 4 and peek(src, start) == 116 { 1 }  -- true
-    else if len == 5 and peek(src, start) == 102 { 1 }  -- false
+    -- fn (f=102, n=110)
+    if len == 2 and peek(src, start) == 102 and peek(src, start + 1) == 110 { 1 }
+    -- if (i=105, f=102)
+    else if len == 2 and peek(src, start) == 105 and peek(src, start + 1) == 102 { 1 }
+    -- let (l=108, e=101, t=116)
+    else if len == 3 and peek(src, start) == 108 and peek(src, start + 1) == 101 and peek(src, start + 2) == 116 { 1 }
+    -- for (f=102, o=111)
+    else if len == 3 and peek(src, start) == 102 and peek(src, start + 1) == 111 { 1 }
+    -- else (e=101, l=108)
+    else if len == 4 and peek(src, start) == 101 and peek(src, start + 1) == 108 { 1 }
+    -- true (t=116, r=114)
+    else if len == 4 and peek(src, start) == 116 and peek(src, start + 1) == 114 { 1 }
+    -- null (n=110, u=117)
+    else if len == 4 and peek(src, start) == 110 and peek(src, start + 1) == 117 { 1 }
+    -- enum (e=101, n=110)
+    else if len == 4 and peek(src, start) == 101 and peek(src, start + 1) == 110 { 1 }
+    -- while (w=119, h=104)
+    else if len == 5 and peek(src, start) == 119 and peek(src, start + 1) == 104 { 1 }
+    -- false (f=102, a=97)
+    else if len == 5 and peek(src, start) == 102 and peek(src, start + 1) == 97 { 1 }
+    -- match (m=109, a=97)
+    else if len == 5 and peek(src, start) == 109 and peek(src, start + 1) == 97 { 1 }
+    -- return (r=114, e=101, t=116) — checks 3rd char to distinguish from "result" (s=115)
+    else if len == 6 and peek(src, start) == 114 and peek(src, start + 1) == 101 and peek(src, start + 2) == 116 { 1 }
+    -- struct (s=115, t=116)
+    else if len == 6 and peek(src, start) == 115 and peek(src, start + 1) == 116 { 1 }
     else { 0 };
 
 // Skip identifier
@@ -94,7 +112,7 @@ fn skip_number(src: String, pos: i64) -> i64 =
     else if is_digit(peek(src, pos)) == 1 or peek(src, pos) == 46 { skip_number(src, pos + 1) }
     else { pos };
 
-// Skip string
+// Skip string (after opening quote)
 @inline
 fn skip_string(src: String, pos: i64) -> i64 =
     if pos >= src.len() { pos }
@@ -108,13 +126,13 @@ fn skip_comment(src: String, pos: i64) -> i64 =
     else if peek(src, pos) == 10 { pos }
     else { skip_comment(src, pos + 1) };
 
-// Get next token - returns (token_type, new_pos) tuple
+// Get next token - returns (token_type, new_pos)
 fn next_token(src: String, pos: i64) -> (i64, i64) = {
     let p = skip_ws(src, pos);
     if p >= src.len() { (tok_eof(), p) }
     else {
         let c = peek(src, p);
-        -- Comment
+        -- Comment (--)
         if c == 45 and peek(src, p + 1) == 45 {
             let end = skip_comment(src, p + 2);
             (tok_comment(), end)
@@ -159,28 +177,34 @@ fn next_token(src: String, pos: i64) -> (i64, i64) = {
     }
 };
 
-// Count tokens loop - uses native tuples
-fn count_tokens_loop(src: String, pos: i64, ident: i64, num: i64, str: i64, kw: i64, op: i64, punct: i64, comment: i64) -> i64 = {
+// Count tokens loop - returns (pack1, pack2) where:
+//   pack1 = ident * 10^8 + num * 10^4 + kw
+//   pack2 = str * 10^12 + op * 10^8 + punct * 10^4 + comment
+// Each field holds 0-9999, supporting 100x repetition safely.
+fn count_tokens_loop(src: String, pos: i64, ident: i64, num: i64, str: i64, kw: i64, op: i64, punct: i64, comment: i64) -> (i64, i64) = {
     let result = next_token(src, pos);
     let tok = result.0;
     let new_pos = result.1;
     if tok == tok_eof() {
-        ident * 10000000 + num * 100000 + kw * 1000 + op * 10 + punct
+        (ident * 100000000 + num * 10000 + kw,
+         str * 1000000000000 + op * 100000000 + punct * 10000 + comment)
     }
     else {
         let new_ident = if tok == tok_ident() { ident + 1 } else { ident };
         let new_num = if tok == tok_number() { num + 1 } else { num };
+        let new_str = if tok == tok_string() { str + 1 } else { str };
         let new_kw = if tok == tok_keyword() { kw + 1 } else { kw };
         let new_op = if tok == tok_operator() { op + 1 } else { op };
         let new_punct = if tok == tok_punct() { punct + 1 } else { punct };
-        count_tokens_loop(src, new_pos, new_ident, new_num, str, new_kw, new_op, new_punct, comment)
+        let new_comment = if tok == tok_comment() { comment + 1 } else { comment };
+        count_tokens_loop(src, new_pos, new_ident, new_num, new_str, new_kw, new_op, new_punct, new_comment)
     }
 };
 
-fn count_tokens(src: String) -> i64 =
+fn count_tokens(src: String) -> (i64, i64) =
     count_tokens_loop(src, 0, 0, 0, 0, 0, 0, 0, 0);
 
-// Test source code (v0.55: FAIR - matches C version exactly)
+// Test source code (matches C version exactly)
 fn test_source() -> String =
     "fn fibonacci(n: i64) -> i64 =\n" +
     "    if n <= 1 { n }\n" +
@@ -218,29 +242,39 @@ fn main() -> i64 = {
     -- Test small source
     let src = test_source();
     let counts = count_tokens(src);
+    let pack1 = counts.0;
+    let pack2 = counts.1;
 
-    let ident = counts / 10000000;
-    let num = (counts / 100000) % 100;
-    let kw = (counts / 1000) % 100;
-    let op = (counts / 10) % 100;
-    let punct = counts % 10;
+    let ident   = pack1 / 100000000;
+    let num     = (pack1 / 10000) % 10000;
+    let kw      = pack1 % 10000;
+    let str_cnt = pack2 / 1000000000000;
+    let op      = (pack2 / 100000000) % 10000;
+    let punct   = (pack2 / 10000) % 10000;
+    let comment = pack2 % 10000;
 
     let u2 = printline("Small source:");
     let u3 = printline("  Identifiers: " + int_to_string(ident));
     let u4 = printline("  Numbers: " + int_to_string(num));
     let u5 = printline("  Keywords: " + int_to_string(kw));
-    let u6 = printline("  Operators: " + int_to_string(op));
-    let u7 = printline("  Punctuation: " + int_to_string(punct));
-    let u8 = printline("");
+    let u6 = printline("  Strings: " + int_to_string(str_cnt));
+    let u7 = printline("  Operators: " + int_to_string(op));
+    let u8 = printline("  Punctuation: " + int_to_string(punct));
+    let u9 = printline("  Comments: " + int_to_string(comment));
+    let u10 = printline("");
 
-    -- Larger source (100x - encoding limits prevent higher iterations)
+    -- Larger source (100x)
     let large = gen_large(100);
-    let large_counts = count_tokens(large);
-    let total = (large_counts / 10000000) + ((large_counts / 100000) % 100) +
-                ((large_counts / 1000) % 100) + ((large_counts / 10) % 100) + (large_counts % 10);
+    let lc = count_tokens(large);
+    let lp1 = lc.0;
+    let lp2 = lc.1;
+    let total = (lp1 / 100000000) + ((lp1 / 10000) % 10000) + (lp1 % 10000) +
+                (lp2 / 1000000000000) + ((lp2 / 100000000) % 10000) +
+                ((lp2 / 10000) % 10000) + (lp2 % 10000);
 
-    let u9 = printline("Large source (100x):");
-    let u10 = printline("  Total tokens: " + int_to_string(total));
+    let u11 = printline("Large source (100x):");
+    let u12 = printline("  Total tokens: " + int_to_string(total));
+    let u13 = printline("");
 
     printline("Done.")
 };
