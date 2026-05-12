@@ -2,7 +2,7 @@
 // Uses iterative O(n) algorithm matching the C version exactly.
 // For optimization demo (BMB O(2^n)->O(n) transformation), see main_optimization_demo.bmb
 // Measures: loop iteration, integer arithmetic, accumulator pattern
-// v0.69: @pure enables LLVM to constant-fold the loop
+// Fair: bmb_black_box(50) prevents LLVM from constant-folding @pure fibonacci_iter.
 
 @pure
 fn fibonacci_iter(n: i64) -> i64 = {
@@ -20,12 +20,11 @@ fn fibonacci_iter(n: i64) -> i64 = {
 
 fn main() -> i64 = {
     // Run fibonacci(50) 100000000 times for stable measurement
-    // 6B was too slow for verify_bench_outputs C-side 60s timeout.
-    // @pure enables LLVM constant-fold: result computed at compile time.
+    // bmb_black_box(50) makes the argument opaque to LLVM — prevents constant-fold of @pure fn.
     let mut result: i64 = 0;
     let mut i: i64 = 0;
     while i < 100000000 {
-        let fib = fibonacci_iter(50);
+        let fib = fibonacci_iter(bmb_black_box(50));
         { result = result + fib };
         { i = i + 1 }
     };
