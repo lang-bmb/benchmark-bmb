@@ -207,21 +207,21 @@ fn count_tokens(src: String) -> (i64, i64) =
 // Test source code (matches C version exactly)
 fn test_source() -> String =
     "fn fibonacci(n: i64) -> i64 =\n" +
-    "    if n <= 1 { n }\n" +
-    "    else { fibonacci(n - 1) + fibonacci(n - 2) };\n" +
+    "    if n <= 1 {{ n }}\n" +
+    "    else {{ fibonacci(n - 1) + fibonacci(n - 2) }};\n" +
     "\n" +
-    "fn main() -> i64 = {\n" +
+    "fn main() -> i64 = {{\n" +
     "    let result = fibonacci(35);\n" +
     "    -- This is a comment\n" +
     "    let x = 42;\n" +
     "    let y = 3.14159;\n" +
     "    let s = " + chr(34) + "Hello, World!" + chr(34) + ";\n" +
-    "    if x > 10 && y < 100.0 {\n" +
+    "    if x > 10 && y < 100.0 {{\n" +
     "        return result;\n" +
-    "    } else {\n" +
+    "    }} else {{\n" +
     "        return 0;\n" +
-    "    }\n" +
-    "};\n";
+    "    }}\n" +
+    "}};\n";
 
 // Generate larger source using StringBuilder (O(n) instead of O(n²))
 fn gen_large(n: i64) -> String = {

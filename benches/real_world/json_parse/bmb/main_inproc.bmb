@@ -1,0 +1,110 @@
+// json_parse — in-process timing harness (Cycle 2920)
+// Mirrors main.bmb: 100000 iterations on "[1,2,3,4,5,6,7,8,9,10]".
+// bmb_black_box(is_valid + element_count) per iteration prevents LLVM CSE.
+// Output: checksum, elapsed_us
+
+@inline
+fn is_ws(c: i64) -> bool = c == 32 or c == 9 or c == 10 or c == 13;
+@inline
+fn is_digit(c: i64) -> bool = c >= 48 and c <= 57;
+
+@inline
+fn skip_ws(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else if is_ws(s.byte_at(pos)) { skip_ws(s, pos + 1) }
+    else { pos };
+
+@inline
+fn find_close(s: String, pos: i64, depth: i64, open: i64, close: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else {
+        let c = s.byte_at(pos);
+        if c == close and depth == 0 { pos }
+        else if c == open { find_close(s, pos + 1, depth + 1, open, close) }
+        else if c == close { find_close(s, pos + 1, depth - 1, open, close) }
+        else { find_close(s, pos + 1, depth, open, close) }
+    };
+
+@inline
+fn count_elements(s: String, pos: i64, depth: i64, count: i64) -> i64 =
+    if pos >= s.len() { count }
+    else {
+        let c = s.byte_at(pos);
+        if c == 93 and depth == 0 { count }
+        else if c == 91 or c == 123 { count_elements(s, pos + 1, depth + 1, count) }
+        else if c == 93 or c == 125 { count_elements(s, pos + 1, depth - 1, count) }
+        else if c == 44 and depth == 0 { count_elements(s, pos + 1, depth, count + 1) }
+        else { count_elements(s, pos + 1, depth, count) }
+    };
+
+fn count_array(s: String, pos: i64) -> i64 = {
+    let p = skip_ws(s, pos);
+    if p >= s.len() { 0 }
+    else if s.byte_at(p) == 91 {
+        let p2 = skip_ws(s, p + 1);
+        if p2 >= s.len() or s.byte_at(p2) == 93 { 0 }
+        else { count_elements(s, p2, 0, 1) }
+    }
+    else { 0 }
+};
+
+@inline
+fn find_string_end(s: String, pos: i64) -> i64 =
+    if pos >= s.len() { pos }
+    else {
+        let c = s.byte_at(pos);
+        if c == 34 { pos }
+        else if c == 92 { find_string_end(s, pos + 2) }
+        else { find_string_end(s, pos + 1) }
+    };
+
+fn validate_object(s: String, pos: i64) -> bool = {
+    let close = find_close(s, pos + 1, 0, 123, 125);
+    close < s.len()
+};
+
+fn validate_array(s: String, pos: i64) -> bool = {
+    let close = find_close(s, pos + 1, 0, 91, 93);
+    close < s.len()
+};
+
+fn validate_string(s: String, pos: i64) -> bool =
+    find_string_end(s, pos + 1) < s.len();
+
+fn validate_json(s: String, pos: i64) -> bool = {
+    let p = skip_ws(s, pos);
+    if p >= s.len() { false }
+    else {
+        let c = s.byte_at(p);
+        if c == 123 { validate_object(s, p) }
+        else if c == 91 { validate_array(s, p) }
+        else if c == 34 { validate_string(s, p) }
+        else if is_digit(c) or c == 45 { true }
+        else if c == 116 or c == 102 or c == 110 { true }
+        else { false }
+    }
+};
+
+fn run_benchmark(json: String, iters: i64, acc: i64, i: i64) -> i64 =
+    if i >= iters { acc }
+    else {
+        let is_valid = if validate_json(json, 0) { 1 } else { 0 };
+        let element_count = count_array(json, 0);
+        run_benchmark(json, iters, acc + bmb_black_box(is_valid + element_count), i + 1)
+    };
+
+fn main() -> i64 = {
+    let json = "[1,2,3,4,5,6,7,8,9,10]";
+
+    -- warmup
+    let _w = bmb_black_box(count_array(json, 0));
+
+    let t0 = time_ns();
+    let total = run_benchmark(json, 100000, 0, 0);
+    let t1 = time_ns();
+    let elapsed_us = (t1 - t0) / 1000;
+
+    let _r = println(total);
+    let _e = println(elapsed_us);
+    0
+};

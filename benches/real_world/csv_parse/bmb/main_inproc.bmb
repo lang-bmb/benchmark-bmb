@@ -1,21 +1,8 @@
-// csv-parse - CSV parsing benchmark (Cycle 2923: optimized)
-// Eliminates packed integer encoding + double-scan (find_eol + parse_line → parse_row_loop)
-// v0.51.53: Fix encoding overflow for quoted/total_chars, add total_chars output
+// csv_parse — in-process timing harness (Cycle 2923: optimized v2)
+// Tuple returns + iterative nested-while (no find_eol double-scan, no tail recursion).
+// bmb_black_box(pack1+pack2) per iteration prevents LLVM CSE.
+// Output: checksum, elapsed_us
 
-fn printline(s: String) -> i64 = { let _u = println_str(s); 0 };
-
-fn int_to_string(n: i64) -> String =
-    if n < 0 { "-" + int_to_string(0 - n) }
-    else if n < 10 { digit_char(n) }
-    else { int_to_string(n / 10) + digit_char(n % 10) };
-
-fn digit_char(d: i64) -> String =
-    if d == 0 { "0" } else if d == 1 { "1" } else if d == 2 { "2" }
-    else if d == 3 { "3" } else if d == 4 { "4" } else if d == 5 { "5" }
-    else if d == 6 { "6" } else if d == 7 { "7" } else if d == 8 { "8" }
-    else { "9" };
-
-// Skip whitespace (space and tab only), return new position
 fn skip_ws(data: String, pos: i64, len: i64) -> i64 = {
     let mut p: i64 = pos;
     let mut c: i64 = 0;
@@ -29,7 +16,7 @@ fn skip_ws(data: String, pos: i64, len: i64) -> i64 = {
     if p > len { p - len - 1 } else { p }
 };
 
-// Parse a quoted field; returns (new_pos, field_len)
+// Returns (new_pos, field_len)
 fn parse_quoted_field(data: String, start: i64, len: i64) -> (i64, i64) = {
     let mut pos: i64 = start + 1;
     let mut field_len: i64 = 0;
@@ -64,8 +51,7 @@ fn parse_quoted_field(data: String, start: i64, len: i64) -> (i64, i64) = {
     (final_pos, field_len)
 };
 
-// Parse an unquoted field; returns (new_pos, field_len)
-// new_pos points AT the delimiter (comma/newline/CR) or past string end
+// Returns (new_pos, field_len) — new_pos AT delimiter or past end
 fn parse_unquoted_field(data: String, start: i64, len: i64) -> (i64, i64) = {
     let mut pos: i64 = start;
     let mut field_len: i64 = 0;
@@ -85,8 +71,7 @@ fn parse_unquoted_field(data: String, start: i64, len: i64) -> (i64, i64) = {
     (final_pos, field_len)
 };
 
-// Parse a single field; returns (new_pos, field_len, is_quoted)
-// new_pos: position after comma separator, or at newline/CR, or past end
+// Returns (new_pos, field_len, is_quoted)
 fn parse_field(data: String, start: i64, len: i64) -> (i64, i64, i64) = {
     let pos = skip_ws(data, start, len);
     if pos >= len { (pos, 0, 0) }
@@ -113,8 +98,6 @@ fn parse_field(data: String, start: i64, len: i64) -> (i64, i64, i64) = {
     }
 };
 
-// Parse entire CSV; returns (rows * 100000 + fields, quoted * 1000000 + total_chars)
-// Single-pass: no find_eol double-scan; iterative inner loop replaces recursion.
 fn parse_csv(data: String) -> (i64, i64) = {
     let len = data.len();
     let mut pos: i64 = 0;
@@ -161,27 +144,7 @@ fn parse_csv(data: String) -> (i64, i64) = {
     (rows * 100000 + fields, quoted * 1000000 + total_chars)
 };
 
-fn print_stats(pack1: i64, pack2: i64) -> i64 = {
-    let _u1 = printline("  Rows: " + int_to_string(pack1 / 100000));
-    let _u2 = printline("  Fields: " + int_to_string(pack1 % 100000));
-    let _u3 = printline("  Quoted fields: " + int_to_string(pack2 / 1000000));
-    printline("  Total chars: " + int_to_string(pack2 % 1000000))
-};
-
 fn quote() -> String = chr(34);
-
-fn test_data() -> String =
-    "name,age,city,salary\n" +
-    "John Doe,30,New York,50000\n" +
-    "Jane Smith,25,Los Angeles,60000\n" +
-    quote() + "Bob " + quote() + quote() + "The Builder" + quote() + quote() + " Jones" + quote() + ",45,Chicago,75000\n" +
-    "Alice,28," + quote() + "San Francisco, CA" + quote() + ",80000\n" +
-    "Charlie Brown,35,Boston,55000\n" +
-    quote() + "Diana, Princess" + quote() + ",40,London,90000\n" +
-    "Edward,22,Miami,45000\n" +
-    quote() + "Fiona " + quote() + quote() + "Fi" + quote() + quote() + " Green" + quote() + ",33,Seattle,70000\n" +
-    "George,29,Denver,52000\n" +
-    "Helen,31,Phoenix,58000\n";
 
 fn generate_row() -> String =
     "field1,field2,field3,field4,field5," + quote() + "quoted,field" + quote() + ",field7,field8,field9,field10\n";
@@ -198,20 +161,26 @@ fn generate_large(n: i64) -> String = {
     sb_build(sb)
 };
 
+fn run_benchmark(data: String, iters: i64, acc: i64, i: i64) -> i64 =
+    if i >= iters { acc }
+    else {
+        let stats = parse_csv(data);
+        let checksum = bmb_black_box(stats.0 + stats.1);
+        run_benchmark(data, iters, acc + checksum, i + 1)
+    };
+
 fn main() -> i64 = {
-    let _u1 = printline("CSV Parse Benchmark");
+    let data = generate_large(1000);
 
-    let data = test_data();
-    let stats = parse_csv(data);
-    let _u3 = printline("Small dataset:");
-    let _u4 = print_stats(stats.0, stats.1);
-    let _u5 = printline("");
+    -- warmup
+    let _w = bmb_black_box(parse_csv(data).0);
 
-    let large = generate_large(1000);
-    let large_stats = parse_csv(large);
-    let _u6 = printline("Large dataset (1000 rows):");
-    let _u7 = print_stats(large_stats.0, large_stats.1);
+    let t0 = time_ns();
+    let total = run_benchmark(data, 50, 0, 0);
+    let t1 = time_ns();
+    let elapsed_us = (t1 - t0) / 1000;
 
-    let _u8 = printline("");
-    printline("Done.")
+    let _r = println(total);
+    let _e = println(elapsed_us);
+    0
 };

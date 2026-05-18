@@ -1,0 +1,113 @@
+// json_serialize — in-process timing harness (Cycle 2920)
+// Mirrors main.bmb run_benchmark(10000); bmb_black_box(len1+len2+len3) per iter.
+// Output: checksum, elapsed_us
+
+@inline fn buf_char(buf: i64, pos: i64, c: i64) -> i64 = {
+    store_u8(buf + pos, c);
+    pos + 1
+};
+
+fn buf_str(buf: i64, pos: i64, s: String) -> i64 = {
+    let len = s.len();
+    let mut p = pos;
+    let mut i: i64 = 0;
+    while i < len {
+        store_u8(buf + p, s.byte_at(i));
+        p = p + 1;
+        i = i + 1
+    };
+    p
+};
+
+fn write_string(buf: i64, pos: i64, s: String) -> i64 = {
+    let mut p = buf_char(buf, pos, 34);
+    let len = s.len();
+    let mut i: i64 = 0;
+    while i < len {
+        let c = s.byte_at(i);
+        if c == 34 {
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 34); p = p + 2
+        } else if c == 92 {
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 92); p = p + 2
+        } else if c == 10 {
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 110); p = p + 2
+        } else if c == 13 {
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 114); p = p + 2
+        } else if c == 9 {
+            store_u8(buf + p, 92); store_u8(buf + p + 1, 116); p = p + 2
+        } else {
+            store_u8(buf + p, c); p = p + 1
+        };
+        i = i + 1
+    };
+    buf_char(buf, p, 34)
+};
+
+fn write_int(buf: i64, pos: i64, n: i64) -> i64 =
+    if n < 0 {
+        let p = buf_char(buf, pos, 45);
+        write_int(buf, p, 0 - n)
+    } else if n < 10 {
+        buf_char(buf, pos, 48 + n)
+    } else {
+        let p = write_int(buf, pos, n / 10);
+        buf_char(buf, p, 48 + n % 10)
+    };
+
+fn serialize_person(buf: i64, pos: i64, name: String, age: i64, city: String, salary: i64) -> i64 = {
+    let mut p = buf_str(buf, pos, "{\"name\":");
+    p = write_string(buf, p, name);
+    p = buf_str(buf, p, ",\"age\":");
+    p = write_int(buf, p, age);
+    p = buf_str(buf, p, ",\"city\":");
+    p = write_string(buf, p, city);
+    p = buf_str(buf, p, ",\"salary\":");
+    p = write_int(buf, p, salary);
+    buf_char(buf, p, 125)
+};
+
+fn serialize_int_array(buf: i64, pos: i64, arr: i64, len: i64) -> i64 = {
+    let mut p = buf_char(buf, pos, 91);
+    let mut i: i64 = 0;
+    while i < len {
+        if i > 0 { p = buf_char(buf, p, 44) } else { () };
+        p = write_int(buf, p, load_i64(arr + i * 8));
+        i = i + 1
+    };
+    buf_char(buf, p, 93)
+};
+
+fn name_with_quote() -> String = "Alice \"The Great\"";
+fn city_with_newline() -> String = "Los\nAngeles";
+
+fn run_benchmark(buf: i64, arr: i64, iters: i64, acc: i64, i: i64) -> i64 =
+    if i >= iters { acc }
+    else {
+        let len1 = serialize_person(buf, 0, "John Doe", 30, "New York", 50000);
+        let len2 = serialize_int_array(buf, 0, arr, 10);
+        let len3 = serialize_person(buf, 0, name_with_quote(), 25, city_with_newline(), 60000);
+        let checksum = bmb_black_box(len1 + len2 + len3);
+        run_benchmark(buf, arr, iters, acc + checksum, i + 1)
+    };
+
+fn main() -> i64 = {
+    let buf = calloc(65536, 1);
+    let arr = calloc(10, 8);
+    let mut j: i64 = 0;
+    while j < 10 { store_i64(arr + j * 8, j + 1); j = j + 1 };
+
+    -- warmup
+    let _w = bmb_black_box(serialize_person(buf, 0, "Test", 1, "X", 1));
+
+    let t0 = time_ns();
+    let total = run_benchmark(buf, arr, 10000, 0, 0);
+    let t1 = time_ns();
+    let elapsed_us = (t1 - t0) / 1000;
+
+    let _f1 = free(arr);
+    let _f2 = free(buf);
+
+    let _r = println(total);
+    let _e = println(elapsed_us);
+    0
+};
