@@ -1,4 +1,4 @@
-// brainfuck — in-process timing harness (Cycle 2918)
+// brainfuck — in-process timing harness (Cycle 2942: @inline bracket finders)
 // Uses compute_only program (no '.' output) for noise-free measurement.
 // interpret_check returns tape[0] as checksum (no stdout side-effects).
 // Output: checksum, elapsed_us
@@ -15,7 +15,7 @@ fn get_char(prog: String, pos: i64) -> i64 =
     if pos >= prog.len() { 0 }
     else { prog.byte_at(pos) };
 
-fn find_matching_close(prog: String, start_pc: i64) -> i64 = {
+@inline fn find_matching_close(prog: String, start_pc: i64) -> i64 = {
     let mut pc: i64 = start_pc + 1;
     let mut depth: i64 = 1;
     while depth > 0 { {
@@ -27,7 +27,7 @@ fn find_matching_close(prog: String, start_pc: i64) -> i64 = {
     pc - 1
 };
 
-fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
+@inline fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
     let mut pc: i64 = start_pc - 1;
     let mut depth: i64 = 1;
     while depth > 0 { {
@@ -40,7 +40,7 @@ fn find_matching_open(prog: String, start_pc: i64) -> i64 = {
 };
 
 -- Silent interpreter: returns tape[0] as checksum, no stdout output
-fn interpret_check(prog: String) -> i64 = {
+@inline fn interpret_check(prog: String) -> i64 = {
     let tape = tape_new();
     let prog_len = prog.len();
     let ts = tape_size();
