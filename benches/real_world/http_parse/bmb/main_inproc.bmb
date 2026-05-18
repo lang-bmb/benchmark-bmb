@@ -1,127 +1,91 @@
-// http_parse — in-process timing harness (Cycle 2924: optimized)
-// Pre-allocate 5 request strings before timed loop (eliminates 50000 allocations/run).
-// bmb_black_box(result) per iteration prevents LLVM CSE.
+// http_parse — in-process timing harness (Cycle 2931: flat compound-cond)
+// Single flat function per request (like csv_parse v2).
+// str_data() called inside function so the arg is a proper String param (not literal).
 // Output: checksum, elapsed_us
 
-@inline fn is_ws(c: i64) -> i64 = if c == 32 or c == 9 { 1 } else { 0 };
-@inline fn is_digit(c: i64) -> i64 = if c >= 48 and c <= 57 { 1 } else { 0 };
-@inline fn to_lower(c: i64) -> i64 = if c >= 65 and c <= 90 { c + 32 } else { c };
+@inline fn tol(c: i64) -> i64 = if c >= 65 and c <= 90 { c + 32 } else { c };
 
-fn skip_ws(s: String, pos: i64) -> i64 = {
-    let mut p = pos;
-    let len = s.len();
-    while p < len {
-        if is_ws(s.byte_at(p)) == 1 { p = p + 1 } else { break }
+-- Check "content-length" (14 chars) case-insensitively at ptr+pos
+@inline fn is_content_length(ptr: i64, pos: i64) -> i64 =
+    if tol(load_u8(ptr+pos)) == 99 and
+       tol(load_u8(ptr+pos+1)) == 111 and
+       tol(load_u8(ptr+pos+2)) == 110 and
+       tol(load_u8(ptr+pos+3)) == 116 and
+       tol(load_u8(ptr+pos+4)) == 101 and
+       tol(load_u8(ptr+pos+5)) == 110 and
+       tol(load_u8(ptr+pos+6)) == 116 and
+       load_u8(ptr+pos+7) == 45 and
+       tol(load_u8(ptr+pos+8)) == 108 and
+       tol(load_u8(ptr+pos+9)) == 101 and
+       tol(load_u8(ptr+pos+10)) == 110 and
+       tol(load_u8(ptr+pos+11)) == 103 and
+       tol(load_u8(ptr+pos+12)) == 116 and
+       tol(load_u8(ptr+pos+13)) == 104
+    { 1 } else { 0 };
+
+-- data: String parameter (str_data works correctly on function params)
+-- @inline: force inlining to eliminate per-request call overhead (like C's inlined parse_request)
+@inline fn parse_http_flat(data: String) -> i64 = {
+    let len = data.len();
+    let ptr = str_data(data);
+
+    -- Skip request line
+    let mut pos: i64 = 0;
+    while pos < len and load_u8(ptr + pos) != 10 and load_u8(ptr + pos) != 13 {
+        pos = pos + 1
     };
-    p
-};
+    if pos < len and load_u8(ptr + pos) == 13 { pos = pos + 1 } else { () };
+    if pos < len and load_u8(ptr + pos) == 10 { pos = pos + 1 } else { () };
 
-fn find_char(s: String, pos: i64, c: i64) -> i64 = {
-    let mut p = pos;
-    let len = s.len();
-    while p < len {
-        if s.byte_at(p) == c { break } else { p = p + 1 }
-    };
-    p
-};
-
-fn find_eol(s: String, pos: i64) -> i64 = {
-    let mut p = pos;
-    let len = s.len();
-    while p < len {
-        let c = s.byte_at(p);
-        if c == 10 or c == 13 { break } else { p = p + 1 }
-    };
-    p
-};
-
-@inline
-fn skip_eol(s: String, pos: i64) -> i64 = {
-    let len = s.len();
-    let p1 = if pos < len and s.byte_at(pos) == 13 { pos + 1 } else { pos };
-    if p1 < len and s.byte_at(p1) == 10 { p1 + 1 } else { p1 }
-};
-
-fn str_eq(s: String, pos: i64, m: String) -> i64 = {
-    let mlen = m.len();
-    let slen = s.len();
-    let mut idx: i64 = 0;
-    let mut result = 1;
-    while idx < mlen {
-        if pos + idx >= slen { result = 0; break }
-        else if to_lower(s.byte_at(pos + idx)) != to_lower(m.byte_at(idx)) { result = 0; break }
-        else { idx = idx + 1 }
-    };
-    result
-};
-
-fn parse_method(s: String, pos: i64) -> i64 =
-    if str_eq(s, pos, "GET") == 1 { 0 }
-    else if str_eq(s, pos, "POST") == 1 { 1 }
-    else if str_eq(s, pos, "PUT") == 1 { 2 }
-    else if str_eq(s, pos, "DELETE") == 1 { 3 }
-    else if str_eq(s, pos, "HEAD") == 1 { 4 }
-    else { 9 };
-
-fn parse_int(s: String, pos: i64, end: i64) -> i64 = {
-    let mut p = pos;
-    let mut acc: i64 = 0;
-    while p < end {
-        let c = s.byte_at(p);
-        if is_digit(c) == 1 { acc = acc * 10 + c - 48; p = p + 1 }
-        else { break }
-    };
-    acc
-};
-
-fn parse_request_line(s: String, pos: i64) -> i64 = {
-    let method = parse_method(s, pos);
-    let p1 = find_char(s, pos, 32);
-    let p2 = skip_ws(s, p1);
-    let path_start = p2;
-    let p3 = find_char(s, p2, 32);
-    let path_len = p3 - path_start;
-    let p4 = skip_ws(s, p3);
-    let version_minor = if p4 + 7 < s.len() and s.byte_at(p4 + 6) == 46 {
-        s.byte_at(p4 + 7) - 48
-    } else { 1 };
-    let eol = find_eol(s, p4);
-    let next_pos = skip_eol(s, eol);
-    method * 10000000 + path_len * 10000 + version_minor * 100 + (next_pos - pos)
-};
-
-fn parse_headers(s: String, pos: i64) -> i64 = {
-    let len = s.len();
-    let mut p = pos;
+    -- Parse headers
     let mut header_count: i64 = 0;
     let mut content_length: i64 = 0;
-    let mut done = 0;
-    while p < len and done == 0 {
-        let line_start = p;
-        let eol = find_eol(s, p);
+
+    while pos < len {
+        let line_start = pos;
+
+        -- Find end of this line
+        let mut eol = pos;
+        while eol < len and load_u8(ptr + eol) != 10 and load_u8(ptr + eol) != 13 {
+            eol = eol + 1
+        };
+
         if eol == line_start {
-            done = 1
+            pos = len
         } else {
-            let colon_pos = find_char(s, p, 58);
-            if colon_pos < eol {
-                let name_len = colon_pos - p;
-                let val_start = skip_ws(s, colon_pos + 1);
-                if name_len == 14 and str_eq(s, p, "content-length") == 1 {
-                    content_length = parse_int(s, val_start, eol)
-                } else { () };
-                ()
+            -- Find colon
+            let mut colon = pos;
+            while colon < eol and load_u8(ptr + colon) != 58 {
+                colon = colon + 1
+            };
+
+            if colon < eol {
+                let name_len = colon - pos;
+                if name_len == 14 and is_content_length(ptr, pos) == 1 {
+                    -- Skip whitespace after colon
+                    let mut val_start = colon + 1;
+                    while val_start < eol and (load_u8(ptr + val_start) == 32 or load_u8(ptr + val_start) == 9) {
+                        val_start = val_start + 1
+                    };
+                    -- Parse integer
+                    let mut p = val_start;
+                    let mut acc: i64 = 0;
+                    while p < eol and load_u8(ptr + p) >= 48 and load_u8(ptr + p) <= 57 {
+                        acc = acc * 10 + load_u8(ptr + p) - 48;
+                        p = p + 1
+                    };
+                    content_length = acc
+                } else { () }
             } else { () };
+
             header_count = header_count + 1;
-            p = skip_eol(s, eol)
+            pos = eol;
+            if pos < len and load_u8(ptr + pos) == 13 { pos = pos + 1 } else { () };
+            if pos < len and load_u8(ptr + pos) == 10 { pos = pos + 1 } else { () }
         }
     };
-    header_count * 1000000 + content_length
-};
 
-fn parse_request(s: String) -> i64 = {
-    let req_line = parse_request_line(s, 0);
-    let pos_offset = req_line % 100;
-    parse_headers(s, pos_offset)
+    header_count * 1000000 + content_length
 };
 
 fn request1() -> String =
@@ -135,13 +99,12 @@ fn request4() -> String =
 fn request5() -> String =
     "GET /static/style.css HTTP/1.1\r\nHost: cdn.example.com\r\nAccept: text/css\r\nCache-Control: max-age=3600\r\n\r\n";
 
--- Pre-allocated versions: takes pre-created strings as args (no allocation per iter)
-fn parse_all_pre(r1: String, r2: String, r3: String, r4: String, r5: String) -> i64 = {
-    let v1 = parse_request(r1);
-    let v2 = parse_request(r2);
-    let v3 = parse_request(r3);
-    let v4 = parse_request(r4);
-    let v5 = parse_request(r5);
+fn parse_all_flat(r1: String, r2: String, r3: String, r4: String, r5: String) -> i64 = {
+    let v1 = parse_http_flat(r1);
+    let v2 = parse_http_flat(r2);
+    let v3 = parse_http_flat(r3);
+    let v4 = parse_http_flat(r4);
+    let v5 = parse_http_flat(r5);
     let h = (v1 / 1000000) + (v2 / 1000000) + (v3 / 1000000) +
             (v4 / 1000000) + (v5 / 1000000);
     let c = (v1 % 1000000) + (v2 % 1000000) + (v3 % 1000000) +
@@ -152,7 +115,7 @@ fn parse_all_pre(r1: String, r2: String, r3: String, r4: String, r5: String) -> 
 fn run_benchmark(r1: String, r2: String, r3: String, r4: String, r5: String, iters: i64, acc: i64, i: i64) -> i64 =
     if i >= iters { acc }
     else {
-        let result = parse_all_pre(r1, r2, r3, r4, r5);
+        let result = parse_all_flat(r1, r2, r3, r4, r5);
         run_benchmark(r1, r2, r3, r4, r5, iters, acc + bmb_black_box(result), i + 1)
     };
 
@@ -164,7 +127,7 @@ fn main() -> i64 = {
     let r5 = request5();
 
     -- warmup
-    let _w = bmb_black_box(parse_all_pre(r1, r2, r3, r4, r5));
+    let _w = bmb_black_box(parse_all_flat(r1, r2, r3, r4, r5));
 
     let t0 = time_ns();
     let total = run_benchmark(r1, r2, r3, r4, r5, 10000, 0, 0);
